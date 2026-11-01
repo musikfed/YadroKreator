@@ -55,6 +55,15 @@ class DashboardTests(unittest.TestCase):
                                   headers={"X-PegineLab-Action":"1"})
         self.assertEqual(result.status_code, 400)
 
+    def test_branch_allowlist_and_default_source(self):
+        result = self.client.post("/api/jobs",
+                                  json={"profile": "t23n_sd", "branch": "../outside"},
+                                  headers={"X-PegineLab-Action": "1"})
+        self.assertEqual(result.status_code, 400)
+        overview = self.client.get("/api/overview")
+        self.assertEqual(overview.json["allowed_branches"],
+                         ["mymarrchWFcam", "main"])
+
     def test_dashboard_no_login(self):
         result = self.client.get("/")
         self.assertEqual(result.status_code, 200)
