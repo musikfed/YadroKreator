@@ -52,6 +52,16 @@
       </section>
       <section data-panel="builds" class="panel" hidden>
         <div class="page-heading"><div><small>BUILD CONTROL CENTER</small><h1>Управление сборками</h1><p>Запуск независимых задач через systemd. Можно закрывать браузер и SSH.</p></div><button id="newBuild" class="primary">▶ Новая сборка</button></div>
+        <div class="surface" style="margin-bottom:20px;padding:18px">
+          <div class="surface-head"><div><small>GITHUB → HUANANZHI → BUILD</small><h3>Исходники из GitHub без копирования</h3></div></div>
+          <p>При запуске станция сама получает выбранную ветку GitHub, сохраняет точный SHA и собирает отдельный SD-кандидат. Без автоматической прошивки камеры.</p>
+          <label for="sourceBranch">Ветка исходников WIFICAM</label>
+          <select id="sourceBranch" style="max-width:380px;padding:10px;background:#171d2a;color:#e6eefc;border:1px solid #465066;border-radius:8px">
+            <option value="mymarrchWFcam" selected>mymarrchWFcam — текущие наработки</option>
+            <option value="main">main — объединённая ветка</option>
+          </select>
+          <p class="muted">Источник: github.com/musikfed/wificam_T23N · загрузка по Git непосредственно на сервере · PUBLISH=0</p>
+        </div>
         <div class="build-layout"><div class="surface"><div class="surface-head"><div><small>SQLITE HISTORY</small><h3>Очередь и история</h3></div><span class="count" id="buildCount">0</span></div><div id="jobsList" class="jobs-list"><p class="empty">Сборок пока нет</p></div></div>
           <div class="surface log-surface"><div class="surface-head"><div><small>LIVE BUILD OUTPUT</small><h3 id="logTitle">Консоль сборки</h3></div><button id="stopBuild" class="danger" disabled>■ Остановить</button></div>
             <div class="log-toolbar"><span class="led"></span><span id="logState">Выберите задачу</span><button id="clearView" class="text-btn">Очистить экран</button></div><pre id="log" class="terminal">PegineLab Firmware Factory
