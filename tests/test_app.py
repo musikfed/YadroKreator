@@ -31,6 +31,21 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("metrics", overview.json)
         self.assertEqual(overview.json["jobs"], [])
 
+    def test_candidate_image_appears_separately_from_baseline(self):
+        image = Path(self.tmp.name) / "projects/wificam_T23N/out/candidate-sd/thingino-t23-sd.bin"
+        image.parent.mkdir(parents=True, exist_ok=True)
+        image.write_bytes(b"candidate-test")
+        try:
+            response = self.client.get("/api/overview")
+            self.assertEqual(response.status_code, 200)
+            matches = [item for item in response.json["images"]
+                       if item["location"] == str(image)]
+            self.assertEqual(len(matches), 1)
+            self.assertIn("кандидат", matches[0]["label"].lower())
+            self.assertEqual(matches[0]["bytes"], len(b"candidate-test"))
+        finally:
+            image.unlink()
+
     def test_mutation_header_blocks_csrf(self):
         result = self.client.post("/api/jobs", json={"profile":"t23n_sd"})
         self.assertEqual(result.status_code, 403)
