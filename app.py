@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from flask import Flask, jsonify, render_template, request
 from core import ROOT, DATA, LOGS, PROJECT, THINGINO, ACTIVE, connect, get_job, now, record_status
+from git_sources import BRANCHES, workspace_for, validate_branch
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -99,8 +100,32 @@ def overview():
                     sha = candidate[0]
             images.append(dict(label=label, name=path.name, bytes=path.stat().st_size,
                                sha256=sha, location=str(path)))
+    # Each detached Git worktree has its own candidate image, tagged by the
+    # exact source commit. Do not confuse these with the 0.1_test baseline.
+    for job in jobs:
+        source = workspace_for(job["id"])
+        for candidate in (
+            source / "out/private-sd/thingino-t23-sd.bin",
+            source / "out/candidate-sd/thingino-t23-sd.bin",
+            source / "Thingino/thingino-t23-sd.bin",
+        ):
+            if not candidate.is_file():
+                continue
+            checksum = candidate.with_name(candidate.name + ".sha256")
+            digest = ""
+            if checksum.is_file():
+                token = checksum.read_text(errors="replace").split()
+                if token and re.fullmatch("[0-9a-fA-F]{64}", token[0]):
+                    digest = token[0]
+            images.append(dict(
+                label="Git-сборка " + job["repo_ref"] + "@" + (job["source_sha"][:12] or "?") +
+                      " — НЕ проверена на камере",
+                name=candidate.name, bytes=candidate.stat().st_size,
+                sha256=digest, location=str(candidate), job_id=job["id"],
+            ))
+            break
     return jsonify(
-        jobs=jobs, images=images,
+        jobs=jobs, images=images, allowed_branches=list(BRANCHES),
         metrics=dict(load_1=round(os.getloadavg()[0], 2),
                      load_5=round(os.getloadavg()[1], 2), cpus=os.cpu_count(),
                      memory_total=meminfo.get("MemTotal", 0),
@@ -115,8 +140,12 @@ def start_job():
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or data.get("profile") != "t23n_sd":
         return jsonify(error="Unsupported build profile"), 400
-    if not (PROJECT / ".git").exists() or not (THINGINO / ".git").is_dir():
-        return jsonify(error="Missing WIFICAM or Thingino checkout"), 409
+    try:
+        repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"))
+    except ValueError:
+        return jsonify(error="Unsupported WIFICAM branch"), 400
+    if not (THINGINO / ".git").is_dir():
+        return jsonify(error="Missing pinned Thingino checkout"), 409
     # Refuse to race with the earlier manually launched system-level build unit.
     for scope in (["systemctl"], ["systemctl", "--user"]):
         try:
@@ -135,8 +164,8 @@ def start_job():
         if busy:
             db.rollback()
             return jsonify(error="Сборка уже выполняется", job_id=busy["id"]), 409
-        db.execute("INSERT INTO jobs (id,profile,status,created_at,unit,log_path) VALUES (?,?,?,?,?,?)",
-                   (job_id, "t23n_sd", "queued", now(), unit, str(LOGS / (job_id + ".log"))))
+        db.execute("INSERT INTO jobs (id,profile,status,created_at,unit,log_path,repo_ref) VALUES (?,?,?,?,?,?,?)",
+                   (job_id, "t23n_sd", "queued", now(), unit, str(LOGS / (job_id + ".log")), repo_ref))
         db.commit()
     finally:
         db.close()
@@ -156,7 +185,7 @@ def start_job():
     except (OSError, subprocess.TimeoutExpired) as exc:
         record_status(job_id, "failed", details=str(exc))
         return jsonify(error="Cannot start systemd-run", job_id=job_id), 500
-    return jsonify(ok=True, job_id=job_id), 201
+    return jsonify(ok=True, job_id=job_id, branch=repo_ref), 201
 
 @app.post("/api/jobs/<job_id>/stop")
 def stop_job(job_id):
