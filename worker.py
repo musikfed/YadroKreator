@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""One systemd transient service per job; survives browser and SSH disconnects."""
+"""Run each source-pinned firmware build inside its own systemd user unit."""
 from __future__ import annotations
 import os
 import signal
 import subprocess
 import sys
 from pathlib import Path
-from core import ROOT, PROJECT, THINGINO, LOGS, get_job, record_status, now
+
+from core import ROOT, PROJECT, THINGINO, LOGS, get_job, record_status, record_source_sha, now
+from git_sources import checkout_source
+
 
 def main(job_id: str) -> int:
     job = get_job(job_id)
@@ -15,6 +18,10 @@ def main(job_id: str) -> int:
     log_path = LOGS / (job_id + ".log")
     stopped = False
     proc = None
+
+    def current_process(child):
+        nonlocal proc
+        proc = child
 
     def terminate(_sig, _frame):
         nonlocal stopped
@@ -42,24 +49,28 @@ def main(job_id: str) -> int:
         log.write(("\n=== PegineLab T23N build " + now() + " ===\n").encode())
         try:
             record_status(job_id, "running")
-            if not (PROJECT / "scripts/build_thingino_wificam_image.sh").is_file():
-                raise RuntimeError("WIFICAM build script not found")
             if not (THINGINO / ".git").is_dir():
                 raise RuntimeError("Thingino checkout not found on ext4")
+            source, sha = checkout_source(job["repo_ref"], job_id, log, on_process=current_process)
+            record_source_sha(job_id, sha)
+            if stopped:
+                raise RuntimeError("Build stopped during source fetch")
+            if not (source / "scripts/build_thingino_wificam_image.sh").is_file():
+                raise RuntimeError("WIFICAM build script missing in pinned Git revision")
+            log.write(f"WIFICAM source = {job['repo_ref']} @ {sha}\n".encode())
+            log.write(b"PUBLISH=0: candidate stays local; no Git push or SD flashing.\n")
             proc = subprocess.Popen(
                 ["/bin/sh", "scripts/build_thingino_wificam_image.sh"],
-                cwd=PROJECT, env=env, stdout=log, stderr=subprocess.STDOUT
+                cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT,
             )
             code = proc.wait()
         except Exception as exc:
             log.write(("BUILD ERROR: " + str(exc) + "\n").encode())
-        if stopped:
-            status = "stopped"
-        else:
-            status = "success" if code == 0 else "failed"
-        log.write((f"=== BUILD_EXIT={code} STATUS={status} ===\n").encode())
+        status = "stopped" if stopped else ("success" if code == 0 else "failed")
+        log.write(f"=== BUILD_EXIT={code} STATUS={status} ===\n".encode())
     record_status(job_id, status, exit_code=code)
-    return code if not stopped else 143
+    return 143 if stopped else code
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 or len(sys.argv[1]) != 32:
