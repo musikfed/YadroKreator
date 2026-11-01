@@ -45,6 +45,7 @@ function jobItem(job,compact=false) {
   const left=element("div","job-main");
   left.append(element("strong","",job.profile==="t23n_sd"?"WIFICAM · T23N SD":"Firmware"));
   left.append(element("small","",date(job.created_at)+" · "+job.id.slice(0,8)));
+  if(job.repo_ref)left.append(element("small","",job.repo_ref+" · "+(job.source_sha?job.source_sha.slice(0,12):"Git fetch pending")));
   item.append(left,statusPill(job.status));
   item.addEventListener("click",()=>select(job.id));
   return item;
@@ -76,6 +77,9 @@ function renderJobs() {
 }
 function renderOverview(data) {
   overview=data;renderJobs();
+  if(Array.isArray(data.allowed_branches)){
+    for(const option of $("sourceBranch").options)option.disabled=!data.allowed_branches.includes(option.value);
+  }
   const m=data.metrics;
   metric("load","loadBar","loadInfo",m.load_1.toFixed(2),m.load_1,m.cpus||32,"1 мин · "+m.cpus+" логических CPU");
   metric("memory","memBar","memInfo",size(m.memory_used),m.memory_used,m.memory_total,"из "+size(m.memory_total));
@@ -127,9 +131,10 @@ async function refreshLog() {
   finally {refreshedLog=false;}
 }
 async function start() {
-  if(!confirm("Запустить чистую сборку WIFICAM T23N? Персональный Wi-Fi-образ останется только на сервере."))return;
+  const branch=$("sourceBranch").value;
+  if(!confirm("Получить "+branch+" напрямую с GitHub и собрать из точного коммита? Новый образ останется на сервере, камера не прошивается."))return;
   try {
-    const r=await api("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:"t23n_sd"})});
+    const r=await api("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:"t23n_sd",branch})});
     toast("Сборка запущена независимо от SSH");selected=r.job_id;offset=0;$("log").textContent="";location.hash="builds";setTab();await refresh();
   }catch(e){toast(e.message);}
 }
