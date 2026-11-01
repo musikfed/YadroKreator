@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>PegineLab · Firmware Factory</title>
+<link rel="stylesheet" href="/static/app.css">
+<script defer src="/static/app.js"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">P<span>✦</span></div><div><strong>PegineLab</strong><small>FIRMWARE FACTORY</small></div></div>
+    <div class="sidebar-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+    <nav aria-label="Навигация">
+      <a class="nav active" href="#overview" data-tab="overview"><span>◈</span> Обзор</a>
+      <a class="nav" href="#builds" data-tab="builds"><span>⌘</span> Сборки <i id="navBuildCount">0</i></a>
+      <a class="nav" href="#artifacts" data-tab="artifacts"><span>▣</span> Артефакты</a>
+      <a class="nav" href="#system" data-tab="system"><span>◉</span> Система</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="core-badge"><span class="led"></span><div><strong>CORE · .100</strong><small>VPN / LAN · без веб-пароля</small></div></div>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="bread">PegineLab <span>/</span> <strong id="pageName">Обзор</strong></div>
+      <div class="top-actions"><span class="chip"><span class="led"></span><span id="connection">VPN / LAN</span></span><span class="top-time" id="clock">—</span></div>
+    </header>
+    <div class="content">
+      <section data-panel="overview" class="panel">
+        <div class="eyebrow">PRIVATE BUILD INFRASTRUCTURE <span class="line"></span> EST. 2026</div>
+        <div class="hero"><div><h1>Создавай. <em>Собирай.</em><br>Управляй.</h1><p>Твоя собственная лаборатория прошивок и Linux-ядер на Huananzhi X79. Каждая сборка под контролем.</p>
+          <div class="hero-actions"><button id="heroBuild" class="primary"><span>▶</span> Новая сборка T23N</button><a class="secondary" href="#builds">Открыть журнал ↗</a></div>
+        </div><div class="hero-art"><div class="orb"><div class="orb-inner">P<span>✦</span></div></div><div class="art-caption">NATIVE BUILD ENGINE <span>01 / 01</span></div></div></div>
+        <div class="section-heading"><div><small>ЖИВЫЕ ПОКАЗАТЕЛИ</small><h2>Состояние станции</h2></div><span class="muted">Обновляется автоматически</span></div>
+        <div class="metrics">
+          <div class="metric"><div class="metric-top"><span>НАГРУЗКА · 1 МИН</span><b>◉</b></div><div class="metric-value" id="load">—</div><div class="meter"><div id="loadBar"></div></div><small id="loadInfo">из 32 логических CPU</small></div>
+          <div class="metric"><div class="metric-top"><span>ОПЕРАТИВНАЯ ПАМЯТЬ</span><b>▤</b></div><div class="metric-value" id="memory">—</div><div class="meter"><div id="memBar"></div></div><small id="memInfo">Использование RAM</small></div>
+          <div class="metric"><div class="metric-top"><span>NVME · /1TBDISK</span><b>▥</b></div><div class="metric-value" id="disk">—</div><div class="meter"><div id="diskBar"></div></div><small id="diskInfo">Диск сборок</small></div>
+          <div class="metric"><div class="metric-top"><span>СБОРКИ</span><b>⌘</b></div><div class="metric-value" id="jobsNumber">0</div><div class="metric-footer" id="currentStatus">Нет активных задач</div></div>
+        </div>
+        <div class="dashboard-bottom"><div class="surface">
+            <div class="surface-head"><div><small>ПРОФИЛИ СБОРКИ</small><h3>Доступные проекты</h3></div><span class="count">01</span></div>
+            <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · Ingenic MIPS · MMC/SD · SC2336</small><span class="tag">ПОДДЕРЖИВАЕТСЯ</span></div><button class="round-btn" id="profileBuild" title="Собрать">↗</button></div>
+            <div class="profile future"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Linux Kernel Lab</strong><small>ARM · MIPS · RISC-V · новые профили</small><span class="tag neutral">В ПЛАНАХ</span></div><span>+</span></div>
+          </div><div class="surface">
+            <div class="surface-head"><div><small>ПОСЛЕДНИЕ СОБЫТИЯ</small><h3>История запусков</h3></div><a class="small-link" href="#builds">Все сборки ↗</a></div>
+            <div id="recentJobs" class="recent-list"><p class="empty">История пока пуста</p></div>
+          </div></div>
+      </section>
+      <section data-panel="builds" class="panel" hidden>
+        <div class="page-heading"><div><small>BUILD CONTROL CENTER</small><h1>Управление сборками</h1><p>Запуск независимых задач через systemd. Можно закрывать браузер и SSH.</p></div><button id="newBuild" class="primary">▶ Новая сборка</button></div>
+        <div class="build-layout"><div class="surface"><div class="surface-head"><div><small>SQLITE HISTORY</small><h3>Очередь и история</h3></div><span class="count" id="buildCount">0</span></div><div id="jobsList" class="jobs-list"><p class="empty">Сборок пока нет</p></div></div>
+          <div class="surface log-surface"><div class="surface-head"><div><small>LIVE BUILD OUTPUT</small><h3 id="logTitle">Консоль сборки</h3></div><button id="stopBuild" class="danger" disabled>■ Остановить</button></div>
+            <div class="log-toolbar"><span class="led"></span><span id="logState">Выберите задачу</span><button id="clearView" class="text-btn">Очистить экран</button></div><pre id="log" class="terminal">PegineLab Firmware Factory
+─────────────────────────────────
+Здесь появится журнал компиляции.
+</pre><div class="terminal-footer"><span>LOGS / SQLITE / SYSTEMD</span><span id="logBytes">0 B</span></div>
+          </div></div>
+      </section>
+      <section data-panel="artifacts" class="panel" hidden>
+        <div class="page-heading"><div><small>BUILD OUTPUT</small><h1>Артефакты</h1><p>Готовые образы, размеры и SHA256. Приватные Wi-Fi-образы не публикуются.</p></div></div>
+        <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
+        <div class="hint">⌁ Скачивание приватных образов через веб-интерфейс отключено. Для переноса на Acer используйте SCP по SSH.</div>
+      </section>
+      <section data-panel="system" class="panel" hidden>
+        <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
+        <div class="system-grid"><div class="surface"><div class="surface-head"><div><small>HOST MACHINE</small><h3>CORE · Huananzhi X79</h3></div><span class="tag">UBUNTU 24.04</span></div><div class="system-rows"><div><span>Веб-порт</span><b>192.168.0.100:62404 / VPN-LAN</b></div><div><span>Исполнение</span><b>systemd user services</b></div><div><span>База данных</span><b>SQLite · WAL</b></div><div><span>Web server</span><b>Waitress · Flask / Python venv</b></div><div><span>Сборка</span><b>Native ext4 / без Docker</b></div><div><span>Ограничение</span><b>CPU 0–15 · nice 10</b></div></div></div>
+          <div class="surface"><div class="surface-head"><div><small>WORKSPACE PATHS</small><h3>Каталоги</h3></div></div><div class="paths"><p><span>Корень станции</span><code id="pathRoot">—</code></p><p><span>WIFICAM</span><code id="pathProject">—</code></p><p><span>Thingino</span><code id="pathThingino">—</code></p></div></div>
+        </div>
+      </section>
+    </div>
+    <footer class="footer"><span>© PegineLab · Firmware Factory</span><span>PRIVATE INFRASTRUCTURE <span class="footer-separator">·</span> BUILD WITH PURPOSE</span></footer>
+  </main>
+</div>
+<div id="toast" class="toast" role="status"></div>
+</body>
+</html>

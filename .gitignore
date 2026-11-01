@@ -1,0 +1,18 @@
+# Python dashboard and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+# Host-local state, logs, builds and embedded Wi-Fi credentials
+factory-state/
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.log
+out/
+build/
+local/wifi.env
