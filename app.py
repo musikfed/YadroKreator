@@ -86,8 +86,9 @@ def overview():
     disk = shutil.disk_usage(ROOT)
     images = []
     for label, path in (
-        ("Персональный SD-образ", PROJECT / "out/private-sd/thingino-t23-sd.bin"),
-        ("Публичный эталон", PROJECT / "Thingino/thingino-t23-sd.bin"),
+        ("Новый SD-кандидат (не проверен на камере)", PROJECT / "out/candidate-sd/thingino-t23-sd.bin"),
+        ("Персональный SD-кандидат (не проверен)", PROJECT / "out/private-sd/thingino-t23-sd.bin"),
+        ("Эталон 0.1_test (проверен SD boot, UI с ошибками)", PROJECT / "Thingino/thingino-t23-sd.bin"),
     ):
         if path.is_file():
             checksum = path.with_name(path.name + ".sha256")

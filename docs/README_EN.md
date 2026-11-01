@@ -4,6 +4,10 @@
 
 **Owner-specific access:** http://192.168.0.100:62404/ over the already established VPN / trusted LAN. The owner requests **no web password and no SSH tunnel**. The chosen internal IP is *not* itself an access control mechanism. Anyone who can reach that IP and port can operate builds. For general installations, allow access only through the VPN/firewall, or add an authenticated HTTPS reverse proxy. Never forward TCP 62404 to the public Internet. This repository does not modify any VPN or firewall configuration.
 
+## Verified SD baseline and unverified candidates
+
+The tracked `wificam_T23N/Thingino/thingino-t23-sd.bin` (`0.1_test`) is a hardware-booted **SD baseline**, NOT a working final camera Web UI build. Camera-side fixes in `main` still require a new build and hardware testing. YadroKreator runs `PUBLISH=0`: non-private builds go to `out/candidate-sd/`, locally personalized Wi-Fi builds go to `out/private-sd/`. All three image locations are listed separately; the tracked verified SD baseline is not overwritten by an ordinary build.
+
 ## Check local address and port
 
 ```bash
