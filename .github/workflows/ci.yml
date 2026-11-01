@@ -22,6 +22,6 @@ jobs:
       - name: SQLite and Flask API tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Python syntax
-        run: python -m compileall -q app.py core.py worker.py tests
+        run: python -m compileall -q app.py core.py worker.py git_sources.py tests
       - name: Installer shell syntax
-        run: bash -n install.sh
+        run: bash -n install.sh bootstrap.sh deploy.sh setup-update-timer.sh

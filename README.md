@@ -22,6 +22,13 @@
 - При локальном `local/wifi.env` Wi-Fi ключ встроен в `out/private-sd/thingino-t23-sd.bin`; такие образы не публикуются.
 - Панель показывает наличие и SHA256 всех трёх вариантов отдельно. Новый SD image нельзя автоматически объявлять релизом.
 
+## Git-подгрузка и деплой без копипаста
+
+YadroKreator напрямую загружает `musikfed/wificam_T23N` из GitHub для каждой сборки и закрепляет source SHA в отдельном Git worktree. В веб-панели выберите `mymarrchWFcam` либо `main`; `PUBLISH=0` не заменяет аппаратный эталон `0.1_test`. Саму панель обновляет `deploy.sh`, а `bootstrap.sh` выполняет первичную настройку Huananzhi. Опциональный systemd timer включается явно.
+
+- [Настройка и обновление из Git / RU](docs/GIT_DEPLOY_RU.md)
+- [Git source and deployment / EN](docs/GIT_DEPLOY_EN.md)
+
 ## Документация
 
 - [Русская инструкция](docs/README_RU.md)

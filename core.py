@@ -36,8 +36,16 @@ def connect() -> sqlite3.Connection:
         exit_code INTEGER,
         unit TEXT NOT NULL,
         log_path TEXT NOT NULL,
+        repo_ref TEXT NOT NULL DEFAULT 'mymarrchWFcam',
+        source_sha TEXT NOT NULL DEFAULT '',
         details TEXT NOT NULL DEFAULT ''
     )""")
+    # Migrate existing factory-state DB in place, keeping all past jobs.
+    columns = {row["name"] for row in db.execute("PRAGMA table_info(jobs)")}
+    if "repo_ref" not in columns:
+        db.execute("ALTER TABLE jobs ADD COLUMN repo_ref TEXT NOT NULL DEFAULT 'mymarrchWFcam'")
+    if "source_sha" not in columns:
+        db.execute("ALTER TABLE jobs ADD COLUMN source_sha TEXT NOT NULL DEFAULT ''")
     db.commit()
     return db
 
@@ -61,5 +69,14 @@ def get_job(job_id: str) -> dict | None:
     try:
         row = db.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         return dict(row) if row else None
+    finally:
+        db.close()
+
+
+def record_source_sha(job_id: str, sha: str) -> None:
+    db = connect()
+    try:
+        db.execute("UPDATE jobs SET source_sha=? WHERE id=?", (sha, job_id))
+        db.commit()
     finally:
         db.close()

@@ -4,3 +4,6 @@
 @media(max-width:1200px){.metrics{grid-template-columns:repeat(2,1fr)}.hero-art{width:200px}.orb{width:150px;height:150px}.orb-inner{font-size:55px}.dashboard-bottom{grid-template-columns:1fr}}
 @media(max-width:800px){.sidebar{width:75px;padding:18px 8px}.brand{padding:0 5px 45px}.brand>div:nth-child(2),.sidebar-label,.nav i,.sidebar-bottom,.nav{font-size:0}.nav{justify-content:center;padding:14px}.nav span{font-size:23px}.main{width:calc(100% - 75px)}.topbar{padding:0 20px}.content{padding:28px 20px}.hero-art{display:none}.build-layout,.system-grid{grid-template-columns:1fr}.footer{padding:20px}.page-heading{flex-wrap:wrap}}
 @media(max-width:530px){.metrics{grid-template-columns:1fr}.hero h1{font-size:36px}.hero{min-height:220px}.page-heading h1{font-size:30px}.top-time{display:none}.footer span:last-child{display:none}.metric{min-height:120px}.terminal{height:350px}}
+
+/* Explicit, allowlisted Git source selector. */
+.source-select {max-width:380px;width:100%;padding:10px;background:#171d2a;color:#e6eefc;border:1px solid #465066;border-radius:8px;margin:8px 0;}

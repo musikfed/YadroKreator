@@ -8,6 +8,8 @@
 
 The tracked `wificam_T23N/Thingino/thingino-t23-sd.bin` (`0.1_test`) is a hardware-booted **SD baseline**, NOT a working final camera Web UI build. Camera-side fixes in `main` still require a new build and hardware testing. YadroKreator runs `PUBLISH=0`: non-private builds go to `out/candidate-sd/`, locally personalized Wi-Fi builds go to `out/private-sd/`. All three image locations are listed separately; the tracked verified SD baseline is not overwritten by an ordinary build.
 
+**New Git workflow:** [Source-pinned builds and Git deployments](GIT_DEPLOY_EN.md). Select `mymarrchWFcam` or `main` in the dashboard; each build fetches GitHub into a separate detached SHA-pinned worktree, never switching the old WIFICAM checkout.
+
 ## Check local address and port
 
 ```bash
