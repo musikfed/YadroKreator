@@ -7,12 +7,13 @@ import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_file
 from core import ROOT, DATA, LOGS, PROJECT, THINGINO, ACTIVE, connect, get_job, now, record_status
 from git_sources import BRANCHES, workspace_for, validate_branch
 from update_manager import view as update_view, start as start_update, finish as finish_update
 from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
+from download_access import consume as consume_download_ticket
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -281,6 +282,41 @@ def job_layout(job_id):
     from flask import Response
     return Response(layout_svg(result), mimetype="image/svg+xml",
                     headers={"Content-Disposition": "inline; filename=t23n-layout.svg"})
+
+
+@app.post("/api/jobs/<job_id>/download")
+def download_sd_image(job_id):
+    """Download a verified job image using a one-use token issued over SSH.
+
+    The UI has no login. DO NOT change this to a public GET or give out
+    private Wi-Fi firmware using only the job ID or a URL query parameter.
+    """
+    job = safe_job(job_id)
+    if not job or job.get("status") != "success":
+        return jsonify(error="Successful build required"), 404
+    report = saved_report(job, ROOT, DATA)
+    if not report or report.get("verified") is not True:
+        return jsonify(error="Run image preflight before download"), 409
+    token = request.headers.get("X-PegineLab-Download-Token", "")
+    if not consume_download_ticket(job_id, token):
+        return jsonify(error="One-time download token missing, expired or used"), 403
+    try:
+        path = artifact_path(job, ROOT)
+        # Rehash at the time of download, not just when the button was enabled.
+        checked = validate_t23n(path)
+        if checked["sha256"] != report.get("sha256"):
+            raise ValueError("Validated SHA differs from current SD image")
+        # Stream an already validated file, not a client-supplied path.
+        stream = path.open("rb")
+    except (ValueError, OSError, FileNotFoundError, IndexError) as exc:
+        return jsonify(error=str(exc)), 422
+    # Same bytes as .bin, friendly extension for Etcher/Rufus on Windows.
+    response = send_file(stream, mimetype="application/octet-stream",
+                         as_attachment=True,
+                         download_name="WIFICAM_T23N_" + job_id[:8] + ".img")
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @app.post("/api/jobs/<job_id>/stop")
