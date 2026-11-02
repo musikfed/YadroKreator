@@ -31,6 +31,62 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("metrics", overview.json)
         self.assertEqual(overview.json["jobs"], [])
 
+    def test_panel_service_status_reads_only_dashboard_unit(self):
+        from unittest.mock import patch
+        import app as webmodule
+        with patch.object(webmodule, "panel_service_status",
+                          return_value={"state": "active", "message": "systemd --user"}):
+            result = self.client.get("/api/panel/service")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json["state"], "active")
+
+    def test_panel_service_requires_trusted_lan_header_and_confirmation(self):
+        from unittest.mock import patch
+        import app as webmodule
+        url = "/api/panel/service/stop"
+        self.assertEqual(self.client.post(url).status_code, 403)
+        with patch.object(webmodule, "panel_service_status",
+                          return_value={"state": "active"}), \
+             patch.object(webmodule, "update_view", return_value={"phase": "success"}):
+            self.assertEqual(self.client.post(url, headers={"X-PegineLab-Action":"1"},
+                environ_overrides={"REMOTE_ADDR":"8.8.8.8"},
+                json={"confirm":"STOP"}).status_code, 403)
+            self.assertEqual(self.client.post(url, headers={
+                "X-PegineLab-Action":"1", "Origin":"https://evil.invalid"},
+                json={"confirm":"STOP"}).status_code, 403)
+            self.assertEqual(self.client.post(url, headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"nonsense"}).status_code, 400)
+        self.assertEqual(self.client.post("/api/panel/service/exec",
+            headers={"X-PegineLab-Action":"1"}).status_code, 404)
+
+    def test_restart_panel_in_independent_unit_and_no_machine_shutdown(self):
+        from unittest.mock import patch
+        from subprocess import CompletedProcess
+        import app as webmodule
+        with patch.object(webmodule, "panel_service_status", return_value={"state":"active"}), \
+             patch.object(webmodule, "update_view", return_value={"phase":"success"}), \
+             patch.object(webmodule.subprocess, "run",
+                          return_value=CompletedProcess([],0,"","")) as run:
+            r = self.client.post("/api/panel/service/restart",
+                headers={"X-PegineLab-Action":"1"}, json={"confirm":"RESTART"})
+        self.assertEqual(r.status_code, 202)
+        argv=run.call_args.args[0]
+        self.assertEqual(argv[0], "systemd-run")
+        self.assertIn("--user", argv)
+        self.assertIn("peginelab-factory.service", argv[-1])
+        self.assertNotIn("reboot", argv[-1])
+        self.assertNotIn("docker", argv[-1])
+        self.assertNotIn("peginelab-t23n", argv[-1])
+
+    def test_panel_stop_rejected_during_update(self):
+        from unittest.mock import patch
+        import app as webmodule
+        with patch.object(webmodule, "panel_service_status", return_value={"state":"active"}), \
+             patch.object(webmodule, "update_view", return_value={"phase":"running"}):
+            r=self.client.post("/api/panel/service/stop",
+                headers={"X-PegineLab-Action":"1"}, json={"confirm":"STOP"})
+        self.assertEqual(r.status_code, 409)
+
     def test_candidate_image_appears_separately_from_baseline(self):
         image = Path(self.tmp.name) / "projects/wificam_T23N/out/candidate-sd/thingino-t23-sd.bin"
         image.parent.mkdir(parents=True, exist_ok=True)

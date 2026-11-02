@@ -6,6 +6,23 @@
 
 Проект полностью отделён от исходников камеры `wificam_T23N`. Веб-интерфейс, SQLite, systemd-управление, документация и макеты принадлежат этому репозиторию. WIFICAM — лишь первый внешний профиль сборки.
 
+## Запуск и остановка веб-панели / Start and stop the dashboard
+
+**Huananzhi Ubuntu:** `bash start.sh` запускает только `peginelab-factory.service`,
+`bash stop.sh` останавливает только веб-панель, команда
+`bash scripts/project-control.sh status` показывает её состояние.
+Сборки в отдельных `peginelab-build-*` unit **не отменяются** остановкой панели;
+для них есть собственная кнопка остановки в разделе «Сборки».
+
+**Windows PowerShell:** `.\start.ps1` / `.\stop.ps1` управляют той же
+службой Ubuntu по SSH `user@192.168.0.100`; Windows не запускает вторую
+копию сервера. Пароль вводится OpenSSH при необходимости.
+
+Полная инструкция: [RU](docs/PROJECT_CONTROL_RU.md) ·
+[EN](docs/PROJECT_CONTROL_EN.md). После остановки сайт на порту 62404
+**не сможет включить себя сам**: для повторного старта нужен терминал или
+PowerShell SSH.
+
 ## Первый профиль / First build target
 
 - **WIFICAM T23N**: внешний checkout `musikfed/wificam_T23N` и Thingino на том же Linux-хосте.

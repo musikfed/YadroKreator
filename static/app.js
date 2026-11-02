@@ -8,6 +8,8 @@ let selected = null, offset = 0, loading = false, overview = null, refreshedLog 
 let logInitial = true, logFinalized = false, logFullRequested = false;
 let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
 let updateHadActive = false, updateAutoReloaded = false;
+let panelServiceState = null, panelActionBusy = false, panelReconnect = false, panelReconnectAfter = 0;
+
 const date = (iso) => iso ? new Date(iso).toLocaleString("ru-RU") : "—";
 // Stopwatch from persisted timestamps; build prediction is approximate only.
 const clockDuration = (s) => {
@@ -92,6 +94,7 @@ function renderJobs() {
   renderBuildTimeline(selectedJob);
   $("validateBuild").disabled=!selectedJob || selectedJob.status!=="success";
   renderSavedValidation(selectedJob);
+  if(panelServiceState)renderPanelService(panelServiceState);
 }
 function renderOverview(data) {
   overview=data;renderJobs();
@@ -334,6 +337,7 @@ function renderUpdate(data) {
   $("applyUpdate").disabled=isBusy || buildBusy || !data.update_available;
   $("rollbackUpdate").disabled=isBusy || buildBusy || !data.rollback_available;
   if(overview)renderJobs();
+  if(panelServiceState)renderPanelService(panelServiceState);
   if(isBusy && ["apply","rollback"].includes(data.action))updateHadActive=true;
   // Wait for recorded success (not merely HEAD changing), then reload once
   // to replace stale JS/CSS after Waitress has come back online.
@@ -378,6 +382,70 @@ async function updateAction(action) {
     await refreshUpdate();
   }catch(e){toast(e.message);}
 }
+function renderPanelService(data) {
+  panelServiceState=data;
+  const running=data.state==="active";
+  const readable={active:"● Работает",inactive:"■ Остановлена",failed:"Ошибка службы",
+    activating:"Запускается",deactivating:"Останавливается",
+    reloading:"Перезапуск",unknown:"Не удалось проверить"};
+  for(const id of ["panelServiceStatus","systemServiceStatus"]){
+    $(id).textContent=readable[data.state] || readable.unknown;
+  }
+  for(const id of ["panelServiceMessage","systemServiceMessage"]){
+    $(id).textContent=panelReconnect?"Перезапуск: ждём восстановления страницы…":
+      data.message || "Управление системной службой Huananzhi";
+  }
+  const busy=panelActionBusy || ["queued","running"].includes(updateState?.phase);
+  const activeBuild=!!(overview?.jobs||[]).find(j=>active.has(j.status));
+  ["panelStart","systemStart"].forEach(id=>$(id).disabled=true);
+  ["panelRestart","systemRestart"].forEach(id=>$(id).disabled=!running||busy);
+  ["panelStop","systemStop"].forEach(id=>$(id).disabled=!running||busy||activeBuild);
+}
+async function refreshPanelService() {
+  try {
+    const state=await api("/api/panel/service");
+    renderPanelService(state);
+    if(panelReconnect && Date.now()>=panelReconnectAfter && state.state==="active"){
+      panelReconnect=false;
+      window.location.reload();
+    }
+  }catch(e){
+    if(panelReconnect) {
+      ["panelServiceMessage","systemServiceMessage"].forEach(id=>$(id).textContent=
+        "Перезапуск службы. Соединение временно недоступно…");
+    }else {
+      renderPanelService({state:"unknown",message:"Статус недоступен: "+e.message});
+    }
+  }
+}
+async function panelServiceAction(action) {
+  if(panelActionBusy)return;
+  const text=action==="stop"?
+    "Выключить ТОЛЬКО веб-панель YadroKreator :62404? После этого кнопки исчезнут: включить снова можно через SSH / bash start.sh. Сборки и Ubuntu не выключаются.":
+    "Перезапустить ТОЛЬКО веб-панель :62404? Браузер временно потеряет связь, сборки останутся отдельно.";
+  if(!confirm(text))return;
+  panelActionBusy=true;
+  if(panelServiceState)renderPanelService(panelServiceState);
+  try {
+    await api("/api/panel/service/"+action,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({confirm:action.toUpperCase()})
+    });
+    if(action==="stop"){
+      ["panelServiceMessage","systemServiceMessage"].forEach(id=>
+        $(id).textContent="Остановка заказана. Для запуска: SSH на Huananzhi → bash start.sh");
+      toast("Веб-панель выключается; восстановление только через SSH");
+    }else{
+      panelReconnect=true;
+      panelReconnectAfter=Date.now()+3500;
+      toast("Перезапускаем панель. Восстановление страницы автоматически…");
+    }
+  }catch(e){toast("Действие не выполнено: "+e.message);}
+  finally {
+    panelActionBusy=false;
+    if(!panelReconnect && panelServiceState)renderPanelService(panelServiceState);
+  }
+}
 async function start() {
   const branch=$("sourceBranch").value;
   if(!confirm("Получить "+branch+" напрямую с GitHub и собрать из точного коммита? Новый образ останется на сервере, камера не прошивается."))return;
@@ -400,6 +468,10 @@ async function init() {
   $("checkUpdate").addEventListener("click",()=>updateAction("check"));
   $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
   $("rollbackUpdate").addEventListener("click",()=>updateAction("rollback"));
+  ["panelRestart","systemRestart"].forEach(id=>$(id).addEventListener("click",()=>panelServiceAction("restart")));
+  ["panelStop","systemStop"].forEach(id=>$(id).addEventListener("click",()=>panelServiceAction("stop")));
+  $("systemRefresh").addEventListener("click",refreshPanelService);
+
   $("clearView").addEventListener("click",()=>{
     offset=0; logInitial=true;logFinalized=false;logFullRequested=false;
     $("log").textContent="";refreshLog();
@@ -412,8 +484,10 @@ async function init() {
   });
   await refresh();
   await refreshUpdate(true);
+  await refreshPanelService();
   setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();},2500);
   setInterval(()=>refreshUpdate(true),15000);
+  setInterval(refreshPanelService,15000);
   setInterval(()=>$text("clock",new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})),15000);
   window.addEventListener("focus",refresh);
 }

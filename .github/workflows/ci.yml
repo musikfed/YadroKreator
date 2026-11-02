@@ -30,4 +30,4 @@ jobs:
       - name: Recovery helper shell syntax
         run: bash -n scripts/recover_dashboard_update.sh
       - name: Installer shell syntax
-        run: bash -n install.sh bootstrap.sh deploy.sh setup-update-timer.sh
+        run: bash -n install.sh bootstrap.sh deploy.sh setup-update-timer.sh start.sh stop.sh scripts/project-control.sh
