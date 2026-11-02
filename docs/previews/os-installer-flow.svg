@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1250 515" role="img" aria-label="Two-stage USB OS installer and destination SSD workflow">
+<rect width="1250" height="515" rx="24" fill="#0d1626"/>
+<text x="48" y="58" fill="#e8f3ff" font-size="29" font-family="sans-serif" font-weight="bold">Обычная ОС на ПК · ISO → загрузочный USB → SSD</text>
+<text x="48" y="94" fill="#9db2cb" font-size="17" font-family="sans-serif">Это не тот же сценарий, что raw-прошивка SD для Ingenic T23N.</text>
+<rect x="48" y="149" width="290" height="216" rx="16" fill="#203551" stroke="#93b4ff"/>
+<rect x="474" y="149" width="290" height="216" rx="16" fill="#1e434e" stroke="#65d6c1"/>
+<rect x="900" y="149" width="300" height="216" rx="16" fill="#273a55" stroke="#93b4ff"/>
+<g fill="#e9f5ff" font-family="sans-serif" text-anchor="middle" font-weight="bold" font-size="24"><text x="193" y="209">Windows / Linux</text><text x="619" y="209">Установочная USB</text><text x="1050" y="209">Целевой SSD</text></g>
+<g fill="#b7d0ee" font-family="sans-serif" text-anchor="middle" font-size="18"><text x="193" y="253">Официальный ISO</text><text x="193" y="285">Проверить SHA256</text><text x="619" y="253">Rufus / Etcher*</text><text x="619" y="285">Boot menu UEFI/BIOS</text><text x="1050" y="253">Выбор в установщике</text><text x="1050" y="285">Разделы и файловая система</text></g>
+<g stroke="#69d6c6" stroke-width="3" fill="none"><path d="M341 258H469m-12 -9 12 9 -12 9M767 258H895m-12 -9 12 9 -12 9"/></g>
+<text x="50" y="417" fill="#e9bd83" font-family="sans-serif" font-size="19">Предупреждение: все данные на выбранной USB-флешке будут удалены.</text>
+<text x="50" y="451" fill="#e9bd83" font-family="sans-serif" font-size="19">SSD с ОС форматируйте только после выбора внутри установщика и резервной копии.</text>
+<text x="50" y="480" fill="#9bb6d3" font-family="sans-serif" font-size="14">*Windows ISO: предпочтителен Rufus / официальный инструмент Microsoft. Linux hybrid ISO: Rufus, Etcher либо GNOME Disks.</text>
+</svg>
