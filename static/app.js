@@ -436,7 +436,7 @@ async function panelServiceAction(action) {
     });
     if(action==="stop-all"){
       ["panelServiceMessage","systemServiceMessage"].forEach(id=>
-        $(id).textContent="Полная остановка проекта запланирована. Для запуска: SSH на Huananzhi → bash start.sh";
+        $(id).textContent="Полная остановка проекта запланирована. Для запуска: SSH на Huananzhi → bash start.sh");
       toast("Все задачи YadroKreator выключаются; восстановление через SSH");
     }else{
       panelReconnect=true;
