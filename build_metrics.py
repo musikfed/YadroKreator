@@ -22,14 +22,16 @@ def seconds_between(a: str | None, b: str | None) -> int | None:
 
 def decorate_jobs(jobs: list[dict], *, current: str | None = None) -> None:
     now = current or datetime.now(timezone.utc).isoformat(timespec="seconds")
-    # Only finished successful jobs supply an ETA; failed/aborted builds are
-    # not representative. Never show a fixed fake progress percentage.
+    # First pass fills durations for every job, even older rows that occur
+    # later in newest-first SQLite order.
     for job in jobs:
         started = job.get("started_at")
         finished = job.get("finished_at")
         active = job.get("status") in ("queued", "running", "stopping")
         job["elapsed_seconds"] = seconds_between(started, now if active else finished)
         job["duration_seconds"] = seconds_between(started, finished)
+    # Second pass uses finished durations from the full dataset.
+    for job in jobs:
         sample = [
             prev["duration_seconds"] for prev in jobs
             if prev["id"] != job["id"] and
