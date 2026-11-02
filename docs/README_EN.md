@@ -12,6 +12,10 @@ The tracked `wificam_T23N/Thingino/thingino-t23-sd.bin` (`0.1_test`) is a hardwa
 
 The **System** page now provides GitHub update notifications, Check, Update and Roll Back controls. No unattended installation: explicit confirmation is required, and an active firmware build blocks changes. See the [Git deploy/rollback guide](GIT_DEPLOY_EN.md).
 
+## Image preflight, build ETA and firmware layout graph
+
+Builds display start/end, elapsed time and historical same-branch ETA. Progress is a time-based estimate, not measured compiler work. For a successful `t23n_sd` job, **Check SD image before writing** validates real bytes: SHA256, T23N LBA34, FAT16/uImage and ext4, then provides a dynamically generated SVG layout. It does not write SD or test hardware. See [preflight](PREFLIGHT_EN.md), [architecture](ARCHITECTURE_EN.md), [editing/release](MODIFY_RELEASE_EN.md).
+
 ## Check local address and port
 
 ```bash
