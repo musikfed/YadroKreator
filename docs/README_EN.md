@@ -16,6 +16,10 @@ The **System** page now provides GitHub update notifications, Check, Update and 
 
 Builds display start/end, elapsed time and historical same-branch ETA. Progress is a time-based estimate, not measured compiler work. For a successful `t23n_sd` job, **Check SD image before writing** validates real bytes: SHA256, T23N LBA34, FAT16/uImage and ext4, then provides a dynamically generated SVG layout. It does not write SD or test hardware. See [preflight](PREFLIGHT_EN.md), [architecture](ARCHITECTURE_EN.md), [editing/release](MODIFY_RELEASE_EN.md).
 
+## Step-by-step updates and protected SD image downloads
+
+The System tab displays persistent Git fetch, checkout, dependencies, tests, restart and done stages; after a successful restart the browser reloads and previous successful SHA rollback remains available. After image preflight, the Artifacts tab offers a one-time SSH-ticket-protected .img download. See [SD download and flashing guide](SD_DOWNLOAD_EN.md).
+
 ## Check local address and port
 
 ```bash
