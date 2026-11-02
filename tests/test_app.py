@@ -46,6 +46,55 @@ class DashboardTests(unittest.TestCase):
         finally:
             image.unlink()
 
+    def test_old_tracked_image_is_not_a_new_build_artifact(self):
+        # The mymarrchWFcam Git tree already includes a previous .bin.
+        # Fetching its worktree must not make it look newly compiled.
+        import core
+        job_id = "d" * 32
+        image = (Path(self.tmp.name) / "build/jobs" / job_id /
+                 "wificam_T23N/Thingino/thingino-t23-sd.bin")
+        image.parent.mkdir(parents=True, exist_ok=True)
+        image.write_bytes(b"historical-bin-in-git")
+        db = core.connect()
+        try:
+            db.execute("INSERT INTO jobs "
+                       "(id,profile,status,created_at,unit,log_path,repo_ref,source_sha) "
+                       "VALUES (?,?,?,?,?,?,?,?)",
+                       (job_id, "t23n_sd", "running", core.now(),
+                        "unit-test", "log-test", "mymarrchWFcam", "a" * 40))
+            db.commit()
+        finally:
+            db.close()
+        try:
+            for state in ("running", "failed", "stopped", "interrupted"):
+                db = core.connect()
+                try:
+                    db.execute("UPDATE jobs SET status=? WHERE id=?", (state, job_id))
+                    db.commit()
+                finally:
+                    db.close()
+                data = self.client.get("/api/overview").json
+                self.assertFalse(any(i["location"] == str(image)
+                                     for i in data["images"]), state)
+            db = core.connect()
+            try:
+                db.execute("UPDATE jobs SET status='success' WHERE id=?", (job_id,))
+                db.commit()
+            finally:
+                db.close()
+            data = self.client.get("/api/overview").json
+            images = [i for i in data["images"] if i["location"] == str(image)]
+            self.assertEqual(len(images), 1)
+            self.assertEqual(images[0]["job_id"], job_id)
+        finally:
+            db = core.connect()
+            try:
+                db.execute("DELETE FROM jobs WHERE id=?", (job_id,))
+                db.commit()
+            finally:
+                db.close()
+            image.unlink()
+
     def test_mutation_header_blocks_csrf(self):
         result = self.client.post("/api/jobs", json={"profile":"t23n_sd"})
         self.assertEqual(result.status_code, 403)
