@@ -351,6 +351,19 @@ def job_log(job_id):
     if not path.is_file():
         return jsonify(text="", offset=0, status=j["status"])
     size = path.stat().st_size
+    # Refreshing a page must not replay 10+ MB of historical compiler output.
+    # Explicit tail mode returns the last 64 KiB and jumps to EOF; further
+    # requests can then follow NEW output only if the job is still running.
+    tail = request.args.get("tail") == "1"
+    if tail:
+        offset = max(0, size - 65536)
+        with path.open("rb") as handle:
+            handle.seek(offset)
+            chunk = handle.read(65536)
+            next_offset = handle.tell()
+        return jsonify(text=chunk.decode("utf-8", errors="replace"),
+                       offset=next_offset, more=False, status=j["status"],
+                       archive=j["status"] not in ACTIVE, truncated=offset > 0)
     if offset > size:
         offset = 0
     with path.open("rb") as handle:
