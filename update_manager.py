@@ -104,20 +104,31 @@ def log_tail(operation: str, limit: int = 6000) -> str:
         return ""
 
 
-def run(cmd: list[str], timeout: int = 90) -> str:
-    # systemd-run has no guarantee of a checkout working directory. Run
-    # tests from the active repo so local Python modules import correctly.
+def run(cmd: list[str], timeout: int = 90, *, stream: bool = False) -> str:
+    """Git commands capture stdout; slow installer steps stream to private log.
+
+    A backend restart cannot erase log output because it is on disk, and
+    '/api/update' can display its tail without reading the kernel-build log.
+    """
+    operation = _CURRENT_OP.get()
+    if stream and operation:
+        path = _log_file(operation)
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with path.open("ab") as output:
+            os.chmod(path, 0o600)
+            output.write(("[" + stamp() + "] Start installer step\n").encode())
+            output.flush()
+            result = subprocess.run(cmd, stdout=output, stderr=subprocess.STDOUT,
+                                    cwd=str(APP), timeout=timeout)
+        if result.returncode:
+            raise RuntimeError(log_tail(operation, 1600) or "Installer step failed")
+        return ""
     result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout,
                             cwd=str(APP))
-    operation = _CURRENT_OP.get()
-    # Only tool output from known updater subprocesses; the UI never receives
-    # private build worktree logs or local/wifi.env.
     output = (result.stdout + "\n" + result.stderr).strip()
     if output and operation:
         append_log(operation, output[-7000:])
     if result.returncode:
-        # The old updater returned the FIRST 350 chars of unittest output,
-        # obscuring the actual traceback at the END.
         raise RuntimeError((result.stderr or result.stdout).strip()[-1600:]
                            or "Updater command failed")
     return result.stdout.strip()
@@ -282,11 +293,11 @@ def verify_and_restart(operation: str = "") -> None:
     if operation:
         mark_step(operation, "dependencies", "Установка зависимостей Python")
     run([py, "-m", "pip", "install", "--disable-pip-version-check",
-         "-r", str(APP / "requirements.txt")], timeout=240)
+         "-r", str(APP / "requirements.txt")], timeout=240, stream=True)
     if operation:
         mark_step(operation, "tests", "Проверяем Python, JavaScript и тесты проекта")
     run([py, "-m", "unittest", "discover", "-s", str(APP / "tests"),
-         "-p", "test_*.py", "-v"], timeout=180)
+         "-p", "test_*.py", "-v"], timeout=180, stream=True)
     run([py, "-m", "compileall", "-q", str(APP / "app.py"),
          str(APP / "core.py"), str(APP / "worker.py"),
          str(APP / "git_sources.py"), str(APP / "artifact_checks.py"),
