@@ -51,6 +51,12 @@ YadroKreator напрямую загружает `musikfed/wificam_T23N` из Gi
 - [Скачать и записать SD / RU](docs/SD_DOWNLOAD_RU.md)
 - [Secure firmware download and flashing / EN](docs/SD_DOWNLOAD_EN.md)
 
+## Раздельные журналы / Separate updater and firmware logs
+
+- **Система → Журнал обновления самой панели:** этапы GitHub/deps/tests/restart, отдельный `factory-state/update-logs/<operation>.log`, ошибки с концом traceback; никакого вывода компиляции Thingino.
+- **Сборки → Консоль сборки:** журнал WIFICAM/ядра. При обновлении страницы завершённого задания отображаются **последние 64 КиБ архива**, а не имитация новой компиляции. Полный журнал открывается по явной кнопке «Показать полный архив».
+- Если старая панель не обновляется (и новый графический индикатор ещё не появился), есть [SSH-инструкция восстановления](docs/UPDATER_RECOVERY_RU.md) без изменения прошивки, SD или SQLite.
+
 ## Документация
 
 - [Русская инструкция](docs/README_RU.md)
