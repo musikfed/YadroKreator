@@ -141,7 +141,7 @@ def panel_service_action(action):
     SSH wrapper is the out-of-band recovery path. Avoid creating a remote
     code-execution API: the command and unit name are hardcoded.
     """
-    if action not in ("restart", "stop"):
+    if action not in ("restart", "stop", "stop-all"):
         return jsonify(error="Unsupported panel action"), 404
     # Dashboard has no login: privileged lifecycle needs same trusted LAN
     # peer/origin restrictions as exporting a private Wi-Fi SD image.
@@ -154,8 +154,10 @@ def panel_service_action(action):
     if current != "active":
         return jsonify(error="Служба не активна; запустите её через SSH: bash start.sh"), 409
     update = update_view()
-    if update.get("phase") in ("queued", "running"):
-        return jsonify(error="Операция GitHub/update уже идёт; дождитесь завершения"), 409
+    if update.get("phase") in ("queued", "running") and (
+        action != "stop-all" or update.get("action") in ("apply", "rollback")
+    ):
+        return jsonify(error="Обновление кода YadroKreator ещё выполняется; завершите его перед остановкой"), 409
     if action == "stop":
         reconcile()
         db = connect()
@@ -167,15 +169,37 @@ def panel_service_action(action):
             db.close()
         if busy:
             return jsonify(error="Сначала завершите или остановите сборку во вкладке «Сборки»"), 409
-    # A separate systemd transient unit survives the dashboard service
-    # restart/stop. Give the HTTP response time to reach the browser.
-    command = [
-        "systemd-run", "--user", "--collect",
-        "--unit=peginelab-panel-" + action + "-" + uuid.uuid4().hex[:12],
-        "--description=YadroKreator dashboard " + action,
-        "/bin/sh", "-c",
-        "sleep 2; exec systemctl --user " + action + " " + PANEL_UNIT,
-    ]
+    if action == "stop-all":
+        # A running build may be cancelled ONLY after an extra explicit
+        # confirmation. This is a project shutdown, unlike legacy 'stop'.
+        reconcile()
+        db = connect()
+        try:
+            build_busy = db.execute(
+                "SELECT 1 FROM jobs WHERE status IN ('queued','running','stopping') LIMIT 1"
+            ).fetchone() is not None
+        finally:
+            db.close()
+        if build_busy and data.get("cancel_builds") is not True:
+            return jsonify(error="Активная сборка! Подтверди её отмену отдельно."), 409
+        # Timer-based detached user unit outlives this Waitress process.
+        # Unit name deliberately isn't one of the project worker patterns.
+        command = [
+            "systemd-run", "--user", "--collect", "--on-active=3s",
+            "--unit=yadrokreator-project-stop-" + uuid.uuid4().hex[:12],
+            "--description=YadroKreator full project shutdown",
+            "/bin/bash", str(Path(__file__).parent / "scripts" / "project-control.sh"),
+            "stop",
+        ]
+    else:
+        command = [
+            "systemd-run", "--user", "--collect",
+            "--unit=peginelab-panel-" + action + "-" + uuid.uuid4().hex[:12],
+            "--description=YadroKreator dashboard " + action,
+            "/bin/sh", "-c",
+            "sleep 2; exec systemctl --user " + action + " " + PANEL_UNIT,
+        ]
+
     try:
         proc = subprocess.run(command, text=True, capture_output=True, timeout=10)
         if proc.returncode != 0:
@@ -183,8 +207,10 @@ def panel_service_action(action):
     except (OSError, subprocess.TimeoutExpired):
         return jsonify(error="Не удалось связаться с systemd"), 503
     return jsonify(ok=True, action=action,
-                   message="Служба будет перезапущена" if action == "restart"
-                   else "Служба будет остановлена; для запуска используйте bash start.sh"), 202
+                   message=("Полная остановка проекта запланирована"
+                            if action == "stop-all" else
+                            "Служба будет перезапущена" if action == "restart"
+                            else "Служба будет остановлена; для запуска используйте bash start.sh")), 202
 
 
 @app.get("/api/overview")
