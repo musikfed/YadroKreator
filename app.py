@@ -108,7 +108,7 @@ def overview():
         # cancellation, or while the compiler is still running.
         if job["status"] != "success" or not job["source_sha"]:
             continue
-        source = workspace_for(job["id"])
+        source = workspace_for(job["id"], ROOT)
         for candidate in (
             source / "out/private-sd/thingino-t23-sd.bin",
             source / "out/candidate-sd/thingino-t23-sd.bin",
