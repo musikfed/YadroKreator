@@ -47,6 +47,7 @@ video, PTZ and recovery have been tested on the actual T23N.
 cd /1tbdisk/PegineLab/projects/YadroKreator
 bash deploy.sh --check
 bash deploy.sh --apply
+bash deploy.sh --rollback  # restore previous successful dashboard version
 ```
 
 The update requires a clean `main` checkout, the expected canonical origin,
@@ -59,8 +60,7 @@ bash setup-update-timer.sh enable
 bash setup-update-timer.sh disable
 ```
 
-Auto-update is disabled by default. Only allow reviewed, CI-tested code
-onto `main` before enabling unattended update. This workflow is a code
+The timer **checks only**, never installs updates unattended. The System page shows a notification when a newer commit is found (checked every 15 minutes while the browser is open), and offers Check, Update, and Roll Back buttons. Changes run in detached systemd user units, never while firmware builds are active. Last successful pre-upgrade SHA and update status are stored in `factory-state/updates.json`. Rollback becomes available only after an upgrade using this new mechanism. Automatic fallback attempts to restore the former checkout after a deployment failure. This workflow is a code
 implementation, not evidence that the user's private server is running.
 Port 62404 must be restricted to trusted LAN/VPN clients because the UI
 has no built-in password and can launch build processes.

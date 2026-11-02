@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 const active = new Set(["queued", "running", "stopping"]);
 const labels = {queued:"В очереди",running:"Собирается",stopping:"Останавливается",success:"Готово",failed:"Ошибка",stopped:"Остановлено",interrupted:"Прервано"};
 let selected = null, offset = 0, loading = false, overview = null, refreshedLog = false;
+let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
 const date = (iso) => iso ? new Date(iso).toLocaleString("ru-RU") : "—";
 const size = (v) => !Number.isFinite(v) ? "—" : (v / 1073741824 >= 1 ? (v / 1073741824).toFixed(1) + " ГБ" : (v / 1048576).toFixed(1) + " МБ");
 const $text = (id, value) => { $(id).textContent = String(value); };
@@ -62,7 +63,7 @@ function renderJobs() {
   $text("navBuildCount",jobs.length);
   const running=jobs.find(j=>active.has(j.status));
   $text("currentStatus",running?"● "+labels[running.status]:"Нет активных задач");
-  ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).disabled=!!running);
+  ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).disabled=!!running || !!(updateState && ["queued","running"].includes(updateState.phase) && ["apply","rollback"].includes(updateState.action)));
   const recent=$("recentJobs");recent.replaceChildren();
   const list=$("jobsList");list.replaceChildren();
   if(!jobs.length){recent.append(element("p","empty","История пока пуста"));list.append(element("p","empty","Сборок пока нет"));}
@@ -130,6 +131,58 @@ async function refreshLog() {
   }catch(e){$("connection").textContent="Ошибка журнала";}
   finally {refreshedLog=false;}
 }
+function shortSha(sha) { return sha ? sha.slice(0,12) : "—"; }
+function renderUpdate(data) {
+  updateState=data;
+  const isBusy=["queued","running"].includes(data.phase);
+  const buildBusy=!!(overview?.jobs||[]).find(j=>active.has(j.status));
+  $text("updateInstalled",shortSha(data.installed_sha));
+  $text("updateRemote",shortSha(data.remote_sha));
+  $text("updatePrevious",data.rollback_sha ? shortSha(data.rollback_sha) : "Нет сохранённой");
+  $text("updateMessage",data.message || "Проверить GitHub main на наличие новой версии.");
+  let label=data.phase==="failed" ? "Ошибка обновления" :
+    isBusy ? "Выполняется: "+data.action :
+    data.update_available ? "Доступна новая версия" :
+    data.checked_at ? "Обновлений нет" : "Не проверялось";
+  $text("updateStatus",label);
+  $("updateNotice").hidden=!data.update_available;
+  $("checkUpdate").disabled=isBusy;
+  $("applyUpdate").disabled=isBusy || buildBusy || !data.update_available;
+  $("rollbackUpdate").disabled=isBusy || buildBusy || !data.rollback_available;
+  if(overview)renderJobs();
+}
+async function refreshUpdate(automatic=false) {
+  if(checkingUpdate)return;
+  checkingUpdate=true;
+  try {
+    const state=await api("/api/update");
+    renderUpdate(state);
+    const checked=state.checked_at?Date.parse(state.checked_at):0;
+    const stale=!checked || (Date.now()-checked>15*60*1000);
+    if(automatic && stale && !["queued","running"].includes(state.phase) &&
+       Date.now()-lastAutoCheck>15*60*1000) {
+      lastAutoCheck=Date.now();
+      await api("/api/update/check",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+      renderUpdate(await api("/api/update"));
+    }
+  }catch(e){
+    if(!updateState)$text("updateMessage","GitHub-проверка недоступна: "+e.message);
+  }finally{checkingUpdate=false;}
+}
+async function updateAction(action) {
+  const state=updateState||{};
+  const label=action==="check"?"Проверить новую версию на GitHub?":
+    action==="apply"?"Обновить YadroKreator? Веб-панель кратко перезапустится; историю сборок и прошивки это не затронет.":
+    "Откатить YadroKreator на предыдущую сохранённую версию? Панель перезапустится.";
+  if(action!=="check" && !confirm(label))return;
+  try {
+    await api("/api/update/"+action,{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(action==="apply"?{expected_sha:state.remote_sha}:{})});
+    toast(action==="check"?"Проверка GitHub запущена":"Операция отправлена в systemd");
+    await refreshUpdate();
+  }catch(e){toast(e.message);}
+}
 async function start() {
   const branch=$("sourceBranch").value;
   if(!confirm("Получить "+branch+" напрямую с GitHub и собрать из точного коммита? Новый образ останется на сервере, камера не прошивается."))return;
@@ -148,9 +201,14 @@ async function init() {
   setTab();window.addEventListener("hashchange",setTab);
   ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).addEventListener("click",start));
   $("stopBuild").addEventListener("click",stop);
+  $("checkUpdate").addEventListener("click",()=>updateAction("check"));
+  $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
+  $("rollbackUpdate").addEventListener("click",()=>updateAction("rollback"));
   $("clearView").addEventListener("click",()=>{offset=0;$("log").textContent="";refreshLog();});
   await refresh();
+  await refreshUpdate(true);
   setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();},2500);
+  setInterval(()=>refreshUpdate(true),15000);
   setInterval(()=>$text("clock",new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})),15000);
   window.addEventListener("focus",refresh);
 }
