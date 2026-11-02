@@ -20,6 +20,10 @@ Builds display start/end, elapsed time and historical same-branch ETA. Progress 
 
 The System tab displays persistent Git fetch, checkout, dependencies, tests, restart and done stages; after a successful restart the browser reloads and previous successful SHA rollback remains available. After image preflight, the Artifacts tab offers a one-time SSH-ticket-protected .img download. See [SD download and flashing guide](SD_DOWNLOAD_EN.md).
 
+## New: storage imaging / installer USB guide
+
+Read the [embedded SD vs PC OS installer guide](MEDIA_FLASHING_EN.md), including T23N LBA34, Raspberry Pi-style images, Rufus, balenaEtcher, Raspberry Pi Imager and GNOME Disks. [Screenshots gallery](SCREENSHOTS_RU.md) includes clearly labeled SVG reconstructions based on real user dashboard images.
+
 ## Check local address and port
 
 ```bash

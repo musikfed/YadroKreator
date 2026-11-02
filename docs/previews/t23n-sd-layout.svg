@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1260 485" role="img" aria-label="T23N SD bootloader, partitions and offsets">
+<rect width="1260" height="485" rx="24" fill="#0c1625"/>
+<text x="48" y="60" fill="#eaf5ff" font-size="31" font-family="sans-serif" font-weight="bold">T23N SD · схема полного дискового образа</text>
+<text x="48" y="90" fill="#9bb9d4" font-size="16" font-family="sans-serif">Иллюстрация проверяемого профиля WIFICAM. Размер блоков на рисунке не пропорционален секторным диапазонам.</text>
+<rect x="45" y="136" width="196" height="160" rx="12" fill="#26344a" stroke="#8297b0"/>
+<rect x="251" y="136" width="176" height="160" rx="12" fill="#244e53" stroke="#65dac2"/>
+<rect x="437" y="136" width="170" height="160" rx="12" fill="#2b5367" stroke="#65dac2"/>
+<rect x="617" y="136" width="287" height="160" rx="12" fill="#1c4256" stroke="#66d6bd"/>
+<rect x="914" y="136" width="300" height="160" rx="12" fill="#253e63" stroke="#8eaeff"/>
+<g font-family="sans-serif" fill="#f0f7ff"><text x="60" y="176" font-size="20" font-weight="bold">MBR</text><text x="265" y="176" font-size="20" font-weight="bold">MSPL / SPL</text><text x="452" y="176" font-size="20" font-weight="bold">U-Boot</text><text x="634" y="176" font-size="20" font-weight="bold">BOOT · FAT16</text><text x="930" y="176" font-size="20" font-weight="bold">ROOTFS · ext4</text></g>
+<g font-family="monospace" fill="#bdd5ef" font-size="17"><text x="60" y="215">LBA0</text><text x="265" y="215">LBA34</text><text x="452" y="215">LBA86</text><text x="634" y="215">LBA2048</text><text x="930" y="215">LBA34816</text></g>
+<g fill="#b8cde7" font-family="sans-serif" font-size="15"><text x="60" y="247">разделы</text><text x="265" y="247">4d53504c</text><text x="452" y="247">stage 2</text><text x="634" y="247">/uImage</text><text x="930" y="247">Linux + WIFICAM</text></g>
+<path d="M58 341H1191m-13 -9 13 9 -13 9" fill="none" stroke="#5bdac3" stroke-width="4"/>
+<text x="48" y="384" fill="#72e4d0" font-family="sans-serif" font-size="22" font-weight="bold">RAW WRITE → НАЧИНАТЬ С LBA0</text>
+<text x="48" y="415" fill="#efb982" font-family="sans-serif" font-size="18">Не добавлять seek=34: MSPL уже включён внутрь .bin / .img на нужном смещении.</text>
+<text x="48" y="452" fill="#9eb0ca" font-family="sans-serif" font-size="15">Проверка файла ≠ проверка SD после записи ≠ аппаратный старт камеры.</text>
+</svg>
