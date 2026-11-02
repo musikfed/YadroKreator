@@ -42,6 +42,15 @@ YadroKreator напрямую загружает `musikfed/wificam_T23N` из Gi
 - [Изменение кода и выпуск релиза / RU](docs/MODIFY_RELEASE_RU.md) · [EN](docs/MODIFY_RELEASE_EN.md)
 - [SVG: графика конвейера](docs/previews/pipeline-architecture.svg) · [Экран проверки (макет)](docs/previews/preflight-dashboard.svg)
 
+## Прогресс обновлений и скачивание SD / Update progress & secure SD export
+
+В разделе **Система** показаны этапы обновления: старт, GitHub, установка, зависимости, тесты, перезапуск и завершение. После успешного перезапуска панель обновится в браузере автоматически; доступен откат на предыдущую успешную версию.
+
+В разделе **Артефакты** после зелёной проверки T23N появится кнопка **«Скачать образ .img»**. Для персонального образа с Wi-Fi ключом требуется одноразовый код, полученный по SSH на сервере; прямое скачивание без авторизации запрещено.
+
+- [Скачать и записать SD / RU](docs/SD_DOWNLOAD_RU.md)
+- [Secure firmware download and flashing / EN](docs/SD_DOWNLOAD_EN.md)
+
 ## Документация
 
 - [Русская инструкция](docs/README_RU.md)
