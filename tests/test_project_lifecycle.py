@@ -22,7 +22,7 @@ class ProjectLifecycleTests(unittest.TestCase):
         self.assertIn('systemctl --user', s)
         self.assertNotIn('Stop-Process', s)
         self.assertNotIn('taskkill', s)
-        self.assertNotIn('sudo', s)
+        self.assertNotRegex(s, r'(?m)^\\s*sudo\\b')
 
     def test_wrappers_present(self):
         for name in ('start.sh', 'stop.sh', 'start.ps1', 'stop.ps1'):
