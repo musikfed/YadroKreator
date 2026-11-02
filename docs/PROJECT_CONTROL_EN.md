@@ -1,32 +1,53 @@
-# YadroKreator dashboard: start / stop / status
+# YadroKreator — full project stop/start/status
 
-The web dashboard is a user-systemd unit named `peginelab-factory.service`
-on the Huananzhi Ubuntu host, port 62404. Scripts here do NOT stop the
-Ubuntu machine, Docker, VPN/SSH, or separate firmware build worker units.
-
-Linux on Huananzhi (same non-root user as `install.sh`):
+The native Huananzhi deployment uses **systemd --user**, no Docker
+Compose. The old stop script stopped only the dashboard; now
+`bash stop.sh` disables/stops the entire **YadroKreator-owned**
+service set, including transient build workers, background update
+operations, the dashboard, and opt-in GitHub timer. It does not stop
+Ubuntu, systemd itself, SSH, VPN, the Docker daemon or unrelated projects.
 
 ```bash
-bash start.sh
+cd /1tbdisk/PegineLab/projects/YadroKreator
 bash stop.sh
 bash scripts/project-control.sh status
+bash start.sh
 ```
 
-Windows PowerShell (SSH key access to that Linux user required):
+`stop.sh` disables the dashboard auto-start and update timer to keep
+the project off over reboot. `start.sh` enables the dashboard, restoring
+the timer only if it was previously enabled; it does not resume cancelled
+builds or restart old containers. Completed artifacts, SQLite and logs
+are kept intact.
 
+Docker/Podman containers, **if any**, are stopped ONLY when explicitly
+labelled `com.peginelab.project=YadroKreator` or
+`com.docker.compose.project=yadrokreator`. This application normally
+installs no containers. Missing Docker permissions result in a warning;
+unlabelled/other-project containers are always untouched.
+
+A legacy **system-level** `peginelab-t23n-build.service` cannot be
+stopped from this unprivileged user script. If active, it is reported
+and requires the explicit administrator command
+`sudo systemctl stop peginelab-t23n-build.service`.
+
+`bash scripts/project-control.sh stop-panel` is the separate
+**dashboard-only** action.
+
+Windows PowerShell (SSH into Huananzhi):
 ```powershell
-.\start.ps1
 .\stop.ps1
+.\start.ps1
 .\scripts\project-control.ps1 -Action status
 ```
 
-Optional `-Server 'user@192.168.0.100'` overrides the SSH target.
-Stopping the dashboard removes the website; it cannot restart itself.
-Stop any active firmware build job **using its own job Stop button** before
-stopping the dashboard, if you actually intend to cancel that build.
-Stopping the dashboard alone does not cancel a running systemd build unit.
-No SSH passwords or tokens are stored by these scripts.
+The dashboard's **Stop entire project** button on Overview/System
+schedules this same full stop in a detached user-systemd unit.
+When a build is active, a second explicit confirmation is required.
+After full stop, the website cannot start itself: use SSH and
+`bash start.sh` to restore it. The existing separate GitHub
+updater remains unchanged: check/apply/rollback from System, not full
+STOP. Never expose dashboard port 62404 to the public Internet.
 
-## Web controls (Overview and System)
-
-The overview now shows live user-systemd service status, **Restart dashboard**, **Stop dashboard**, and a shortcut to the existing **System → Check updates → Update dashboard** workflow. Update is an actual fast-forward of the installed Git `main` checkout on Huananzhi, with tests, rollback and automatic service restart; it is not a separate unverified `git reset` route. Stop/restart POSTs require trusted LAN/VPN network access, same-origin and a custom action header. They never terminate build jobs, the host, VPN or SSH. Stopping is disabled while any build is running. The **Start (SSH)** control is intentionally disabled while the site is online: after stop the site cannot execute its own start action; use `bash start.sh` from the server or Windows SSH. Installing GitHub changes does not happen automatically after a PR merge.
+Note: arbitrary manually launched `make` processes outside the factory's
+user systemd units are intentionally out of scope.
