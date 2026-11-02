@@ -8,7 +8,7 @@ let selected = null, offset = 0, loading = false, overview = null, refreshedLog 
 let logInitial = true, logFinalized = false, logFullRequested = false;
 let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
 let updateHadActive = false, updateAutoReloaded = false;
-let panelServiceState = null, panelActionBusy = false, panelReconnect = false;
+let panelServiceState = null, panelActionBusy = false, panelReconnect = false, panelReconnectAfter = 0;
 
 const date = (iso) => iso ? new Date(iso).toLocaleString("ru-RU") : "—";
 // Stopwatch from persisted timestamps; build prediction is approximate only.
@@ -405,7 +405,7 @@ async function refreshPanelService() {
   try {
     const state=await api("/api/panel/service");
     renderPanelService(state);
-    if(panelReconnect && state.state==="active"){
+    if(panelReconnect && Date.now()>=panelReconnectAfter && state.state==="active"){
       panelReconnect=false;
       window.location.reload();
     }
@@ -437,8 +437,8 @@ async function panelServiceAction(action) {
       toast("Веб-панель выключается; восстановление только через SSH");
     }else{
       panelReconnect=true;
+      panelReconnectAfter=Date.now()+3500;
       toast("Перезапускаем панель. Восстановление страницы автоматически…");
-      await refreshPanelService();
     }
   }catch(e){toast("Действие не выполнено: "+e.message);}
   finally {
