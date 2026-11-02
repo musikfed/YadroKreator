@@ -22,6 +22,10 @@ jobs:
       - name: SQLite and Flask API tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Python syntax
-        run: python -m compileall -q app.py core.py worker.py git_sources.py update_manager.py tests
+        run: python -m compileall -q app.py core.py worker.py git_sources.py update_manager.py artifact_checks.py build_metrics.py tests
+      - name: Browser JavaScript syntax
+        run: node --check static/app.js
+      - name: Validate SVG graphics
+        run: python -c "import xml.etree.ElementTree as E; from pathlib import Path; [E.parse(x) for x in Path('docs/previews').glob('*.svg')]"
       - name: Installer shell syntax
         run: bash -n install.sh bootstrap.sh deploy.sh setup-update-timer.sh

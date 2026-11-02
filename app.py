@@ -11,6 +11,8 @@ from flask import Flask, jsonify, render_template, request
 from core import ROOT, DATA, LOGS, PROJECT, THINGINO, ACTIVE, connect, get_job, now, record_status
 from git_sources import BRANCHES, workspace_for, validate_branch
 from update_manager import view as update_view, start as start_update, finish as finish_update
+from build_metrics import decorate_jobs
+from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -112,8 +114,12 @@ def overview():
         jobs = [dict(r) for r in db.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT 40")]
     finally:
         db.close()
+    decorate_jobs(jobs)
     for j in jobs:
         j.pop("log_path", None)
+        # Validation is read from saved metadata, not re-hashing 85 MiB
+        # every 2.5 seconds when the dashboard refreshes.
+        j["validation"] = saved_report(j, ROOT, DATA) if j["status"] == "success" else None
     meminfo = {}
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -165,6 +171,7 @@ def overview():
                       " — НЕ проверена на камере",
                 name=candidate.name, bytes=candidate.stat().st_size,
                 sha256=digest, location=str(candidate), job_id=job["id"],
+                validation=j["validation"],
             ))
             break
     return jsonify(
@@ -232,6 +239,49 @@ def start_job():
         record_status(job_id, "failed", details=str(exc))
         return jsonify(error="Cannot start systemd-run", job_id=job_id), 500
     return jsonify(ok=True, job_id=job_id, branch=repo_ref), 201
+
+@app.post("/api/jobs/<job_id>/validate")
+def validate_job_image(job_id):
+    """Explicit, read-only preflight; never invokes dd or writes media."""
+    job = safe_job(job_id)
+    if job is None:
+        return jsonify(error="Job not found"), 404
+    if job["status"] != "success":
+        return jsonify(error="Only successful builds can be checked"), 409
+    if job["profile"] != "t23n_sd":
+        return jsonify(error="No structural checker for this profile"), 422
+    try:
+        image = artifact_path(job, ROOT)
+        # Reject mutable output if another build is working with the shared
+        # Thingino tree; only per-job candidate image is opened.
+        result = validate_t23n(image)
+        save_report(job_id, result, image, DATA)
+        return jsonify(result), 200
+    except (ValueError, FileNotFoundError, OSError, IndexError) as exc:
+        # A failed check must invalidate any previously saved 'passed' state.
+        # No arbitrary input path is accepted from the browser.
+        try:
+            report = DATA / "validation" / (job_id + ".json")
+            report.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return jsonify(verified=False, error=str(exc),
+                       scope="Image structure only, not hardware"), 422
+
+
+@app.get("/api/jobs/<job_id>/layout.svg")
+def job_layout(job_id):
+    """Live SVG generated from the actual validated partition geometry."""
+    job = safe_job(job_id)
+    if job is None:
+        return jsonify(error="Job not found"), 404
+    result = saved_report(job, ROOT, DATA) if job["status"] == "success" else None
+    if not result or result.get("verified") is not True:
+        return jsonify(error="Run image preflight first"), 409
+    from flask import Response
+    return Response(layout_svg(result), mimetype="image/svg+xml",
+                    headers={"Content-Disposition": "inline; filename=t23n-layout.svg"})
+
 
 @app.post("/api/jobs/<job_id>/stop")
 def stop_job(job_id):
