@@ -86,7 +86,15 @@
       <section data-panel="artifacts" class="panel" hidden>
         <div class="page-heading"><div><small>BUILD OUTPUT</small><h1>Артефакты</h1><p>Готовые образы, размеры и SHA256. Приватные Wi-Fi-образы не публикуются.</p></div></div>
         <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
-        <div class="hint">⌁ Скачивание приватных образов через веб-интерфейс отключено. Для переноса на Acer используйте SCP по SSH.</div>
+        <div class="surface sd-export-guide">
+          <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
+          <p>После успешной сборки нажми <strong>«Проверить SD»</strong>, затем <strong>«Скачать образ»</strong>. Для приватного образа с Wi-Fi потребуется одноразовый код из SSH-терминала сервера.</p>
+          <p>На Huananzhi: <code>cd /1tbdisk/PegineLab/projects/YadroKreator</code>, затем <code>python3 download_access.py issue ИДЕНТИФИКАТОР_ЗАДАНИЯ</code>. Полный ID отображается на карточке артефакта. Код действует 10 минут и используется один раз.</p>
+          <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
+          <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
+          <p><a href="https://github.com/musikfed/YadroKreator/blob/main/docs/SD_DOWNLOAD_RU.md" target="_blank" rel="noopener noreferrer">Подробная инструкция: скачать, записать, проверить и восстановить</a></p>
+        </div>
+        <div class="hint">⌁ Файлы с персональными настройками Wi-Fi нельзя раздавать по открытому HTTP без дополнительной авторизации. Кнопка загрузки использует одноразовый код, полученный через SSH.</div>
       </section>
       <section data-panel="system" class="panel" hidden>
         <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
@@ -98,6 +106,19 @@
             <p><span>Предыдущая версия для отката</span><code id="updatePrevious">Нет сохранённой</code></p>
           </div>
           <p id="updateMessage" class="muted">GitHub проверяется без установки. История заданий и прошивки остаются нетронутыми.</p>
+          <div class="update-steps" id="updateSteps" aria-label="Этапы обновления" role="list">
+            <div class="update-step" data-update-step="queued" role="listitem"><span class="step-number">1</span><span>Старт</span></div>
+            <div class="update-step" data-update-step="fetch" role="listitem"><span class="step-number">2</span><span>GitHub</span></div>
+            <div class="update-step" data-update-step="checkout" role="listitem"><span class="step-number">3</span><span>Обновление</span></div>
+            <div class="update-step" data-update-step="dependencies" role="listitem"><span class="step-number">4</span><span>Зависимости</span></div>
+            <div class="update-step" data-update-step="tests" role="listitem"><span class="step-number">5</span><span>Проверка</span></div>
+            <div class="update-step" data-update-step="restart" role="listitem"><span class="step-number">6</span><span>Перезапуск</span></div>
+            <div class="update-step" data-update-step="done" role="listitem"><span class="step-number">✓</span><span>Завершено</span></div>
+          </div>
+          <div class="update-progress-shell"><div class="update-progress-fill" id="updateProgressFill"></div></div>
+          <p id="updateProgressCaption" class="muted" aria-live="polite">Пока обновлений нет</p>
+          <p id="updateReconnect" class="muted" hidden>Перезапуск панели — восстанавливаем соединение автоматически…</p>
+          
           <div class="update-actions">
             <button id="checkUpdate" class="secondary" type="button">↻ Проверить обновления</button>
             <button id="applyUpdate" class="primary" type="button" disabled>↓ Обновить панель</button>
