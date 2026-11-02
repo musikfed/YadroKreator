@@ -17,7 +17,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from core import DATA, get_job, ROOT
-from artifact_checks import artifact_path, saved_report
+from artifact_checks import artifact_path
 
 STORE = DATA / "download-access.json"
 LOCK = DATA / "download-access.lock"
@@ -41,10 +41,10 @@ def issue(job_id: str) -> str:
     job = get_job(job_id)
     if not job or job.get("status") != "success":
         raise ValueError("No successful build for this ID")
+    # Issuing a ticket does not require a previous manual preflight;
+    # the download endpoint checks the complete image before sending it.
+    # No recompilation is ever triggered by the ticket or download.
     artifact_path(job, ROOT)
-    validated = saved_report(job, ROOT, DATA)
-    if not validated or validated.get("verified") is not True:
-        raise ValueError("Run the SD preflight verification in the panel first")
     token = secrets.token_urlsafe(32)
     record = {
         "job": job_id,
