@@ -1,24 +1,20 @@
 param(
-    [ValidateSet('start','stop','status')]
+    [ValidateSet('start','stop','status','stop-panel','start-panel')]
     [string]$Action = 'status',
     [string]$Server = 'user@192.168.0.100'
 )
 $ErrorActionPreference = 'Stop'
-# Windows operates the Ubuntu **user** systemd service remotely over SSH.
-# No PowerShell process killing or sudo; stop does not terminate build units.
+# Run the SAME strict project-scoped Linux lifecycle via SSH. No
+# Stop-Process, taskkill, sudo, service-wide Docker stop or blind kills.
 if (-not (Get-Command ssh.exe -ErrorAction SilentlyContinue)) {
-    throw "Windows OpenSSH client (ssh.exe) is required."
+    throw 'Windows OpenSSH client (ssh.exe) is required.'
 }
 if ($Server -notmatch '^[A-Za-z_][A-Za-z0-9_.-]*@[A-Za-z0-9.-]+$') {
-    throw "Expected an SSH target such as user@192.168.0.100"
+    throw 'Expected an SSH target such as user@192.168.0.100'
 }
-$remote = switch ($Action) {
-    start  { 'systemctl --user start peginelab-factory.service && systemctl --user is-active peginelab-factory.service' }
-    stop   { 'systemctl --user stop peginelab-factory.service && ! systemctl --user is-active --quiet peginelab-factory.service' }
-    status { 'systemctl --user is-active peginelab-factory.service || true' }
-}
-Write-Host "YadroKreator: $Action on $Server (Ubuntu user service only)"
+$remote = "/bin/bash /1tbdisk/PegineLab/projects/YadroKreator/scripts/project-control.sh $Action"
+Write-Host "YadroKreator: $Action on $Server"
 & ssh.exe -o ConnectTimeout=8 $Server $remote
 if ($LASTEXITCODE -ne 0) {
-    throw "SSH or systemd command failed (exit $LASTEXITCODE). Connect interactively first: ssh $Server"
+    throw "SSH or YadroKreator lifecycle failed (exit $LASTEXITCODE). Connect interactively first: ssh $Server"
 }
