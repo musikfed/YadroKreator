@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 680" role="img" aria-label="PegineLab preflight dashboard design preview">
+<rect width="1200" height="680" rx="16" fill="#0a101c"/><rect x="0" width="220" height="680" rx="12" fill="#111c2a"/>
+<text x="32" y="58" font-family="sans-serif" font-size="23" font-weight="bold" fill="#e2efff">P◆ PegineLab</text>
+<text x="32" y="91" font-family="monospace" font-size="13" fill="#60cbbc">FIRMWARE FACTORY</text>
+<g font-family="sans-serif" font-size="18" fill="#9ab4cc"><text x="32" y="181">Обзор</text><text x="32" y="240" fill="#5cd0be">Сборки</text><text x="32" y="300">Артефакты</text><text x="32" y="360">Система</text></g>
+<text x="275" y="74" font-size="30" font-family="sans-serif" fill="#f4f7ff" font-weight="bold">Сборка и проверка · T23N SD</text>
+<rect x="270" y="107" width="897" height="505" rx="17" fill="#142034" stroke="#273b50"/>
+<text x="299" y="148" fill="#5cd0be" font-size="13" font-family="monospace">LIVE BUILD OUTPUT / EXAMPLE SCREEN</text>
+<text x="299" y="189" fill="#eff7ff" font-size="24" font-family="sans-serif">Журнал · 1a383b6c</text>
+<g font-family="sans-serif" fill="#a9c3db" font-size="15"><text x="299" y="240">Начало: 02.11.2026 12:02</text><text x="620" y="240">Конец: 02.11.2026 12:41</text><text x="940" y="240">00:39:00</text></g>
+<rect x="299" y="266" width="831" height="12" rx="6" fill="#263952"/><rect x="299" y="266" width="831" height="12" rx="6" fill="#5ccbb9"/>
+<text x="299" y="309" font-size="15" font-family="sans-serif" fill="#c9e0f0">Сборка завершена · 100% (пример). ETA по истории в ходе работы.</text>
+<rect x="299" y="332" width="389" height="55" rx="11" fill="#5ccbb9"/><text x="318" y="366" font-size="17" font-family="sans-serif" fill="#062f35" font-weight="bold">✓ Проверить перед записью SD</text>
+<text x="298" y="425" font-family="sans-serif" font-size="17" fill="#b3dccc">✓ SHA256 · MBR · MSPL LBA34 · BOOT FAT16 · ROOTFS ext4</text>
+<g font-family="sans-serif" font-size="16" fill="#e3efff" text-anchor="middle">
+<rect x="299" y="454" width="150" height="100" rx="10" fill="#29405b"/><text x="374" y="505">MBR + MSPL</text><text x="374" y="530" font-size="13">LBA 0 / 34</text>
+<rect x="459" y="454" width="290" height="100" rx="10" fill="#235357"/><text x="604" y="505">BOOT / uImage</text><text x="604" y="530" font-size="13">LBA 2048</text>
+<rect x="759" y="454" width="371" height="100" rx="10" fill="#2b4263"/><text x="944" y="505">ROOTFS · WIFICAM</text><text x="944" y="530" font-size="13">LBA 34816</text></g>
+<text x="299" y="584" fill="#e1bc7d" font-family="sans-serif" font-size="13">Только пример интерфейса, не фактический скриншот Huananzhi и не аппаратный тест.</text>
+<text x="280" y="645" fill="#9fb4c8" font-size="14" font-family="sans-serif">Generated vector mockup · живые данные будут прочитаны из SQLite и выбранного SD-образа.</text>
+</svg>
