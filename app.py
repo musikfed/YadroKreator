@@ -107,6 +107,86 @@ def update_action(action):
     return jsonify(ok=True, operation=operation), 202
 
 
+# Dashboard lifecycle is separate from build job units. Never stop the
+# machine, Docker, SSH, VPN, or peginelab-t23n-* transient workers.
+PANEL_UNIT = "peginelab-factory.service"
+
+
+def panel_service_status() -> dict:
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "is-active", PANEL_UNIT],
+            text=True, capture_output=True, timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {"state": "unknown", "message": "Нет ответа systemd пользователя"}
+    state = (result.stdout or "").strip()
+    if state not in ("active", "inactive", "failed", "activating",
+                     "deactivating", "reloading"):
+        return {"state": "unknown", "message": "Не удалось определить состояние службы"}
+    return {"state": state, "message": "systemd --user / " + PANEL_UNIT}
+
+
+@app.get("/api/panel/service")
+def panel_service():
+    # Status is read-only; all changes below are LAN-restricted.
+    return jsonify(panel_service_status())
+
+
+@app.post("/api/panel/service/<action>")
+def panel_service_action(action):
+    """Schedule restart or stop OUTSIDE this Waitress process.
+
+    An offline website cannot start itself; the existing start.sh/PowerShell
+    SSH wrapper is the out-of-band recovery path. Avoid creating a remote
+    code-execution API: the command and unit name are hardcoded.
+    """
+    if action not in ("restart", "stop"):
+        return jsonify(error="Unsupported panel action"), 404
+    # Dashboard has no login: privileged lifecycle needs same trusted LAN
+    # peer/origin restrictions as exporting a private Wi-Fi SD image.
+    if not allow_private_export(request):
+        return jsonify(error="Управление панелью доступно только из доверенной LAN/VPN"), 403
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict) or data.get("confirm") != action.upper():
+        return jsonify(error="Explicit confirmation required"), 400
+    current = panel_service_status()["state"]
+    if current != "active":
+        return jsonify(error="Служба не активна; запустите её через SSH: bash start.sh"), 409
+    update = update_view()
+    if update.get("phase") in ("queued", "running"):
+        return jsonify(error="Операция GitHub/update уже идёт; дождитесь завершения"), 409
+    if action == "stop":
+        reconcile()
+        db = connect()
+        try:
+            busy = db.execute(
+                "SELECT 1 FROM jobs WHERE status IN ('queued','running','stopping') LIMIT 1"
+            ).fetchone()
+        finally:
+            db.close()
+        if busy:
+            return jsonify(error="Сначала завершите или остановите сборку во вкладке «Сборки»"), 409
+    # A separate systemd transient unit survives the dashboard service
+    # restart/stop. Give the HTTP response time to reach the browser.
+    command = [
+        "systemd-run", "--user", "--collect",
+        "--unit=peginelab-panel-" + action + "-" + uuid.uuid4().hex[:12],
+        "--description=YadroKreator dashboard " + action,
+        "/bin/sh", "-c",
+        "sleep 2; exec systemctl --user " + action + " " + PANEL_UNIT,
+    ]
+    try:
+        proc = subprocess.run(command, text=True, capture_output=True, timeout=10)
+        if proc.returncode != 0:
+            return jsonify(error="Не удалось запланировать действие systemd"), 503
+    except (OSError, subprocess.TimeoutExpired):
+        return jsonify(error="Не удалось связаться с systemd"), 503
+    return jsonify(ok=True, action=action,
+                   message="Служба будет перезапущена" if action == "restart"
+                   else "Служба будет остановлена; для запуска используйте bash start.sh"), 202
+
+
 @app.get("/api/overview")
 def overview():
     reconcile()
