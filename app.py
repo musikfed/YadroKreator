@@ -10,6 +10,7 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request
 from core import ROOT, DATA, LOGS, PROJECT, THINGINO, ACTIVE, connect, get_job, now, record_status
 from git_sources import BRANCHES, workspace_for, validate_branch
+from update_manager import view as update_view, start as start_update, finish as finish_update
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -65,6 +66,43 @@ def safe_job(job_id: str):
     if not JOB_ID.fullmatch(job_id):
         return None
     return get_job(job_id)
+
+@app.get("/api/update")
+def update_status():
+    return jsonify(update_view())
+
+
+@app.post("/api/update/<action>")
+def update_action(action):
+    if action not in ("check", "apply", "rollback"):
+        return jsonify(error="Unsupported update action"), 404
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify(error="Invalid request"), 400
+    expected = data.get("expected_sha", "") if action == "apply" else ""
+    if not isinstance(expected, str):
+        return jsonify(error="Invalid expected SHA"), 400
+    try:
+        operation = start_update(action, expected)["operation"]
+    except (ValueError, RuntimeError, OSError) as exc:
+        return jsonify(error=str(exc)), 409
+    unit = "peginelab-factory-update-" + operation
+    command = [
+        "systemd-run", "--user", "--collect", "--unit=" + unit,
+        "--description=YadroKreator Git update " + action,
+        "--setenv=PEGINELAB_HOME=" + str(ROOT),
+        os.sys.executable, str(Path(__file__).with_name("update_manager.py")),
+        operation,
+    ]
+    try:
+        proc = subprocess.run(command, text=True, capture_output=True, timeout=15)
+        if proc.returncode:
+            raise RuntimeError((proc.stderr or proc.stdout).strip()[:200])
+    except (OSError, subprocess.TimeoutExpired, RuntimeError) as exc:
+        finish_update(operation, "failed", "Cannot launch update: " + str(exc))
+        return jsonify(error="Could not start update service"), 503
+    return jsonify(ok=True, operation=operation), 202
+
 
 @app.get("/api/overview")
 def overview():
@@ -159,6 +197,9 @@ def start_job():
                 return jsonify(error="Legacy PegineLab build is running; stop/check it before starting here"), 409
         except (OSError, subprocess.TimeoutExpired):
             return jsonify(error="Cannot verify legacy build status"), 503
+    update = update_view()
+    if update.get("phase") in ("queued", "running") and update.get("action") in ("apply", "rollback"):
+        return jsonify(error="Dashboard update is in progress"), 409
     reconcile()
     job_id = uuid.uuid4().hex
     unit = "peginelab-t23n-" + job_id
