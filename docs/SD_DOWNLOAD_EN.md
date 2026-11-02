@@ -1,6 +1,6 @@
 # Download and write a verified T23N whole-disk SD image
 
-The YadroKreator **Artifacts** panel offers a **Download .img** button for successful jobs only after the **Check SD image** preflight passes (SHA256/MBR/MSPL at LBA34/FAT16 uImage at LBA2048/ext4 at LBA34816). This does NOT verify camera hardware.
+The YadroKreator **Artifacts** panel offers a **Download .img** button as soon as a T23N SD build succeeds. No kernel rebuild is required. The download endpoint automatically runs image preflight on the existing bytes before sending them (SHA256/MBR/MSPL at LBA34/FAT16 uImage at LBA2048/ext4 at LBA34816). This does NOT verify camera hardware.
 
 Since personal Wi-Fi credentials may be embedded and the dashboard has no login, downloads require an **SSH-issued, one-use, 10-minute token**. On Huananzhi:
 

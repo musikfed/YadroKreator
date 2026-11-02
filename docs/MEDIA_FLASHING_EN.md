@@ -14,7 +14,7 @@
 | Windows installer **.iso** | Standard PC | Use Rufus/official Microsoft media tool to prepare USB, then use Windows installer to select internal SSD |
 | **uImage/rootfs.ext4** or kernel-only file | Board-specific | Not a whole disk; use a board-specific partition/build/install procedure |
 
-**T23N WIFICAM**: build branch \`mymarrchWFcam\` in YadroKreator, finish the job, run **Check image before writing SD**, then use the token-protected **Download .img** from Artifacts or SSH/SCP. A private image may contain Wi-Fi credentials: do not publish it. The read-only check verifies SHA256, MBR, MSPL at **LBA34**, FAT16 BOOT at **LBA2048** containing \`uImage\`, and ext4 ROOTFS at **LBA34816**. The **whole-disk** image is always flashed at **LBA0**: do not add \`seek=34\`.
+**T23N WIFICAM**: build branch \`mymarrchWFcam\` in YadroKreator, finish the job, optionally run **Check image before writing SD** to view the map, then use the token-protected **Download .img** (automatically validates finished image bytes, no rebuild) from Artifacts or SSH/SCP. A private image may contain Wi-Fi credentials: do not publish it. The read-only check verifies SHA256, MBR, MSPL at **LBA34**, FAT16 BOOT at **LBA2048** containing \`uImage\`, and ext4 ROOTFS at **LBA34816**. The **whole-disk** image is always flashed at **LBA0**: do not add \`seek=34\`.
 
 ![T23N layout](previews/t23n-sd-layout.svg)
 

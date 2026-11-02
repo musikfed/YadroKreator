@@ -21,7 +21,6 @@ class DownloadTicketTests(unittest.TestCase):
         self.mocks = [
             patch.object(tickets,"get_job",return_value={"id":self.job,"status":"success","profile":"t23n_sd"}),
             patch.object(tickets,"artifact_path",return_value=Path(self.temp.name)/"image.bin"),
-            patch.object(tickets,"saved_report",return_value={"verified":True}),
         ]
         for p in self.mocks:p.start()
 
@@ -47,9 +46,15 @@ class DownloadTicketTests(unittest.TestCase):
         tickets.STORE.write_text(json.dumps(obj))
         self.assertFalse(tickets.consume(self.job,token))
 
-    def test_private_export_requires_preflight(self):
-        with patch.object(tickets,"saved_report",return_value=None):
-            with self.assertRaisesRegex(ValueError,"preflight"):
+    def test_completed_build_can_export_without_prior_preflight(self):
+        # The download handler performs one fresh structure/SHA check.
+        # A missing cached report must not require recompiling Thingino.
+        token = tickets.issue(self.job)
+        self.assertTrue(tickets.consume(self.job, token))
+
+    def test_missing_image_cannot_get_ticket(self):
+        with patch.object(tickets,"artifact_path",side_effect=FileNotFoundError("no image")):
+            with self.assertRaises(FileNotFoundError):
                 tickets.issue(self.job)
 
     def test_failed_build_cannot_mint_ticket(self):

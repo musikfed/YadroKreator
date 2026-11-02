@@ -172,7 +172,7 @@ def overview():
                       " — НЕ проверена на камере",
                 name=candidate.name, bytes=candidate.stat().st_size,
                 sha256=digest, location=str(candidate), job_id=job["id"],
-                validation=j["validation"],
+                validation=job["validation"],
             ))
             break
     return jsonify(
@@ -286,36 +286,41 @@ def job_layout(job_id):
 
 @app.post("/api/jobs/<job_id>/download")
 def download_sd_image(job_id):
-    """Download a verified job image using a one-use token issued over SSH.
+    """Download a successful job's private SD image with one-time SSH token.
 
-    The UI has no login. DO NOT change this to a public GET or give out
-    private Wi-Fi firmware using only the job ID or a URL query parameter.
+    Preflight is automatically performed on the existing image if needed.
+    This NEVER starts a kernel build or writes to a disk. Do not remove the
+    one-use SSH authorization: images may embed private Wi-Fi credentials.
     """
     job = safe_job(job_id)
-    if not job or job.get("status") != "success":
-        return jsonify(error="Successful build required"), 404
-    report = saved_report(job, ROOT, DATA)
-    if not report or report.get("verified") is not True:
-        return jsonify(error="Run image preflight before download"), 409
+    if not job or job.get("profile") != "t23n_sd" or job.get("status") != "success":
+        return jsonify(error="Successful T23N SD build required"), 404
+
     token = request.headers.get("X-PegineLab-Download-Token", "")
     if not consume_download_ticket(job_id, token):
         return jsonify(error="One-time download token missing, expired or used"), 403
     try:
         path = artifact_path(job, ROOT)
-        # Rehash at the time of download, not just when the button was enabled.
+        # Lightweight local check of existing image bytes (~85 MB), NOT a
+        # repeat of the ~55-minute Thingino compilation. Always verify fresh
+        # source bytes and expected sidecar even if a saved report exists.
         checked = validate_t23n(path)
-        if checked["sha256"] != report.get("sha256"):
-            raise ValueError("Validated SHA differs from current SD image")
-        # Stream an already validated file, not a client-supplied path.
+        previous = saved_report(job, ROOT, DATA)
+        if previous and previous.get("verified") and previous.get("sha256") != checked["sha256"]:
+            raise ValueError("Image checksum differs from previously validated bytes")
+        # Publish a successful preflight result for Artifacts and Builds tabs.
+        save_report(job_id, checked, path, DATA)
+        # Transfer the exact image unchanged. The friendly .img extension
+        # does not transform or offset this whole-disk raw .bin.
         stream = path.open("rb")
-    except (ValueError, OSError, FileNotFoundError, IndexError) as exc:
-        return jsonify(error=str(exc)), 422
-    # Same bytes as .bin, friendly extension for Etcher/Rufus on Windows.
+    except (ValueError, OSError, FileNotFoundError, IndexError, KeyError) as exc:
+        return jsonify(error="Image integrity/structure check failed: " + str(exc)), 422
     response = send_file(stream, mimetype="application/octet-stream",
                          as_attachment=True,
                          download_name="WIFICAM_T23N_" + job_id[:8] + ".img")
     response.headers["Cache-Control"] = "no-store, private"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-PegineLab-Preflight"] = "passed"
     return response
 
 
