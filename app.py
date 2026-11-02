@@ -13,7 +13,7 @@ from git_sources import BRANCHES, workspace_for, validate_branch
 from update_manager import view as update_view, start as start_update, finish as finish_update
 from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
-from download_access import consume as consume_download_ticket
+from export_policy import allow_private_export
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -286,19 +286,18 @@ def job_layout(job_id):
 
 @app.post("/api/jobs/<job_id>/download")
 def download_sd_image(job_id):
-    """Download a successful job's private SD image with one-time SSH token.
+    """Export a finished SD image in one click on the trusted LAN.
 
-    Preflight is automatically performed on the existing image if needed.
-    This NEVER starts a kernel build or writes to a disk. Do not remove the
-    one-use SSH authorization: images may embed private Wi-Fi credentials.
+    This service has no user login. Restrict to trusted LAN/VPN and keep
+    62404 off WAN. The request triggers only an existing-file checksum/layout
+    check; never a kernel build, formatting, writing media or Git upload.
     """
     job = safe_job(job_id)
     if not job or job.get("profile") != "t23n_sd" or job.get("status") != "success":
         return jsonify(error="Successful T23N SD build required"), 404
 
-    token = request.headers.get("X-PegineLab-Download-Token", "")
-    if not consume_download_ticket(job_id, token):
-        return jsonify(error="One-time download token missing, expired or used"), 403
+    if not allow_private_export(request):
+        return jsonify(error="Private firmware download is permitted only from trusted LAN/VPN. Check the server export network policy."), 403
     try:
         path = artifact_path(job, ROOT)
         # Lightweight local check of existing image bytes (~85 MB), NOT a
