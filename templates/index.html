@@ -88,13 +88,13 @@
         <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
         <div class="surface sd-export-guide">
           <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
-          <p>После успешной сборки можно сразу нажать <strong>«Скачать образ .img»</strong>. Сервер автоматически проверит SHA256 и структуру <em>уже готового</em> файла перед передачей: повторной компиляции ядра не будет. Кнопка <strong>«Проверить SD»</strong> остаётся для предварительного просмотра карты разделов. Для приватного образа с Wi-Fi необходим одноразовый код из SSH-терминала сервера.</p>
-          <p>На Huananzhi: <code>cd /1tbdisk/PegineLab/projects/YadroKreator</code>, затем <code>python3 download_access.py issue ИДЕНТИФИКАТОР_ЗАДАНИЯ</code>. Полный ID отображается на карточке артефакта. Код действует 10 минут и используется один раз.</p>
+          <p>После успешной сборки можно сразу нажать <strong>«Скачать образ .img»</strong>. Сервер автоматически проверит SHA256 и структуру <em>уже готового</em> файла перед передачей: повторной компиляции ядра не будет. Кнопка <strong>«Проверить SD»</strong> остаётся для предварительного просмотра карты разделов. Для приватного образа с Wi-Fi один раз создай пароль скачивания прямо здесь, в браузере. В дальнейшем скачивание — одной кнопкой без SSH и длинных ID.</p>
+          <p><strong>Первое скачивание:</strong> появится небольшое окно «Создать пароль скачивания». Выбери пароль и сохрани его в менеджере паролей браузера. Вход остаётся действительным на этом браузере до 30 дней. При следующем скачивании просто нажми «Скачать образ .img».</p>
           <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
           <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
           <p><a href="https://github.com/musikfed/YadroKreator/blob/main/docs/SD_DOWNLOAD_RU.md" target="_blank" rel="noopener noreferrer">Подробная инструкция: скачать, записать, проверить и восстановить</a></p>
         </div>
-        <div class="hint">⌁ Файлы с персональными настройками Wi-Fi нельзя раздавать по открытому HTTP без дополнительной авторизации. Кнопка загрузки использует одноразовый код, полученный через SSH.</div>
+        <div class="hint">⌁ Персональный образ не доступен анонимно: скачивание требует пароль, установленный прямо в браузере. HTTP без TLS не шифрует ни пароль, ни файл. Доступ к панели — только по доверенной LAN/VPN, лучше через HTTPS/TLS; не открывать порт 62404 в интернет.</div>
       </section>
       <section data-panel="system" class="panel" hidden>
         <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
@@ -141,6 +141,24 @@
     </div>
     <footer class="footer"><span>© PegineLab · Firmware Factory</span><span>PRIVATE INFRASTRUCTURE <span class="footer-separator">·</span> BUILD WITH PURPOSE</span></footer>
   </main>
+</div>
+<div id="downloadAuthOverlay" class="download-auth-overlay" hidden>
+  <section class="download-auth-dialog" role="dialog" aria-modal="true" aria-labelledby="downloadAuthTitle">
+    <div class="surface-head">
+      <div><small>PRIVATE SD / ЗАЩИТА ЗАГРУЗКИ</small><h3 id="downloadAuthTitle">Скачивание SD-образа</h3></div>
+    </div>
+    <p id="downloadAuthExplanation">Для первого скачивания нужно один раз задать пароль в браузере, без SSH.</p>
+    <form id="downloadAuthForm" autocomplete="on">
+      <label for="downloadAuthPassword">Пароль скачивания</label>
+      <input id="downloadAuthPassword" name="password" type="password" minlength="12" maxlength="128" required autocomplete="new-password" placeholder="От 12 символов"/>
+      <p id="downloadAuthError" class="download-auth-error" role="alert" hidden></p>
+      <p class="muted">Запомни пароль через браузер. Доступ сохраняется на 30 дней. Не пользуйся панелью через открытый интернет или чужую Wi-Fi-сеть.</p>
+      <div class="download-auth-buttons">
+        <button id="downloadAuthCancel" type="button" class="secondary">Отмена</button>
+        <button id="downloadAuthSubmit" type="submit" class="primary">Продолжить скачивание</button>
+      </div>
+    </form>
+  </section>
 </div>
 <div id="toast" class="toast" role="status"></div>
 </body>
