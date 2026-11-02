@@ -124,12 +124,11 @@ function renderOverview(data) {
       // A successful job already contains a complete SD candidate. The
       // server validates its real bytes automatically during download.
       download.disabled=false;
-      download.title=checked?"Проверено. Нужен одноразовый SSH-код":
-        "Скачать после автоматической проверки файла; SSH-код обязателен";
+      download.title=checked?"Скачать проверенный образ с сервера":
+        "Скачать готовый образ; SHA256 и SD-разделы будут проверены автоматически";
       download.addEventListener("click",()=>downloadImage(image.job_id));
       actions.append(download);
-      const id=element("code","artifact-id",image.job_id);
-      actions.append(id);
+      // The opaque internal job UUID never needs to be typed by the user.
       item.append(actions);
     }
     item.append(icon,info);artifacts.append(item);
@@ -243,15 +242,16 @@ async function refreshLog() {
 }
 
 async function downloadImage(jobId){
-  // The image may contain Wi-Fi credentials. No anonymous HTTP GET is
-  // possible. A short-lived one-use ticket must be generated via SSH.
-  const token=prompt("Введите одноразовый код для скачивания.\nВ SSH: cd /1tbdisk/PegineLab/projects/YadroKreator && python3 download_access.py issue "+jobId);
-  if(!token)return;
-  toast("Проверяем SHA256/структуру готового образа и скачиваем без пересборки…");
-  try{
+  // One click: the UI passes an existing successful job ID internally.
+  // Server restricts private export to the trusted LAN, and re-checks the
+  // finished raw image's SHA256/MBR/MSPL/FAT16/ext4 before sending bytes.
+  const button=document.activeElement;
+  if(button && button.tagName==="BUTTON")button.disabled=true;
+  toast("Проверяем SHA256 и готовим .img — без повторной компиляции…");
+  try {
     const response=await fetch("/api/jobs/"+jobId+"/download",{
-      method:"POST",credentials:"same-origin",cache:"no-store",
-      headers:{"X-PegineLab-Action":"1","X-PegineLab-Download-Token":token.trim()}
+      method:"POST", credentials:"same-origin", cache:"no-store",
+      headers:{"X-PegineLab-Action":"1"}
     });
     if(!response.ok){
       let message="Ошибка HTTP "+response.status;
@@ -262,11 +262,16 @@ async function downloadImage(jobId){
     const name="WIFICAM_T23N_"+jobId.slice(0,8)+".img";
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;a.download=name;a.style.display="none";
-    document.body.appendChild(a);a.click();a.remove();
+    a.href=url; a.download=name; a.style.display="none";
+    document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),30000);
-    toast("Скачано. Проверьте SHA256 и выберите SD в Rufus / Etcher.");
-  }catch(e){toast("Не удалось скачать: "+e.message);}
+    toast("Образ скачан. Сверьте SHA256, затем запишите на SD с LBA0.");
+    await refresh();
+  }catch(e){
+    toast("Не удалось скачать: "+e.message);
+  }finally {
+    if(button && button.tagName==="BUTTON" && button.isConnected)button.disabled=false;
+  }
 }
 function shortSha(sha) { return sha ? sha.slice(0,12) : "—"; }
 const stepOrder=["queued","fetch","checkout","dependencies","tests","restart","done"];
