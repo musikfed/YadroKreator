@@ -43,10 +43,10 @@
           <div class="update-actions lifecycle-actions">
             <button id="panelStart" class="secondary" type="button" disabled title="После выключения запуск через терминал Huananzhi">▶ Запустить (SSH)</button>
             <button id="panelRestart" class="secondary" type="button" disabled>↻ Перезапустить панель</button>
-            <button id="panelStop" class="danger" type="button" disabled>■ Выключить панель</button>
+            <button id="panelStop" class="danger" type="button" disabled>■ Остановить проект</button>
             <a class="secondary" href="#system">↓ Обновить из GitHub · Система</a>
           </div>
-          <p class="muted">Выключение останавливает только сайт :62404, не сервер Ubuntu, SSH или сборки. После выключения запускай <code>bash start.sh</code> на Huananzhi. Обновление GitHub — во вкладке «Система».</p>
+          <p class="muted">Полная остановка отключает службу :62404, задачи сборки и таймер обновлений, а также только принадлежащие YadroKreator контейнеры, если такие появятся. Ubuntu и SSH останутся работать. После остановки запускай <code>bash start.sh</code> на Huananzhi. Обновление GitHub — во вкладке «Система».</p>
         </div>
         <div class="section-heading"><div><small>ЖИВЫЕ ПОКАЗАТЕЛИ</small><h2>Состояние станции</h2></div><span class="muted">Обновляется автоматически</span></div>
         <div class="metrics">
@@ -115,14 +115,14 @@
         <div class="surface panel-lifecycle">
           <div class="surface-head"><div><small>LOCAL DASHBOARD SERVICE</small><h3>Запуск, состояние и выключение панели</h3></div>
             <span id="systemServiceStatus" class="tag neutral" aria-live="polite">Проверяем службу…</span></div>
-          <p id="systemServiceMessage" class="muted">Работающая панель управляется отдельной службой systemd пользователя.</p>
+          <p id="systemServiceMessage" class="muted">Полная остановка проекта выключает его службы, задания сборки, таймер и только помеченные контейнеры. Не останавливает Ubuntu, SSH и чужие проекты.</p>
           <div class="update-actions lifecycle-actions">
             <button id="systemStart" class="secondary" type="button" disabled title="После остановки веб-страница недоступна: запускайте через SSH">▶ Запустить (SSH)</button>
             <button id="systemRestart" class="secondary" type="button" disabled>↻ Перезапустить</button>
-            <button id="systemStop" class="danger" type="button" disabled>■ Выключить</button>
+            <button id="systemStop" class="danger" type="button" disabled>■ Остановить весь проект</button>
             <button id="systemRefresh" class="secondary" type="button">◉ Проверить статус</button>
           </div>
-          <p class="muted">Восстановление с Linux: <code>cd /1tbdisk/PegineLab/projects/YadroKreator &amp;&amp; bash start.sh</code>. С Windows: <code>ssh user@192.168.0.100</code>, затем <code>bash start.sh</code>. Кнопка запуска в отключённой панели работать не может; не выключайте сайт ради обновления GitHub.</p>
+          <p class="muted">Остановка во время сборки прервёт компиляцию. Восстановление с Linux: <code>cd /1tbdisk/PegineLab/projects/YadroKreator &amp;&amp; bash start.sh</code>. С Windows: <code>ssh user@192.168.0.100</code>, затем <code>bash start.sh</code>. Кнопка запуска в отключённой панели работать не может; не выключайте сайт ради обновления GitHub.</p>
         </div>
         <div class="surface update-surface">
           <div class="surface-head"><div><small>GITHUB RELEASE CONTROL</small><h3>Обновления и восстановление YadroKreator</h3></div><span id="updateStatus" class="tag neutral">Проверка...</span></div>
