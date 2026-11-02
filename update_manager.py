@@ -238,7 +238,7 @@ def start(action: str, expected: str = "") -> dict:
                      expected_sha=expected, message="Queued in systemd",
                      started_at=stamp(), updated_at=stamp(),
                      step="queued", step_index=0, step_total=len(STEP_ORDER)-1,
-                     launch="cli")
+                     launch="cli", failed_step="")
         _write(state)
     append_log(operation, action.upper() + " requested")
     return state
@@ -362,6 +362,10 @@ def perform(operation: str) -> None:
         else:
             raise RuntimeError("Unknown operation")
     except Exception as exc:
+        # Keep the original failing stage even when auto-recovery switches
+        # to checkout/restart stages afterwards.
+        with locked():
+            original_failure_step = _read().get("step", "queued")
         error = str(exc)
         if changed and before:
             try:
@@ -376,7 +380,7 @@ def perform(operation: str) -> None:
                     error += "; локальные изменения, автоматический возврат запрещён"
             except Exception as recovery:
                 error += "; ОШИБКА ВОССТАНОВЛЕНИЯ: " + str(recovery)
-        finish(operation, "failed", error)
+        finish(operation, "failed", error, failed_step=original_failure_step)
     finally:
         _CURRENT_OP.reset(token)
 
