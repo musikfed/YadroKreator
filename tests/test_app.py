@@ -144,6 +144,47 @@ class DashboardTests(unittest.TestCase):
                                           "X-PegineLab-Download-Token": "test"})
             self.assertEqual(r.status_code, 409)
 
+    def test_finished_job_refresh_reads_tail_not_full_history(self):
+        import core
+        from unittest.mock import patch
+        import app as webmodule
+        job_id = "f" * 32
+        path = Path(self.tmp.name) / "factory-state/logs" / (job_id + ".log")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"OLD_HEADER\\n" + b"x" * 80000 + b"\\nFINISHED_SUCCESS\\n")
+        job = {"id": job_id, "status": "success"}
+        with patch.object(webmodule, "safe_job", return_value=job):
+            tail = self.client.get("/api/jobs/" + job_id + "/log?tail=1")
+            self.assertEqual(tail.status_code, 200)
+            self.assertIn("FINISHED_SUCCESS", tail.json["text"])
+            self.assertNotIn("OLD_HEADER", tail.json["text"])
+            self.assertFalse(tail.json["more"])
+            self.assertTrue(tail.json["archive"])
+            self.assertTrue(tail.json["truncated"])
+            self.assertEqual(tail.json["offset"], path.stat().st_size)
+            # A user can still explicitly request the full historical log.
+            full = self.client.get("/api/jobs/" + job_id + "/log?offset=0")
+            self.assertIn("OLD_HEADER", full.json["text"])
+            self.assertTrue(full.json["more"])
+        path.unlink()
+
+    def test_running_log_tail_can_follow_new_output(self):
+        from unittest.mock import patch
+        import app as webmodule
+        job_id = "e" * 32
+        path = Path(self.tmp.name) / "factory-state/logs" / (job_id + ".log")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("line before browser refresh\\n")
+        with patch.object(webmodule, "safe_job", return_value={"id": job_id, "status": "running"}):
+            first = self.client.get("/api/jobs/" + job_id + "/log?tail=1")
+            self.assertFalse(first.json["archive"])
+            with path.open("a") as out:
+                out.write("only new output\\n")
+            next_result = self.client.get(
+                "/api/jobs/" + job_id + "/log?offset=" + str(first.json["offset"]))
+            self.assertEqual(next_result.json["text"], "only new output\\n")
+        path.unlink()
+
     def test_mutation_header_blocks_csrf(self):
         result = self.client.post("/api/jobs", json={"profile":"t23n_sd"})
         self.assertEqual(result.status_code, 403)

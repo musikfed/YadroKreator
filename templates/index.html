@@ -77,7 +77,7 @@
               <strong id="preflightStatus">—</strong><p id="preflightDetails" class="muted"></p>
               <img id="preflightDiagram" alt="Сгенерированная схема расположения загрузчика, ядра и rootfs" hidden />
             </div>
-            <div class="log-toolbar"><span class="led"></span><span id="logState">Выберите задачу</span><button id="clearView" class="text-btn">Очистить экран</button></div><pre id="log" class="terminal">PegineLab Firmware Factory
+            <div class="log-toolbar"><span class="led"></span><span id="logState">Выберите задачу</span><button id="fullBuildLog" class="text-btn" disabled>Показать полный архив</button><button id="clearView" class="text-btn">Очистить экран</button></div><pre id="log" class="terminal">PegineLab Firmware Factory
 ─────────────────────────────────
 Здесь появится журнал компиляции.
 </pre><div class="terminal-footer"><span>LOGS / SQLITE / SYSTEMD</span><span id="logBytes">0 B</span></div>
@@ -118,6 +118,14 @@
           <div class="update-progress-shell"><div class="update-progress-fill" id="updateProgressFill"></div></div>
           <p id="updateProgressCaption" class="muted" aria-live="polite">Пока обновлений нет</p>
           <p id="updateReconnect" class="muted" hidden>Перезапуск панели — восстанавливаем соединение автоматически…</p>
+          <section class="update-console" aria-label="Отдельный журнал обновления YadroKreator">
+            <div class="update-console-title">
+              <strong>Журнал обновления самой панели</strong>
+              <span id="updateConsoleStatus">Сборка ядра / WIFICAM здесь не отображается</span>
+            </div>
+            <pre id="updateLog" class="update-log" aria-live="off">Журнал появится после запуска проверки или обновления YadroKreator.</pre>
+            <p class="muted">Только Git, установка, тесты и перезапуск веб-панели. Логи компиляции ядра остаются исключительно во вкладке «Сборки».</p>
+          </section>
           
           <div class="update-actions">
             <button id="checkUpdate" class="secondary" type="button">↻ Проверить обновления</button>

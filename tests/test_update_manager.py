@@ -132,6 +132,29 @@ class UpdaterTests(unittest.TestCase):
         self.assertEqual(state["step_index"], state["step_total"])
         self.assertTrue(state["rollback_available"])
 
+    def test_updater_log_is_separate_and_survives_failure(self):
+        operation = self.updater.start("check")["operation"]
+        self.updater.mark_step(operation, "fetch", "Fetching dashboard GitHub")
+        self.updater.mark_step(operation, "tests", "Dashboard tests")
+        self.updater.finish(operation, "failed", "unittest failed")
+        status = self.updater.view()
+        self.assertEqual(status["failed_step"], "tests")
+        self.assertEqual(status["step"], "failed")
+        self.assertIn("Dashboard tests", status["operation_log"])
+        self.assertIn("unittest failed", status["operation_log"])
+        self.assertEqual(self.updater._log_file(operation).stat().st_mode & 0o777, 0o600)
+
+    def test_updater_diagnostic_keeps_end_of_failed_command(self):
+        operation = self.updater.start("check")["operation"]
+        token = self.updater._CURRENT_OP.set(operation)
+        try:
+            with self.assertRaisesRegex(RuntimeError, "REAL_ERROR_AT_END"):
+                self.updater.run(["python3", "-c",
+                    "import sys;sys.stderr.write('test_ok\\n'*300+'REAL_ERROR_AT_END\\n');sys.exit(4)"])
+        finally:
+            self.updater._CURRENT_OP.reset(token)
+        self.assertIn("REAL_ERROR_AT_END", self.updater.view()["operation_log"])
+
     def test_concurrent_update_is_rejected(self):
         s = self.updater.start("check")
         with self.assertRaises(RuntimeError):

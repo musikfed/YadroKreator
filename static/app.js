@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 const active = new Set(["queued", "running", "stopping"]);
 const labels = {queued:"В очереди",running:"Собирается",stopping:"Останавливается",success:"Готово",failed:"Ошибка",stopped:"Остановлено",interrupted:"Прервано"};
 let selected = null, offset = 0, loading = false, overview = null, refreshedLog = false;
+let logInitial = true, logFinalized = false, logFullRequested = false;
 let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
 let updateHadActive = false, updateAutoReloaded = false;
 const date = (iso) => iso ? new Date(iso).toLocaleString("ru-RU") : "—";
@@ -61,7 +62,9 @@ function jobItem(job,compact=false) {
   return item;
 }
 function select(id) {
-  if(selected!==id){selected=id;offset=0;refreshedLog=false;$("log").textContent="";$text("logBytes","0 Б");}
+  if(selected!==id){selected=id;offset=0;refreshedLog=false;
+    logInitial=true;logFinalized=false;logFullRequested=false;
+    $("log").textContent="";$text("logBytes","0 Б");}
   location.hash="builds";setTab();renderJobs();refreshLog();
 }
 function renderJobs() {
@@ -79,9 +82,11 @@ function renderJobs() {
   for(const job of jobs) {list.append(jobItem(job));}
   for(const job of jobs.slice(0,4)) recent.append(jobItem(job,true));
   const current=jobs.find(j=>j.id===selected);
-  if(!selected&&jobs.length){selected=jobs[0].id;offset=0;}
+  if(!selected&&jobs.length){selected=jobs[0].id;offset=0;
+    logInitial=true;logFinalized=false;logFullRequested=false;}
   const selectedJob=jobs.find(j=>j.id===selected)||current;
   $("stopBuild").disabled=!selectedJob||!active.has(selectedJob.status);
+  $("fullBuildLog").disabled=!selectedJob || active.has(selectedJob.status);
   $text("logState",selectedJob?(labels[selectedJob.status]||selectedJob.status):"Выберите задачу");
   $text("logTitle",selectedJob?"Журнал · "+selectedJob.id.slice(0,8):"Консоль сборки");
   renderBuildTimeline(selectedJob);
@@ -197,27 +202,43 @@ async function refresh() {
   if(location.hash==="#builds")refreshLog();
 }
 async function refreshLog() {
-  if(!selected||refreshedLog)return;
+  // A browser refresh must NOT replay an archived 9-MB log as if it were
+  // a new compilation. Start at EOF - 64 KiB; only poll new output on
+  // genuinely active jobs. Historical full playback requires a user click.
+  if(!selected||refreshedLog||logFinalized)return;
   refreshedLog=true;
   const selectedAtStart=selected;
+  const initial=logInitial && !logFullRequested;
   try{
-    const result=await api("/api/jobs/"+selected+"/log?offset="+offset);
+    const path="/api/jobs/"+selected+"/log?"+(initial?"tail=1":"offset="+offset);
+    const result=await api(path);
     if(selectedAtStart!==selected)return;
-    if(offset===0&&result.text==="")$("log").textContent="Сборка ожидает запуска…\n";
+    const terminal=$("log");
+    if(initial){
+      terminal.textContent=result.archive?
+        "АРХИВ ЗАВЕРШЁННОЙ СБОРКИ — это сохранённые строки, новая компиляция не запущена.\n"+
+        (result.truncated?"Показаны последние 64 КиБ. Для полного вывода нажми «Показать полный архив».\n":"")+"\n":
+        "СБОРКА АКТИВНА — показываются последние строки, далее только новые сообщения.\n\n";
+    }else if(offset===0)terminal.textContent="";
     if(result.text){
-      if(offset===0)$("log").textContent="";
-      const terminal=$("log");
       const nearBottom=terminal.scrollHeight-terminal.scrollTop-terminal.clientHeight<100;
       terminal.textContent+=result.text;
       if(terminal.textContent.length>350000)terminal.textContent=terminal.textContent.slice(-250000);
       if(nearBottom)terminal.scrollTop=terminal.scrollHeight;
     }
+    if(!result.text&&!initial&&offset===0)terminal.textContent="Журнал пока пуст.\n";
     offset=result.offset;
+    logInitial=false;
     $text("logBytes",size(offset));
+    if(!active.has(result.status) && !result.more){
+      logFinalized=true;
+      logFullRequested=false;
+    }
     if(result.more)setTimeout(()=>{refreshedLog=false;refreshLog();},200);
   }catch(e){$("connection").textContent="Ошибка журнала";}
-  finally {refreshedLog=false;}
+  finally{refreshedLog=false;}
 }
+
 async function downloadImage(jobId){
   // The image may contain Wi-Fi credentials. No anonymous HTTP GET is
   // possible. A short-lived one-use ticket must be generated via SSH.
@@ -247,7 +268,11 @@ async function downloadImage(jobId){
 function shortSha(sha) { return sha ? sha.slice(0,12) : "—"; }
 const stepOrder=["queued","fetch","checkout","dependencies","tests","restart","done"];
 function renderUpdateSteps(data){
-  const index=stepOrder.indexOf(data.step||"queued");
+  // During failure the backend reports step="failed"; highlight the
+  // last real stage using persisted index instead of losing its position.
+  const index=data.phase==="failed" && Number.isInteger(data.step_index)
+    ?Math.max(0,Math.min(6,data.step_index))
+    :Math.max(0,stepOrder.indexOf(data.step||"queued"));
   const busy=["queued","running"].includes(data.phase);
   const success=data.phase==="success" && ["apply","rollback"].includes(data.action);
   const failed=data.phase==="failed";
@@ -266,7 +291,7 @@ function renderUpdateSteps(data){
   const pct=success?100:Math.max(0,Math.round(Math.max(0,index)/6*100));
   $("updateProgressFill").style.width=pct+"%";
   $text("updateProgressCaption",failed?
-    "Ошибка на этапе «"+(data.step||"неизвестно")+"». Проверь журнал операции, затем используй откат, если доступен.":
+    "Ошибка на этапе «"+(data.failed_step||data.step||"неизвестно")+"». Подробности ниже, в журнале обновления панели.":
     success?"Обновление завершено. Панель переподключается…":
     "Выполняется шаг "+(Math.max(0,index)+1)+" из 7 · "+(data.message||""));
   $("updateReconnect").hidden=!(busy && data.step==="restart");
@@ -274,6 +299,17 @@ function renderUpdateSteps(data){
 function renderUpdate(data) {
   updateState=data;
   renderUpdateSteps(data);
+  // Dedicated updater console, never append the selected kernel/firmware
+  // job log from #builds to #system.
+  const consoleEl=$("updateLog");
+  const atBottom=consoleEl.scrollHeight-consoleEl.scrollTop-consoleEl.clientHeight<90;
+  const body=(data.operation_log||"").trim();
+  const viewText=body || "Ожидаем запуска проверки/обновления панели…";
+  if(consoleEl.textContent!==viewText) consoleEl.textContent=viewText;
+  if(atBottom) consoleEl.scrollTop=consoleEl.scrollHeight;
+  $text("updateConsoleStatus",data.phase==="failed"?"Ошибка — смотри конец журнала":
+    ["queued","running"].includes(data.phase)?"Выполняется "+(data.action||"операция"):
+    data.phase==="success"?"Последняя операция завершена":"Отдельный журнал установщика");
   const isBusy=["queued","running"].includes(data.phase);
   const buildBusy=!!(overview?.jobs||[]).find(j=>active.has(j.status));
   $text("updateInstalled",shortSha(data.installed_sha));
@@ -307,7 +343,7 @@ async function refreshUpdate(automatic=false) {
     renderUpdate(state);
     const checked=state.checked_at?Date.parse(state.checked_at):0;
     const stale=!checked || (Date.now()-checked>15*60*1000);
-    if(automatic && stale && !["queued","running"].includes(state.phase) &&
+    if(automatic && stale && !["queued","running","failed"].includes(state.phase) &&
        Date.now()-lastAutoCheck>15*60*1000) {
       lastAutoCheck=Date.now();
       await api("/api/update/check",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
@@ -356,7 +392,16 @@ async function init() {
   $("checkUpdate").addEventListener("click",()=>updateAction("check"));
   $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
   $("rollbackUpdate").addEventListener("click",()=>updateAction("rollback"));
-  $("clearView").addEventListener("click",()=>{offset=0;$("log").textContent="";refreshLog();});
+  $("clearView").addEventListener("click",()=>{
+    offset=0; logInitial=true;logFinalized=false;logFullRequested=false;
+    $("log").textContent="";refreshLog();
+  });
+  $("fullBuildLog").addEventListener("click",()=>{
+    if(!selected)return;
+    logFullRequested=true;logInitial=false;logFinalized=false;offset=0;
+    $("log").textContent="Загружается полный архив по запросу пользователя…\n";
+    refreshLog();
+  });
   await refresh();
   await refreshUpdate(true);
   setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();},2500);

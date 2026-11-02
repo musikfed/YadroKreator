@@ -60,3 +60,10 @@
 @keyframes update-pulse{50%{box-shadow:0 0 0 7px rgba(102,216,189,.15)}}
 @media(max-width:1050px){.update-steps{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:600px){.update-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Dedicated panel updater console; never confused with compiler output. */
+.update-console{border:1px solid #30465d;background:#101b2d;border-radius:12px;margin:18px 0;padding:14px}
+.update-console-title{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#cfeee9;font-size:13px;padding-bottom:9px}
+.update-console-title span{color:#a2b3cc;font-size:12px}
+.update-log{margin:0;overflow:auto;max-height:300px;min-height:110px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:monospace;font-size:12px;line-height:1.5;color:#b1efda;background:#081221;border-radius:8px;padding:14px}
+.update-console .muted{font-size:12px;margin-bottom:0}
