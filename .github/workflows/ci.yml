@@ -27,5 +27,7 @@ jobs:
         run: node --check static/app.js
       - name: Validate SVG graphics
         run: python -c "import xml.etree.ElementTree as E; from pathlib import Path; [E.parse(x) for x in Path('docs/previews').glob('*.svg')]"
+      - name: Recovery helper shell syntax
+        run: bash -n scripts/recover_dashboard_update.sh
       - name: Installer shell syntax
         run: bash -n install.sh bootstrap.sh deploy.sh setup-update-timer.sh
