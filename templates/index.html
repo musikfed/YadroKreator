@@ -118,6 +118,14 @@
           <div class="update-progress-shell"><div class="update-progress-fill" id="updateProgressFill"></div></div>
           <p id="updateProgressCaption" class="muted" aria-live="polite">Пока обновлений нет</p>
           <p id="updateReconnect" class="muted" hidden>Перезапуск панели — восстанавливаем соединение автоматически…</p>
+          <section class="update-console" aria-label="Отдельный журнал обновления YadroKreator">
+            <div class="update-console-title">
+              <strong>Журнал обновления самой панели</strong>
+              <span id="updateConsoleStatus">Сборка ядра / WIFICAM здесь не отображается</span>
+            </div>
+            <pre id="updateLog" class="update-log" aria-live="off">Журнал появится после запуска проверки или обновления YadroKreator.</pre>
+            <p class="muted">Только Git, установка, тесты и перезапуск веб-панели. Логи компиляции ядра остаются исключительно во вкладке «Сборки».</p>
+          </section>
           
           <div class="update-actions">
             <button id="checkUpdate" class="secondary" type="button">↻ Проверить обновления</button>
