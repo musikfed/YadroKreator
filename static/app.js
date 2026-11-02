@@ -124,8 +124,8 @@ function renderOverview(data) {
       // A successful job already contains a complete SD candidate. The
       // server validates its real bytes automatically during download.
       download.disabled=false;
-      download.title=checked?"Проверено. Нужен одноразовый SSH-код":
-        "Скачать после автоматической проверки файла; SSH-код обязателен";
+      download.title=checked?"Скачать проверенный .img (вход через браузер)":
+        "Автоматически проверить готовый .img и скачать, без сборки и SSH";
       download.addEventListener("click",()=>downloadImage(image.job_id));
       actions.append(download);
       const id=element("code","artifact-id",image.job_id);
@@ -242,16 +242,62 @@ async function refreshLog() {
   finally{refreshedLog=false;}
 }
 
+function requestBrowserDownloadLogin(configured){
+  // First use: choose a password right here in the browser. Subsequent
+  // downloads reuse a signed HttpOnly cookie; no job IDs/SSH commands.
+  return new Promise(resolve=>{
+    const overlay=$("downloadAuthOverlay"), form=$("downloadAuthForm");
+    const pass=$("downloadAuthPassword"), err=$("downloadAuthError");
+    const cancel=$("downloadAuthCancel"), send=$("downloadAuthSubmit");
+    $text("downloadAuthTitle",configured?"Войти для скачивания":"Создать пароль скачивания");
+    $text("downloadAuthExplanation",configured?
+      "Введи сохранённый пароль. После входа другие прошивки будут скачиваться одной кнопкой.":
+      "Придумай один пароль для этого браузера (от 12 символов). Это нужно сделать только один раз. Терминал и коды не нужны.");
+    pass.autocomplete=configured?"current-password":"new-password";
+    pass.value="";err.hidden=true;err.textContent="";
+    send.disabled=false;
+    overlay.hidden=false;
+    const finish=(value)=>{
+      overlay.hidden=true;
+      pass.value="";form.onsubmit=null;cancel.onclick=null;
+      resolve(value);
+    };
+    cancel.onclick=()=>finish(false);
+    form.onsubmit=async event=>{
+      event.preventDefault();
+      send.disabled=true;err.hidden=true;
+      try{
+        await api("/api/download-auth/"+(configured?"login":"setup"),{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({password:pass.value})
+        });
+        finish(true);
+      }catch(e){
+        $text("downloadAuthError",e.message);
+        err.hidden=false;
+        // Another LAN user may have initialized first; now show login.
+        if(!configured && e.status===409 && /создан/.test(e.message)){
+          finish(false);
+          toast("Пароль уже создан. Нажми скачать ещё раз для входа.");
+        }
+      }finally{send.disabled=false;}
+    };
+    pass.focus();
+  });
+}
+async function ensureDownloadLogin(){
+  const status=await api("/api/download-auth");
+  if(status.authenticated)return true;
+  return requestBrowserDownloadLogin(status.configured);
+}
 async function downloadImage(jobId){
-  // The image may contain Wi-Fi credentials. No anonymous HTTP GET is
-  // possible. A short-lived one-use ticket must be generated via SSH.
-  const token=prompt("Введите одноразовый код для скачивания.\nВ SSH: cd /1tbdisk/PegineLab/projects/YadroKreator && python3 download_access.py issue "+jobId);
-  if(!token)return;
-  toast("Проверяем SHA256/структуру готового образа и скачиваем без пересборки…");
   try{
+    if(!(await ensureDownloadLogin()))return;
+    toast("Проверяем SHA256/структуру готового образа и скачиваем без пересборки…");
     const response=await fetch("/api/jobs/"+jobId+"/download",{
       method:"POST",credentials:"same-origin",cache:"no-store",
-      headers:{"X-PegineLab-Action":"1","X-PegineLab-Download-Token":token.trim()}
+      headers:{"X-PegineLab-Action":"1"}
     });
     if(!response.ok){
       let message="Ошибка HTTP "+response.status;
@@ -268,6 +314,7 @@ async function downloadImage(jobId){
     toast("Скачано. Проверьте SHA256 и выберите SD в Rufus / Etcher.");
   }catch(e){toast("Не удалось скачать: "+e.message);}
 }
+
 function shortSha(sha) { return sha ? sha.slice(0,12) : "—"; }
 const stepOrder=["queued","fetch","checkout","dependencies","tests","restart","done"];
 function renderUpdateSteps(data){
