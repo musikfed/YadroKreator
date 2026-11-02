@@ -29,6 +29,10 @@ ORIGIN = "https://github.com/musikfed/YadroKreator.git"
 SHA = re.compile(r"^[0-9a-f]{40}$")
 ACTIONS = ("check", "apply", "rollback")
 BUSY = ("queued", "running")
+# Distinct steps for the UI. The percentages reflect deployment milestones,
+# never promise a wall-clock ETA.
+STEP_ORDER = ("queued", "fetch", "checkout", "dependencies", "tests", "restart", "done")
+STEP_INDEX = {name: index for index, name in enumerate(STEP_ORDER)}
 
 
 def stamp() -> str:
@@ -95,6 +99,9 @@ def view() -> dict:
     state.setdefault("checked_at", "")
     state.setdefault("remote_sha", "")
     state.setdefault("rollback_sha", "")
+    state.setdefault("step", "idle")
+    state.setdefault("step_index", 0)
+    state.setdefault("step_total", len(STEP_ORDER)-1)
     state["installed_sha"] = current
     state["update_available"] = bool(state["remote_sha"] and
                                     state["remote_sha"] != current and
@@ -102,6 +109,23 @@ def view() -> dict:
     state["rollback_available"] = bool(state.get("rollback_sha")
                                        and state.get("rollback_from") == current)
     return state
+
+
+def mark_step(operation: str, step: str, message: str) -> None:
+    """Persist each stage before running a potentially slow command.
+
+    Browser restarts/reconnects can read the same progress from updates.json.
+    """
+    if step not in STEP_INDEX:
+        raise ValueError("Unknown deployment step")
+    with locked():
+        s = _read()
+        if s.get("operation") != operation:
+            return
+        s.update(step=step, step_index=STEP_INDEX[step],
+                 step_total=len(STEP_ORDER)-1,
+                 message=message[:350], updated_at=stamp())
+        _write(s)
 
 
 def builds_active() -> bool:
@@ -166,7 +190,9 @@ def start(action: str, expected: str = "") -> dict:
         operation = uuid.uuid4().hex
         state.update(phase="queued", action=action, operation=operation,
                      expected_sha=expected, message="Queued in systemd",
-                     started_at=stamp())
+                     started_at=stamp(), updated_at=stamp(),
+                     step="queued", step_index=0, step_total=len(STEP_ORDER)-1,
+                     launch="cli")
         _write(state)
     return state
 
@@ -176,7 +202,11 @@ def finish(operation: str, phase: str, message: str, **changes) -> None:
         s = _read()
         if s.get("operation") != operation:
             return
-        s.update(phase=phase, message=message[:350], finished_at=stamp(), **changes)
+        s.update(phase=phase, message=message[:350], finished_at=stamp(),
+                 updated_at=stamp(),
+                 step=("done" if phase == "success" else "failed"),
+                 step_index=(len(STEP_ORDER)-1 if phase == "success" else
+                             s.get("step_index", 0)), **changes)
         _write(s)
 
 
@@ -186,22 +216,35 @@ def pending(operation: str) -> dict:
         if s.get("operation") != operation or s.get("phase") != "queued":
             raise RuntimeError("Invalid update operation")
         s["phase"] = "running"
-        s["message"] = "Running " + s["action"]
+        s["message"] = "Запуск " + s["action"]
+        s["updated_at"] = stamp()
         _write(s)
     return s
 
 
-def verify_and_restart() -> None:
+def verify_and_restart(operation: str = "") -> None:
+    """Run installed requirements/tests, then restart *only* the web panel.
+
+    The updater runs as a detached systemd user unit. Restarting Waitress
+    cannot terminate this worker or erase state recorded in updates.json.
+    """
     py = str(VENV / "bin" / "python")
+    if operation:
+        mark_step(operation, "dependencies", "Установка зависимостей Python")
     run([py, "-m", "pip", "install", "--disable-pip-version-check",
          "-r", str(APP / "requirements.txt")], timeout=240)
+    if operation:
+        mark_step(operation, "tests", "Проверяем Python, JavaScript и тесты проекта")
     run([py, "-m", "unittest", "discover", "-s", str(APP / "tests"),
          "-p", "test_*.py", "-v"], timeout=180)
     run([py, "-m", "compileall", "-q", str(APP / "app.py"),
          str(APP / "core.py"), str(APP / "worker.py"),
-         str(APP / "git_sources.py")], timeout=30)
+         str(APP / "git_sources.py"), str(APP / "artifact_checks.py"),
+         str(APP / "build_metrics.py"), str(APP / "update_manager.py")], timeout=30)
     run(["bash", "-n", str(APP / "deploy.sh"), str(APP / "install.sh"),
          str(APP / "bootstrap.sh"), str(APP / "setup-update-timer.sh")], timeout=30)
+    if operation:
+        mark_step(operation, "restart", "Перезапуск веб-панели и проверка службы")
     run(["systemctl", "--user", "restart", "peginelab-factory.service"],
         timeout=40)
     run(["systemctl", "--user", "is-active", "--quiet",
@@ -229,6 +272,7 @@ def perform(operation: str) -> None:
     changed = False
     try:
         if action == "check":
+            mark_step(operation, "fetch", "Проверка GitHub main")
             current, remote, safe = check_remote()
             finish(operation, "success", ("Обновление доступно" if
                    current != remote and safe else
@@ -240,12 +284,14 @@ def perform(operation: str) -> None:
         if builds_active():
             raise RuntimeError("Build is running; stop/finish it before updating")
         if action == "apply":
+            mark_step(operation, "fetch", "Получение проверенной версии с GitHub")
             before, target, safe = check_remote()
             if not safe or target != s["expected_sha"] or target == before:
                 raise RuntimeError("Git main changed since check; check updates again")
+            mark_step(operation, "checkout", "Обновление файлов Git (fast-forward)")
             switch_to(target, rollback=False)
             changed = True
-            verify_and_restart()
+            verify_and_restart(operation)
             finish(operation, "success", "Установлено обновление " + target[:12],
                    rollback_sha=before, rollback_from=target,
                    remote_sha=target, checked_at=stamp(), can_fast_forward=True)
@@ -255,10 +301,11 @@ def perform(operation: str) -> None:
             target = s["rollback_sha"]
             if before != s.get("rollback_from") or not SHA.fullmatch(target):
                 raise RuntimeError("Recorded rollback is no longer applicable")
+            mark_step(operation, "checkout", "Восстановление сохранённого Git SHA")
             git("merge-base", "--is-ancestor", target, before, timeout=10)
             switch_to(target, rollback=True)
             changed = True
-            verify_and_restart()
+            verify_and_restart(operation)
             finish(operation, "success", "Восстановлена предыдущая версия " + target[:12],
                    rollback_sha="", rollback_from="", can_fast_forward=True)
         else:
@@ -270,8 +317,9 @@ def perform(operation: str) -> None:
                 # The automatic fallback returns to the previously working
                 # revision, without touching external build worktrees/data.
                 if not git("status", "--porcelain", "--untracked-files=no"):
+                    mark_step(operation, "checkout", "Ошибка! Возврат к прежней версии")
                     git("reset", "--hard", before, timeout=30)
-                    verify_and_restart()
+                    verify_and_restart(operation)
                     error += "; прежняя версия восстановлена"
                 else:
                     error += "; локальные изменения, автоматический возврат запрещён"
