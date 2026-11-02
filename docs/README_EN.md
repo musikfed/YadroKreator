@@ -10,6 +10,8 @@ The tracked `wificam_T23N/Thingino/thingino-t23-sd.bin` (`0.1_test`) is a hardwa
 
 **New Git workflow:** [Source-pinned builds and Git deployments](GIT_DEPLOY_EN.md). Select `mymarrchWFcam` or `main` in the dashboard; each build fetches GitHub into a separate detached SHA-pinned worktree, never switching the old WIFICAM checkout.
 
+The **System** page now provides GitHub update notifications, Check, Update and Roll Back controls. No unattended installation: explicit confirmation is required, and an active firmware build blocks changes. See the [Git deploy/rollback guide](GIT_DEPLOY_EN.md).
+
 ## Check local address and port
 
 ```bash
