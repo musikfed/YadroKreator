@@ -19,3 +19,23 @@
 .update-actions button:disabled{opacity:.42;cursor:not-allowed}
 #updateStatus{white-space:normal}
 @media(max-width:850px){.update-versions{grid-template-columns:1fr}}
+
+/* Build timing: indeterminate until a comparable historic successful build exists.
+   The fill is an ETA by elapsed time, never an actual compiler percentage. */
+.build-timeline{padding:16px 18px;background:#101a2a;border-top:1px solid #26384c}
+.timeline-times{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;color:#b7cde3;font-size:12px}
+.progress-track{height:9px;overflow:hidden;border-radius:20px;background:#26344a;margin-top:14px}
+.progress-fill{height:100%;background:linear-gradient(90deg,#55cbbb,#9ad9ef);transition:width .8s ease}
+.progress-fill.indeterminate{width:35%;animation:build-pulse 2.2s ease-in-out infinite}
+@keyframes build-pulse{0%{transform:translateX(-110%)}50%{transform:translateX(125%)}100%{transform:translateX(340%)}}
+.build-timeline p{margin:10px 0 0;font-size:12px}
+.preflight-controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-top:1px solid #26384c}
+.preflight-controls button:disabled{opacity:.48;cursor:not-allowed}
+.preflight-controls small{color:#95a9bc}
+.preflight-report{padding:16px 18px;border-top:1px solid #26384c}
+.preflight-report p{overflow-wrap:anywhere}
+.preflight-report img{display:block;width:100%;max-width:900px;border:1px solid #3d536b;border-radius:12px}
+.preflight-report img[hidden]{display:none}
+.artifact-actions{margin-left:auto;display:flex;flex-direction:column;align-items:end;gap:10px;color:#9baec6}
+.artifact-actions button{padding:10px 14px;cursor:pointer}
+@media(max-width:750px){.timeline-times{flex-direction:column}.artifact-actions{margin:12px 0 0;align-items:start}}
