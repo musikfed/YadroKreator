@@ -7,6 +7,12 @@ const labels = {queued:"В очереди",running:"Собирается",stoppi
 let selected = null, offset = 0, loading = false, overview = null, refreshedLog = false;
 let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
 const date = (iso) => iso ? new Date(iso).toLocaleString("ru-RU") : "—";
+// Stopwatch from persisted timestamps; build prediction is approximate only.
+const clockDuration = (s) => {
+  if(s===null || s===undefined || !Number.isFinite(s))return "—";
+  const n=Math.max(0,Math.floor(s));
+  return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(v=>String(v).padStart(2,"0")).join(":");
+};
 const size = (v) => !Number.isFinite(v) ? "—" : (v / 1073741824 >= 1 ? (v / 1073741824).toFixed(1) + " ГБ" : (v / 1048576).toFixed(1) + " МБ");
 const $text = (id, value) => { $(id).textContent = String(value); };
 const element = (tag, className, text) => {
@@ -47,6 +53,8 @@ function jobItem(job,compact=false) {
   left.append(element("strong","",job.profile==="t23n_sd"?"WIFICAM · T23N SD":"Firmware"));
   left.append(element("small","",date(job.created_at)+" · "+job.id.slice(0,8)));
   if(job.repo_ref)left.append(element("small","",job.repo_ref+" · "+(job.source_sha?job.source_sha.slice(0,12):"Git fetch pending")));
+  if(job.elapsed_seconds!==null && job.elapsed_seconds!==undefined)
+    left.append(element("small","", "Время "+clockDuration(job.elapsed_seconds)));
   item.append(left,statusPill(job.status));
   item.addEventListener("click",()=>select(job.id));
   return item;
@@ -75,6 +83,9 @@ function renderJobs() {
   $("stopBuild").disabled=!selectedJob||!active.has(selectedJob.status);
   $text("logState",selectedJob?(labels[selectedJob.status]||selectedJob.status):"Выберите задачу");
   $text("logTitle",selectedJob?"Журнал · "+selectedJob.id.slice(0,8):"Консоль сборки");
+  renderBuildTimeline(selectedJob);
+  $("validateBuild").disabled=!selectedJob || selectedJob.status!=="success";
+  renderSavedValidation(selectedJob);
 }
 function renderOverview(data) {
   overview=data;renderJobs();
@@ -95,11 +106,79 @@ function renderOverview(data) {
     info.append(element("small","",image.name+" · "+size(image.bytes)));
     info.append(element("code","",image.location));
     if(image.sha256)info.append(element("code","hash","SHA256  "+image.sha256));
+    if(image.job_id){
+      const actions=element("div","artifact-actions");
+      const checked=image.validation?.verified===true;
+      actions.append(element("small","",checked?"✓ Структура проверена":
+        "Структурная проверка не выполнена"));
+      const button=element("button","secondary","✓ Проверить SD");
+      button.addEventListener("click",()=>{select(image.job_id);validateSelected();});
+      actions.append(button);
+      item.append(actions);
+    }
     item.append(icon,info);artifacts.append(item);
   }
   $text("pathRoot",data.paths.root);
   $text("pathProject",data.paths.project);
   $text("pathThingino",data.paths.thingino);
+}
+function renderBuildTimeline(job) {
+  $text("buildStarted","Начало: "+date(job?.started_at));
+  $text("buildFinished","Конец: "+date(job?.finished_at));
+  $text("buildElapsed","Длительность: "+clockDuration(job?.elapsed_seconds));
+  const bar=$("buildProgressFill"), track=$("buildProgressTrack");
+  const percent=job?.progress_percent;
+  bar.classList.toggle("indeterminate",percent===null||percent===undefined);
+  bar.style.width=(percent===null||percent===undefined)?"35%":percent+"%";
+  if(percent===null||percent===undefined)track.removeAttribute("aria-valuenow");
+  else track.setAttribute("aria-valuenow",String(percent));
+  const label=job?.status==="success"?"Сборка завершена · 100%":
+    job?.status==="running" && job?.estimate_seconds ?
+       "Ориентир по "+job.estimate_samples+" прошлым сборкам · "+
+       percent+"% по времени"+(job.eta_seconds===null?" · дольше прогноза":
+         " · осталось около "+clockDuration(job.eta_seconds)):
+    job?.status==="running"?"Сборка идёт · нет исторических данных для ETA":
+    job?.status==="queued"?"Ожидание systemd":job?.status==="failed"?
+      "Завершилось с ошибкой":"Прогресс —";
+  $text("buildProgressText",label+" · фактический процент компиляции неизвестен");
+}
+function renderSavedValidation(job) {
+  const report=$("preflightReport");
+  const result=job?.validation;
+  if(!result){report.hidden=true;return;}
+  report.hidden=false;
+  $text("preflightStatus",result.verified?"✓ Проверено: структура SD":
+    "Проверка устарела");
+  $text("preflightDetails",result.verified?
+    "SHA256 "+result.sha256+" · MBR, LBA34, FAT16/uImage, ext4 · физическая камера НЕ проверена":
+    result.message||"Повторите проверку");
+  const img=$("preflightDiagram");
+  img.hidden=!result.verified;
+  if(result.verified)img.src="/api/jobs/"+job.id+"/layout.svg";
+  else img.removeAttribute("src");
+}
+async function validateSelected(){
+  if(!selected)return;
+  const job=overview?.jobs?.find(j=>j.id===selected);
+  if(!job || job.status!=="success"){toast("Сначала нужна завершённая сборка");return;}
+  $("validateBuild").disabled=true;
+  $text("preflightStatus","Проверяем байты образа...");
+  $("preflightReport").hidden=false;
+  try{
+    const result=await api("/api/jobs/"+selected+"/validate",{method:"POST"});
+    $text("preflightStatus",result.verified?"✓ Проверка структуры пройдена":"Проверка не пройдена");
+    $text("preflightDetails",result.verified?
+      "SHA256 "+result.sha256+" · MSPL LBA34 · BOOT FAT16/uImage · ROOTFS ext4":
+      result.error);
+    $("preflightDiagram").hidden=!result.verified;
+    if(result.verified)$("preflightDiagram").src="/api/jobs/"+selected+"/layout.svg?ts="+Date.now();
+    toast("Проверена структура образа. Аппаратный тест ещё требуется.");
+  }catch(e){
+    $("preflightDiagram").hidden=true;
+    $text("preflightStatus","✕ Структура не прошла проверку");
+    $text("preflightDetails",e.message);
+    toast("Проверка не пройдена: "+e.message);
+  }finally{await refresh();}
 }
 async function refresh() {
   if(loading)return;
@@ -201,6 +280,7 @@ async function init() {
   setTab();window.addEventListener("hashchange",setTab);
   ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).addEventListener("click",start));
   $("stopBuild").addEventListener("click",stop);
+  $("validateBuild").addEventListener("click",validateSelected);
   $("checkUpdate").addEventListener("click",()=>updateAction("check"));
   $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
   $("rollbackUpdate").addEventListener("click",()=>updateAction("rollback"));
