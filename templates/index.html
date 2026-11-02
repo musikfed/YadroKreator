@@ -64,6 +64,19 @@
         </div>
         <div class="build-layout"><div class="surface"><div class="surface-head"><div><small>SQLITE HISTORY</small><h3>Очередь и история</h3></div><span class="count" id="buildCount">0</span></div><div id="jobsList" class="jobs-list"><p class="empty">Сборок пока нет</p></div></div>
           <div class="surface log-surface"><div class="surface-head"><div><small>LIVE BUILD OUTPUT</small><h3 id="logTitle">Консоль сборки</h3></div><button id="stopBuild" class="danger" disabled>■ Остановить</button></div>
+            <div class="build-timeline" id="buildTimeline">
+              <div class="timeline-times"><span id="buildStarted">Старт: —</span><span id="buildFinished">Конец: —</span><span id="buildElapsed">Время: —</span></div>
+              <div class="progress-track" id="buildProgressTrack" role="progressbar" aria-label="Оценка выполнения по истории сборок"><div id="buildProgressFill" class="progress-fill indeterminate"></div></div>
+              <p class="muted" id="buildProgressText">Для первой сборки точный прогноз недоступен</p>
+            </div>
+            <div class="preflight-controls">
+              <button id="validateBuild" class="primary" disabled type="button">✓ Проверить образ перед записью SD</button>
+              <small>Проверка только структуры файла — не загрузки на реальной камере</small>
+            </div>
+            <div class="preflight-report" id="preflightReport" hidden>
+              <strong id="preflightStatus">—</strong><p id="preflightDetails" class="muted"></p>
+              <img id="preflightDiagram" alt="Сгенерированная схема расположения загрузчика, ядра и rootfs" hidden />
+            </div>
             <div class="log-toolbar"><span class="led"></span><span id="logState">Выберите задачу</span><button id="clearView" class="text-btn">Очистить экран</button></div><pre id="log" class="terminal">PegineLab Firmware Factory
 ─────────────────────────────────
 Здесь появится журнал компиляции.
