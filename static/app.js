@@ -6,6 +6,7 @@ const active = new Set(["queued", "running", "stopping"]);
 const labels = {queued:"В очереди",running:"Собирается",stopping:"Останавливается",success:"Готово",failed:"Ошибка",stopped:"Остановлено",interrupted:"Прервано"};
 let selected = null, offset = 0, loading = false, overview = null, refreshedLog = false;
 let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
+let updateHadActive = false, updateAutoReloaded = false;
 const date = (iso) => iso ? new Date(iso).toLocaleString("ru-RU") : "—";
 // Stopwatch from persisted timestamps; build prediction is approximate only.
 const clockDuration = (s) => {
@@ -114,6 +115,13 @@ function renderOverview(data) {
       const button=element("button","secondary","✓ Проверить SD");
       button.addEventListener("click",()=>{select(image.job_id);validateSelected();});
       actions.append(button);
+      const download=element("button","secondary","↓ Скачать образ .img");
+      download.disabled=!checked;
+      download.title=checked?"Нужен одноразовый код с SSH сервера":"Сначала проверьте образ";
+      download.addEventListener("click",()=>downloadImage(image.job_id));
+      actions.append(download);
+      const id=element("code","artifact-id",image.job_id);
+      actions.append(id);
       item.append(actions);
     }
     item.append(icon,info);artifacts.append(item);
@@ -210,9 +218,62 @@ async function refreshLog() {
   }catch(e){$("connection").textContent="Ошибка журнала";}
   finally {refreshedLog=false;}
 }
+async function downloadImage(jobId){
+  // The image may contain Wi-Fi credentials. No anonymous HTTP GET is
+  // possible. A short-lived one-use ticket must be generated via SSH.
+  const token=prompt("Введите одноразовый код для скачивания.\nВ SSH: cd /1tbdisk/PegineLab/projects/YadroKreator && python3 download_access.py issue "+jobId);
+  if(!token)return;
+  toast("Проверяем образ и готовим скачивание…");
+  try{
+    const response=await fetch("/api/jobs/"+jobId+"/download",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"X-PegineLab-Action":"1","X-PegineLab-Download-Token":token.trim()}
+    });
+    if(!response.ok){
+      let message="Ошибка HTTP "+response.status;
+      try{message=(await response.json()).error||message;}catch(_e){}
+      throw new Error(message);
+    }
+    const blob=await response.blob();
+    const name="WIFICAM_T23N_"+jobId.slice(0,8)+".img";
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=name;a.style.display="none";
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    toast("Скачано. Проверьте SHA256 и выберите SD в Rufus / Etcher.");
+  }catch(e){toast("Не удалось скачать: "+e.message);}
+}
 function shortSha(sha) { return sha ? sha.slice(0,12) : "—"; }
+const stepOrder=["queued","fetch","checkout","dependencies","tests","restart","done"];
+function renderUpdateSteps(data){
+  const index=stepOrder.indexOf(data.step||"queued");
+  const busy=["queued","running"].includes(data.phase);
+  const success=data.phase==="success" && ["apply","rollback"].includes(data.action);
+  const failed=data.phase==="failed";
+  // The update checker has no installer steps; hide the timeline for checks.
+  const visible=["apply","rollback"].includes(data.action) &&
+    (busy || success || failed);
+  $("updateSteps").hidden=!visible;
+  $("updateProgressFill").parentElement.hidden=!visible;
+  $("updateProgressCaption").hidden=!visible;
+  document.querySelectorAll("[data-update-step]").forEach(el=>{
+    const i=stepOrder.indexOf(el.dataset.updateStep);
+    el.classList.toggle("passed",visible && (success || i<index));
+    el.classList.toggle("current",visible && busy && i===index);
+    el.classList.toggle("failed",visible && failed && i===index);
+  });
+  const pct=success?100:Math.max(0,Math.round(Math.max(0,index)/6*100));
+  $("updateProgressFill").style.width=pct+"%";
+  $text("updateProgressCaption",failed?
+    "Ошибка на этапе «"+(data.step||"неизвестно")+"». Проверь журнал операции, затем используй откат, если доступен.":
+    success?"Обновление завершено. Панель переподключается…":
+    "Выполняется шаг "+(Math.max(0,index)+1)+" из 7 · "+(data.message||""));
+  $("updateReconnect").hidden=!(busy && data.step==="restart");
+}
 function renderUpdate(data) {
   updateState=data;
+  renderUpdateSteps(data);
   const isBusy=["queued","running"].includes(data.phase);
   const buildBusy=!!(overview?.jobs||[]).find(j=>active.has(j.status));
   $text("updateInstalled",shortSha(data.installed_sha));
@@ -229,6 +290,14 @@ function renderUpdate(data) {
   $("applyUpdate").disabled=isBusy || buildBusy || !data.update_available;
   $("rollbackUpdate").disabled=isBusy || buildBusy || !data.rollback_available;
   if(overview)renderJobs();
+  if(isBusy && ["apply","rollback"].includes(data.action))updateHadActive=true;
+  // Wait for recorded success (not merely HEAD changing), then reload once
+  // to replace stale JS/CSS after Waitress has come back online.
+  if(updateHadActive && !updateAutoReloaded && data.phase==="success" &&
+     ["apply","rollback"].includes(data.action)){
+    updateAutoReloaded=true;
+    setTimeout(()=>window.location.reload(),1200);
+  }
 }
 async function refreshUpdate(automatic=false) {
   if(checkingUpdate)return;
@@ -245,7 +314,10 @@ async function refreshUpdate(automatic=false) {
       renderUpdate(await api("/api/update"));
     }
   }catch(e){
-    if(!updateState)$text("updateMessage","GitHub-проверка недоступна: "+e.message);
+    if(updateState && ["queued","running"].includes(updateState.phase)){
+      $("updateReconnect").hidden=false;
+      $text("updateReconnect","Веб-панель временно недоступна. Проверяем связь автоматически…");
+    }else if(!updateState)$text("updateMessage","GitHub-проверка недоступна: "+e.message);
   }finally{checkingUpdate=false;}
 }
 async function updateAction(action) {
