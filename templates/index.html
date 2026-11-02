@@ -88,7 +88,7 @@
         <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
         <div class="surface sd-export-guide">
           <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
-          <p>После успешной сборки нажми <strong>«Проверить SD»</strong>, затем <strong>«Скачать образ»</strong>. Для приватного образа с Wi-Fi потребуется одноразовый код из SSH-терминала сервера.</p>
+          <p>После успешной сборки можно сразу нажать <strong>«Скачать образ .img»</strong>. Сервер автоматически проверит SHA256 и структуру <em>уже готового</em> файла перед передачей: повторной компиляции ядра не будет. Кнопка <strong>«Проверить SD»</strong> остаётся для предварительного просмотра карты разделов. Для приватного образа с Wi-Fi необходим одноразовый код из SSH-терминала сервера.</p>
           <p>На Huananzhi: <code>cd /1tbdisk/PegineLab/projects/YadroKreator</code>, затем <code>python3 download_access.py issue ИДЕНТИФИКАТОР_ЗАДАНИЯ</code>. Полный ID отображается на карточке артефакта. Код действует 10 минут и используется один раз.</p>
           <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
           <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
