@@ -17,7 +17,7 @@
       <a class="nav active" href="#overview" data-tab="overview"><span>◈</span> Обзор</a>
       <a class="nav" href="#builds" data-tab="builds"><span>⌘</span> Сборки <i id="navBuildCount">0</i></a>
       <a class="nav" href="#artifacts" data-tab="artifacts"><span>▣</span> Артефакты</a>
-      <a class="nav" href="#system" data-tab="system"><span>◉</span> Система</a>
+      <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
     </nav>
     <div class="sidebar-bottom">
       <div class="core-badge"><span class="led"></span><div><strong>CORE · .100</strong><small>VPN / LAN · без веб-пароля</small></div></div>
@@ -77,6 +77,21 @@
       </section>
       <section data-panel="system" class="panel" hidden>
         <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
+        <div class="surface update-surface">
+          <div class="surface-head"><div><small>GITHUB RELEASE CONTROL</small><h3>Обновления и восстановление YadroKreator</h3></div><span id="updateStatus" class="tag neutral">Проверка...</span></div>
+          <div class="update-versions">
+            <p><span>Установленная версия</span><code id="updateInstalled">—</code></p>
+            <p><span>Версия GitHub main</span><code id="updateRemote">—</code></p>
+            <p><span>Предыдущая версия для отката</span><code id="updatePrevious">Нет сохранённой</code></p>
+          </div>
+          <p id="updateMessage" class="muted">GitHub проверяется без установки. История заданий и прошивки остаются нетронутыми.</p>
+          <div class="update-actions">
+            <button id="checkUpdate" class="secondary" type="button">↻ Проверить обновления</button>
+            <button id="applyUpdate" class="primary" type="button" disabled>↓ Обновить панель</button>
+            <button id="rollbackUpdate" class="secondary" type="button" disabled>↶ Откатить предыдущую версию</button>
+          </div>
+          <p class="muted">Только YadroKreator. Новые версии проверяются в GitHub; действия выполняются через systemd независимо от браузера. Во время компиляции обновление и откат запрещены.</p>
+        </div>
         <div class="system-grid"><div class="surface"><div class="surface-head"><div><small>HOST MACHINE</small><h3>CORE · Huananzhi X79</h3></div><span class="tag">UBUNTU 24.04</span></div><div class="system-rows"><div><span>Веб-порт</span><b>192.168.0.100:62404 / VPN-LAN</b></div><div><span>Исполнение</span><b>systemd user services</b></div><div><span>База данных</span><b>SQLite · WAL</b></div><div><span>Web server</span><b>Waitress · Flask / Python venv</b></div><div><span>Сборка</span><b>Native ext4 / без Docker</b></div><div><span>Ограничение</span><b>CPU 0–15 · nice 10</b></div></div></div>
           <div class="surface"><div class="surface-head"><div><small>WORKSPACE PATHS</small><h3>Каталоги</h3></div></div><div class="paths"><p><span>Корень станции</span><code id="pathRoot">—</code></p><p><span>WIFICAM</span><code id="pathProject">—</code></p><p><span>Thingino</span><code id="pathThingino">—</code></p></div></div>
         </div>
