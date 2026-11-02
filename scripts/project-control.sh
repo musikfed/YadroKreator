@@ -47,7 +47,7 @@ stop_workers() {
         return
     fi
     while IFS= read -r unit; do
-        [[ -n "$unit" ]] && stop_unit "$unit"
+        if [[ -n "$unit" ]]; then stop_unit "$unit"; fi
     done <<< "$units"
 }
 project_container_ids() {
