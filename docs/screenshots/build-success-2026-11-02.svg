@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 790" role="img" aria-label="Reconstruction from user's screenshot of successful WIFICAM build on Nov 2 2026">
+<rect width="1500" height="790" fill="#0b111c"/><rect x="0" y="0" width="220" height="790" fill="#101826"/>
+<text x="26" y="49" fill="#f0f9ff" font-size="25" font-family="sans-serif" font-weight="bold">◆ PegineLab</text>
+<text x="26" y="78" fill="#62d6c4" font-size="13" font-family="monospace">FIRMWARE FACTORY</text>
+<rect x="12" y="197" width="195" height="54" rx="9" fill="#223851" stroke="#59d7c3"/>
+<g fill="#a7bdde" font-size="20" font-family="sans-serif"><text x="30" y="172">Обзор</text><text x="30" y="233" fill="#e4f5fc">Сборки</text><text x="30" y="297">Артефакты</text><text x="30" y="358">Система</text></g>
+<text x="273" y="60" fill="#e7f0ff" font-family="sans-serif" font-weight="bold" font-size="29">PegineLab / Сборки</text>
+<rect x="260" y="94" width="1203" height="200" rx="16" fill="#172339" stroke="#2c4057"/>
+<text x="288" y="133" fill="#5dd9c3" font-family="monospace" font-size="17">GITHUB → HUANANZHI → BUILD</text>
+<text x="288" y="173" fill="#f0f7fe" font-size="25" font-family="sans-serif" font-weight="bold">Исходники из GitHub без копирования</text>
+<text x="288" y="221" fill="#aec7e0" font-size="17" font-family="sans-serif">mymarrchWFcam — текущие наработки   ·   PUBLISH=0</text>
+<rect x="260" y="307" width="450" height="408" rx="15" fill="#172339" stroke="#2b4057"/>
+<rect x="725" y="307" width="738" height="408" rx="15" fill="#172339" stroke="#2b4057"/>
+<text x="285" y="344" fill="#5dd9c3" font-family="monospace" font-size="15">SQLITE HISTORY</text>
+<text x="285" y="379" fill="#f0f7fe" font-size="25" font-family="sans-serif" font-weight="bold">Очередь и история</text>
+<rect x="286" y="410" width="398" height="121" rx="9" fill="#203b53"/>
+<text x="306" y="442" fill="#fff" font-size="19" font-family="sans-serif" font-weight="bold">WIFICAM · T23N SD</text>
+<text x="306" y="468" fill="#9bb9dd" font-size="15" font-family="sans-serif">02.11.2026 · 12:02:41 · 1a383b6c</text>
+<text x="306" y="495" fill="#9bb9dd" font-size="15" font-family="sans-serif">Время: 00:55:32</text>
+<rect x="598" y="442" width="72" height="30" rx="15" fill="#1d5445"/><text x="613" y="463" fill="#8ffbd7" font-size="16" font-family="sans-serif">Готово</text>
+<text x="306" y="574" fill="#f0f7fe" font-size="19" font-family="sans-serif">WIFICAM · T23N SD</text>
+<text x="306" y="604" fill="#9bb9dd" font-size="15" font-family="sans-serif">Предыдущее задание · Ошибка</text>
+<text x="749" y="343" fill="#5dd9c3" font-family="monospace" font-size="15">LIVE BUILD OUTPUT</text>
+<text x="749" y="379" fill="#fff" font-family="sans-serif" font-weight="bold" font-size="25">Журнал · 1a383b6c</text>
+<g font-family="sans-serif" font-size="15" fill="#b2cae4"><text x="749" y="415">Начало: 02.11.2026 12:02:41</text><text x="1158" y="415">Конец: 12:58:13</text></g>
+<rect x="750" y="428" width="682" height="10" rx="5" fill="#26364d"/><rect x="750" y="428" width="682" height="10" rx="5" fill="#64d5c6"/>
+<text x="749" y="464" fill="#9bb9dd" font-family="sans-serif" font-size="16">Сборка завершена · 100%</text>
+<rect x="750" y="485" width="350" height="53" rx="9" fill="#60d6c3"/>
+<text x="769" y="517" fill="#082b31" font-family="sans-serif" font-size="17" font-weight="bold">✓ Проверить образ перед записью SD</text>
+<rect x="750" y="554" width="681" height="130" rx="8" fill="#091320"/>
+<g font-family="monospace" font-size="16" fill="#a0ebca"><text x="773" y="585">THINGINO WIFICAM SD IMAGE: VERIFIED</text><text x="773" y="615">ROOTFS: LBA 34816 · ext4</text><text x="773" y="644">Size: 84 934 656 bytes · SHA256 recorded</text><text x="773" y="670">BUILD_EXIT=0 STATUS=success</text></g>
+<rect x="260" y="735" width="1204" height="38" rx="10" fill="#342a2b"/>
+<text x="280" y="759" fill="#fbd3a6" font-family="sans-serif" font-size="15">Векторная реконструкция по реальному пользовательскому скриншоту 2026-11-02 · НЕ оригинальный PNG</text>
+</svg>
