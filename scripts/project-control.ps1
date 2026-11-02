@@ -14,11 +14,11 @@ if ($Server -notmatch '^[A-Za-z_][A-Za-z0-9_.-]*@[A-Za-z0-9.-]+$') {
 }
 $remote = switch ($Action) {
     start  { 'systemctl --user start peginelab-factory.service && systemctl --user is-active peginelab-factory.service' }
-    stop   { 'systemctl --user stop peginelab-factory.service && systemctl --user is-active peginelab-factory.service; test $? -ne 0' }
-    status { 'systemctl --user status peginelab-factory.service --no-pager' }
+    stop   { 'systemctl --user stop peginelab-factory.service && ! systemctl --user is-active --quiet peginelab-factory.service' }
+    status { 'systemctl --user is-active peginelab-factory.service || true' }
 }
 Write-Host "YadroKreator: $Action on $Server (Ubuntu user service only)"
-& ssh.exe -o BatchMode=yes -o ConnectTimeout=8 $Server $remote
+& ssh.exe -o ConnectTimeout=8 $Server $remote
 if ($LASTEXITCODE -ne 0) {
     throw "SSH or systemd command failed (exit $LASTEXITCODE). Connect interactively first: ssh $Server"
 }
