@@ -247,7 +247,11 @@ async function downloadImage(jobId){
 function shortSha(sha) { return sha ? sha.slice(0,12) : "—"; }
 const stepOrder=["queued","fetch","checkout","dependencies","tests","restart","done"];
 function renderUpdateSteps(data){
-  const index=stepOrder.indexOf(data.step||"queued");
+  // During failure the backend reports step="failed"; highlight the
+  // last real stage using persisted index instead of losing its position.
+  const index=data.phase==="failed" && Number.isInteger(data.step_index)
+    ?Math.max(0,Math.min(6,data.step_index))
+    :Math.max(0,stepOrder.indexOf(data.step||"queued"));
   const busy=["queued","running"].includes(data.phase);
   const success=data.phase==="success" && ["apply","rollback"].includes(data.action);
   const failed=data.phase==="failed";
@@ -266,7 +270,7 @@ function renderUpdateSteps(data){
   const pct=success?100:Math.max(0,Math.round(Math.max(0,index)/6*100));
   $("updateProgressFill").style.width=pct+"%";
   $text("updateProgressCaption",failed?
-    "Ошибка на этапе «"+(data.step||"неизвестно")+"». Проверь журнал операции, затем используй откат, если доступен.":
+    "Ошибка на этапе «"+(data.failed_step||data.step||"неизвестно")+"». Подробности ниже, в журнале обновления панели.":
     success?"Обновление завершено. Панель переподключается…":
     "Выполняется шаг "+(Math.max(0,index)+1)+" из 7 · "+(data.message||""));
   $("updateReconnect").hidden=!(busy && data.step==="restart");
@@ -274,6 +278,17 @@ function renderUpdateSteps(data){
 function renderUpdate(data) {
   updateState=data;
   renderUpdateSteps(data);
+  // Dedicated updater console, never append the selected kernel/firmware
+  // job log from #builds to #system.
+  const consoleEl=$("updateLog");
+  const atBottom=consoleEl.scrollHeight-consoleEl.scrollTop-consoleEl.clientHeight<90;
+  const body=(data.operation_log||"").trim();
+  const viewText=body || "Ожидаем запуска проверки/обновления панели…";
+  if(consoleEl.textContent!==viewText) consoleEl.textContent=viewText;
+  if(atBottom) consoleEl.scrollTop=consoleEl.scrollHeight;
+  $text("updateConsoleStatus",data.phase==="failed"?"Ошибка — смотри конец журнала":
+    ["queued","running"].includes(data.phase)?"Выполняется "+(data.action||"операция"):
+    data.phase==="success"?"Последняя операция завершена":"Отдельный журнал установщика");
   const isBusy=["queued","running"].includes(data.phase);
   const buildBusy=!!(overview?.jobs||[]).find(j=>active.has(j.status));
   $text("updateInstalled",shortSha(data.installed_sha));
@@ -307,7 +322,7 @@ async function refreshUpdate(automatic=false) {
     renderUpdate(state);
     const checked=state.checked_at?Date.parse(state.checked_at):0;
     const stale=!checked || (Date.now()-checked>15*60*1000);
-    if(automatic && stale && !["queued","running"].includes(state.phase) &&
+    if(automatic && stale && !["queued","running","failed"].includes(state.phase) &&
        Date.now()-lastAutoCheck>15*60*1000) {
       lastAutoCheck=Date.now();
       await api("/api/update/check",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
