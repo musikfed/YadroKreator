@@ -72,7 +72,10 @@ def _write(state: dict) -> None:
 
 
 def run(cmd: list[str], timeout: int = 90) -> str:
-    result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout)
+    # systemd-run has no guarantee of a checkout working directory. Run
+    # tests from the active repo so local Python modules import correctly.
+    result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout,
+                            cwd=str(APP))
     if result.returncode:
         raise RuntimeError((result.stderr or result.stdout).strip()[:350]
                            or "Command failed")
