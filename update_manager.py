@@ -6,6 +6,7 @@ paths, commands or commit SHAs. Actions run in separate systemd user units.
 from __future__ import annotations
 
 import fcntl
+import contextvars
 import json
 import os
 import re
@@ -25,6 +26,10 @@ APP = ROOT / "projects" / "YadroKreator"
 VENV = ROOT / "factory-venv"
 STATE_FILE = DATA / "updates.json"
 LOCK_FILE = DATA / "updates.lock"
+UPDATE_LOGS = DATA / "update-logs"
+# An updater is one detached systemd process. Contextvars prevent command
+# output from leaking into another operation if tests run in-process.
+_CURRENT_OP = contextvars.ContextVar("dashboard_update_op", default="")
 ORIGIN = "https://github.com/musikfed/YadroKreator.git"
 SHA = re.compile(r"^[0-9a-f]{40}$")
 ACTIONS = ("check", "apply", "rollback")
@@ -71,14 +76,51 @@ def _write(state: dict) -> None:
             os.unlink(name)
 
 
+def _log_file(operation: str) -> Path:
+    if not re.fullmatch(r"[0-9a-f]{32}", operation):
+        raise ValueError("Invalid update operation ID")
+    return UPDATE_LOGS / (operation + ".log")
+
+
+def append_log(operation: str, message: str) -> None:
+    """Write only updater diagnostics, *never* the firmware build log."""
+    if not operation:
+        return
+    UPDATE_LOGS.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with _log_file(operation).open("a", encoding="utf-8") as stream:
+        os.chmod(_log_file(operation), 0o600)
+        stream.write("[" + stamp() + "] " + message.strip()[-12000:] + "\n")
+
+
+def log_tail(operation: str, limit: int = 6000) -> str:
+    """Bound response size; no paths, user input or raw shell arguments."""
+    if not operation or not re.fullmatch(r"[0-9a-f]{32}", operation):
+        return ""
+    try:
+        with _log_file(operation).open("rb") as stream:
+            stream.seek(0, 2)
+            stream.seek(max(0, stream.tell() - limit))
+            return stream.read().decode("utf-8", "replace")[-limit:]
+    except OSError:
+        return ""
+
+
 def run(cmd: list[str], timeout: int = 90) -> str:
     # systemd-run has no guarantee of a checkout working directory. Run
     # tests from the active repo so local Python modules import correctly.
     result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout,
                             cwd=str(APP))
+    operation = _CURRENT_OP.get()
+    # Only tool output from known updater subprocesses; the UI never receives
+    # private build worktree logs or local/wifi.env.
+    output = (result.stdout + "\n" + result.stderr).strip()
+    if output and operation:
+        append_log(operation, output[-7000:])
     if result.returncode:
-        raise RuntimeError((result.stderr or result.stdout).strip()[:350]
-                           or "Command failed")
+        # The old updater returned the FIRST 350 chars of unittest output,
+        # obscuring the actual traceback at the END.
+        raise RuntimeError((result.stderr or result.stdout).strip()[-1600:]
+                           or "Updater command failed")
     return result.stdout.strip()
 
 
@@ -109,6 +151,7 @@ def view() -> dict:
     state["update_available"] = bool(state["remote_sha"] and
                                     state["remote_sha"] != current and
                                     state.get("can_fast_forward"))
+    state["operation_log"] = log_tail(state.get("operation", ""))
     state["rollback_available"] = bool(state.get("rollback_sha")
                                        and state.get("rollback_from") == current)
     return state
@@ -129,6 +172,7 @@ def mark_step(operation: str, step: str, message: str) -> None:
                  step_total=len(STEP_ORDER)-1,
                  message=message[:350], updated_at=stamp())
         _write(s)
+    append_log(operation, "STAGE " + step + ": " + message)
 
 
 def builds_active() -> bool:
@@ -197,6 +241,7 @@ def start(action: str, expected: str = "") -> dict:
                      step="queued", step_index=0, step_total=len(STEP_ORDER)-1,
                      launch="cli")
         _write(state)
+    append_log(operation, action.upper() + " requested")
     return state
 
 
@@ -205,12 +250,15 @@ def finish(operation: str, phase: str, message: str, **changes) -> None:
         s = _read()
         if s.get("operation") != operation:
             return
-        s.update(phase=phase, message=message[:350], finished_at=stamp(),
+        if phase == "failed":
+            s["failed_step"] = s.get("step", "queued")
+        s.update(phase=phase, message=message[-1600:], finished_at=stamp(),
                  updated_at=stamp(),
                  step=("done" if phase == "success" else "failed"),
                  step_index=(len(STEP_ORDER)-1 if phase == "success" else
                              s.get("step_index", 0)), **changes)
         _write(s)
+    append_log(operation, "FINISH " + phase.upper() + ": " + message[-1600:])
 
 
 def pending(operation: str) -> dict:
@@ -270,6 +318,7 @@ def switch_to(target: str, *, rollback: bool) -> None:
 
 def perform(operation: str) -> None:
     s = pending(operation)
+    token = _CURRENT_OP.set(operation)
     action = s["action"]
     before = ""
     changed = False
@@ -329,6 +378,8 @@ def perform(operation: str) -> None:
             except Exception as recovery:
                 error += "; ОШИБКА ВОССТАНОВЛЕНИЯ: " + str(recovery)
         finish(operation, "failed", error)
+    finally:
+        _CURRENT_OP.reset(token)
 
 
 def main(argv: list[str]) -> int:
