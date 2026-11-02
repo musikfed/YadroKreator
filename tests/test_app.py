@@ -133,16 +133,92 @@ class DashboardTests(unittest.TestCase):
             self.assertIn("no-store", r.headers["Cache-Control"])
         file.unlink()
 
-    def test_download_requires_image_preflight(self):
+    def test_download_automatically_validates_existing_image_without_rebuilding(self):
+        from unittest.mock import patch
+        import app as webmodule
+        job = {"id": "c" * 32, "profile": "t23n_sd", "status": "success"}
+        image = Path(self.tmp.name) / "existing-image.bin"
+        image.write_bytes(b"already-compiled-image")
+        with patch.object(webmodule, "safe_job", return_value=job), \
+             patch.object(webmodule, "saved_report", return_value=None), \
+             patch.object(webmodule, "consume_download_ticket", return_value=True), \
+             patch.object(webmodule, "artifact_path", return_value=image), \
+             patch.object(webmodule, "validate_t23n", return_value={
+                 "sha256": "a" * 64, "verified": True}), \
+             patch.object(webmodule, "save_report") as stored:
+            r = self.client.post("/api/jobs/" + job["id"] + "/download",
+                                 headers={"X-PegineLab-Action": "1",
+                                          "X-PegineLab-Download-Token": "fixture-token"})
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data, b"already-compiled-image")
+            self.assertEqual(r.headers["X-PegineLab-Preflight"], "passed")
+            stored.assert_called_once()
+        image.unlink()
+
+    def test_corrupted_image_is_not_downloadable_even_with_token(self):
         from unittest.mock import patch
         import app as webmodule
         job = {"id": "c" * 32, "profile": "t23n_sd", "status": "success"}
         with patch.object(webmodule, "safe_job", return_value=job), \
-             patch.object(webmodule, "saved_report", return_value=None):
+             patch.object(webmodule, "consume_download_ticket", return_value=True), \
+             patch.object(webmodule, "artifact_path", return_value=Path("bad.bin")), \
+             patch.object(webmodule, "validate_t23n",
+                          side_effect=ValueError("bad MSPL at LBA34")):
             r = self.client.post("/api/jobs/" + job["id"] + "/download",
                                  headers={"X-PegineLab-Action": "1",
-                                          "X-PegineLab-Download-Token": "test"})
-            self.assertEqual(r.status_code, 409)
+                                          "X-PegineLab-Download-Token": "fixture-token"})
+            self.assertEqual(r.status_code, 422)
+            self.assertIn("MSPL", r.json["error"])
+
+    def test_overview_artifact_validation_belongs_to_correct_job(self):
+        # Regression: old loop used validation=j["validation"] (last job),
+        # so a verified job showed "not checked" in the Artifacts tab.
+        import core
+        import app as webmodule
+        from unittest.mock import patch
+        success_ids = ["7" * 32, "8" * 32]
+        db = core.connect()
+        try:
+            for idx, job_id in enumerate(success_ids):
+                db.execute(
+                    "INSERT INTO jobs "
+                    "(id,profile,status,created_at,unit,log_path,repo_ref,source_sha) "
+                    "VALUES (?,?,?,?,?,?,?,?)",
+                    (job_id, "t23n_sd", "success", core.now(),
+                     "unit-test", "log-test", "mymarrchWFcam", str(idx + 1) * 40))
+            db.commit()
+        finally:
+            db.close()
+        images = []
+        for job_id in success_ids:
+            path = Path(self.tmp.name) / "build/jobs" / job_id / \
+                "wificam_T23N/out/private-sd/thingino-t23-sd.bin"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"artifact-" + job_id.encode())
+            images.append(path)
+        try:
+            def report(job, *unused):
+                return {"verified": job["id"] == success_ids[0],
+                        "sha256": job["id"]}
+            with patch.object(webmodule, "saved_report", side_effect=report):
+                r = self.client.get("/api/overview")
+            self.assertEqual(r.status_code, 200)
+            found = {item["job_id"]: item for item in r.json["images"]
+                     if item.get("job_id") in success_ids}
+            self.assertEqual(set(found), set(success_ids))
+            self.assertTrue(found[success_ids[0]]["validation"]["verified"])
+            self.assertFalse(found[success_ids[1]]["validation"]["verified"])
+        finally:
+            db = core.connect()
+            try:
+                for job_id in success_ids:
+                    db.execute("DELETE FROM jobs WHERE id=?", (job_id,))
+                db.commit()
+            finally:
+                db.close()
+            for image in images:
+                image.unlink()
+
 
     def test_finished_job_refresh_reads_tail_not_full_history(self):
         import core
