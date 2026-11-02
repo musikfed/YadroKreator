@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 450" role="img" aria-label="PegineLab Git to SD build validation workflow">
+<rect width="1240" height="450" rx="22" fill="#0c1423"/><text x="48" y="55" fill="#e9f1ff" font-family="sans-serif" font-size="30" font-weight="bold">PegineLab · путь от GitHub к проверенной SD</text>
+<text x="48" y="84" fill="#9caec4" font-size="15" font-family="sans-serif">Architecture preview · не является доказательством загрузки на реальной камере</text>
+<g font-family="sans-serif" text-anchor="middle" font-size="17" font-weight="bold">
+<rect x="45" y="128" width="183" height="150" rx="14" fill="#1b2c45" stroke="#65d6c7"/><text x="136" y="184" fill="#eaffff">GitHub</text><text x="136" y="212" font-size="13" fill="#8fb3ca">WIFICAM source SHA</text>
+<rect x="280" y="128" width="183" height="150" rx="14" fill="#1b2c45" stroke="#65d6c7"/><text x="370" y="184" fill="#eaffff">YadroKreator</text><text x="370" y="212" font-size="13" fill="#8fb3ca">systemd / worktree</text>
+<rect x="515" y="128" width="183" height="150" rx="14" fill="#1b2c45" stroke="#65d6c7"/><text x="606" y="184" fill="#eaffff">Thingino</text><text x="606" y="212" font-size="13" fill="#8fb3ca">kernel + rootfs</text>
+<rect x="750" y="128" width="183" height="150" rx="14" fill="#1b2c45" stroke="#65d6c7"/><text x="842" y="184" fill="#eaffff">SD preflight</text><text x="842" y="212" font-size="13" fill="#8fb3ca">SHA / LBA34 / FAT</text>
+<rect x="985" y="128" width="206" height="150" rx="14" fill="#1b2c45" stroke="#e2bc72"/><text x="1088" y="184" fill="#eaffff">SD + камера</text><text x="1088" y="212" font-size="13" fill="#d2b48b">readback / boot test</text></g>
+<g stroke="#76a5bd" fill="none" stroke-width="2"><path d="M229 203H278m-10 -7 10 7 -10 7M464 203H513m-10 -7 10 7 -10 7M699 203H748m-10 -7 10 7 -10 7M934 203H983m-10 -7 10 7 -10 7"/></g>
+<text x="48" y="347" font-family="monospace" fill="#9dcabf" font-size="16">T23N whole-disk image · LBA0 MBR · LBA34 MSPL · LBA2048 FAT16 uImage · LBA34816 ext4 rootfs</text>
+<text x="48" y="392" font-family="sans-serif" fill="#e2bc72" font-size="15">Offline preflight = файловая проверка. Hardware validation = отдельное физическое испытание.</text>
+</svg>
