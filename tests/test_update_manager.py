@@ -111,6 +111,27 @@ class UpdaterTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.updater.start("apply", target)
 
+    def test_update_steps_are_persistent(self):
+        operation = self.updater.start("check")["operation"]
+        self.updater.mark_step(operation, "fetch", "GitHub fetch")
+        v = self.updater.view()
+        self.assertEqual(v["step"], "fetch")
+        self.assertEqual(v["step_index"], 1)
+        self.assertEqual(v["phase"], "queued")
+        self.updater.finish(operation, "failed", "network unavailable")
+        v = self.updater.view()
+        self.assertEqual(v["step"], "failed")
+        self.assertEqual(v["message"], "network unavailable")
+
+    def test_finished_apply_reports_complete_step(self):
+        target = self.second_commit()
+        self.op("check")
+        state = self.op("apply", target)
+        self.assertEqual(state["phase"], "success")
+        self.assertEqual(state["step"], "done")
+        self.assertEqual(state["step_index"], state["step_total"])
+        self.assertTrue(state["rollback_available"])
+
     def test_concurrent_update_is_rejected(self):
         s = self.updater.start("check")
         with self.assertRaises(RuntimeError):

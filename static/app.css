@@ -39,3 +39,24 @@
 .artifact-actions{margin-left:auto;display:flex;flex-direction:column;align-items:end;gap:10px;color:#9baec6}
 .artifact-actions button{padding:10px 14px;cursor:pointer}
 @media(max-width:750px){.timeline-times{flex-direction:column}.artifact-actions{margin:12px 0 0;align-items:start}}
+
+/* Durable updater timeline: rendered from updates.json, never a fake timer. */
+.update-steps{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin:18px 0 10px}
+.update-steps[hidden],.update-progress-shell[hidden],#updateProgressCaption[hidden],#updateReconnect[hidden]{display:none}
+.update-step{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;padding:12px 3px;border:1px solid #314155;background:#101a28;border-radius:10px;color:#8da5bb;text-align:center;font-size:12px}
+.step-number{width:30px;height:30px;border:1px solid #4d6178;border-radius:50%;display:grid;place-items:center;font-weight:bold}
+.update-step.passed{border-color:#3d857b;background:#19382e;color:#b2f3e5}
+.update-step.current{border-color:#66d8bd;background:#1f4449;color:#e4fff8}
+.update-step.current .step-number{animation:update-pulse 1.25s ease-in-out infinite}
+.update-step.failed{border-color:#c76977;background:#481e2c;color:#ffe3e3}
+.update-progress-shell{height:8px;border-radius:12px;background:#263348;overflow:hidden}
+.update-progress-fill{height:100%;width:0;background:linear-gradient(90deg,#438a95,#60d9bd);transition:width .5s ease}
+#updateReconnect{color:#ffcd86}
+.artifact-id{font-size:11px;max-width:230px;overflow-wrap:anywhere;opacity:.8}
+.artifact-actions button:disabled{opacity:.4;cursor:not-allowed}
+.sd-export-guide{margin-top:18px;padding:20px}
+.sd-export-guide p{line-height:1.65;overflow-wrap:anywhere}
+.sd-export-guide code{padding:2px 4px;border:1px solid #394b64;border-radius:4px}
+@keyframes update-pulse{50%{box-shadow:0 0 0 7px rgba(102,216,189,.15)}}
+@media(max-width:1050px){.update-steps{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:600px){.update-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
