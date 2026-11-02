@@ -95,6 +95,33 @@ class DashboardTests(unittest.TestCase):
                 db.close()
             image.unlink()
 
+    def test_private_sd_cannot_download_anonymously(self):
+        # The dashboard intentionally has no login. A known job ID must NOT
+        # be enough to download firmware containing personal Wi-Fi secrets.
+        from unittest.mock import patch
+        import app as webmodule
+        job = {"id": "b" * 32, "profile": "t23n_sd", "status": "success"}
+        url = "/api/jobs/" + job["id"] + "/download"
+        with patch.object(webmodule, "safe_job", return_value=job), \
+             patch.object(webmodule, "saved_report", return_value={"verified": True}), \
+             patch.object(webmodule, "consume_download_ticket", return_value=False):
+            self.assertEqual(self.client.get(url).status_code, 405)
+            self.assertEqual(self.client.post(url).status_code, 403)
+            r = self.client.post(url, headers={"X-PegineLab-Action": "1"})
+            self.assertEqual(r.status_code, 403)
+            self.assertIn("token", r.json["error"])
+
+    def test_download_requires_image_preflight(self):
+        from unittest.mock import patch
+        import app as webmodule
+        job = {"id": "c" * 32, "profile": "t23n_sd", "status": "success"}
+        with patch.object(webmodule, "safe_job", return_value=job), \
+             patch.object(webmodule, "saved_report", return_value=None):
+            r = self.client.post("/api/jobs/" + job["id"] + "/download",
+                                 headers={"X-PegineLab-Action": "1",
+                                          "X-PegineLab-Download-Token": "test"})
+            self.assertEqual(r.status_code, 409)
+
     def test_mutation_header_blocks_csrf(self):
         result = self.client.post("/api/jobs", json={"profile":"t23n_sd"})
         self.assertEqual(result.status_code, 403)
