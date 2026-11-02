@@ -34,6 +34,20 @@
         <div class="hero"><div><h1>Создавай. <em>Собирай.</em><br>Управляй.</h1><p>Твоя собственная лаборатория прошивок и Linux-ядер на Huananzhi X79. Каждая сборка под контролем.</p>
           <div class="hero-actions"><button id="heroBuild" class="primary"><span>▶</span> Новая сборка T23N</button><a class="secondary" href="#builds">Открыть журнал ↗</a></div>
         </div><div class="hero-art"><div class="orb"><div class="orb-inner">P<span>✦</span></div></div><div class="art-caption">NATIVE BUILD ENGINE <span>01 / 01</span></div></div></div>
+        <div class="surface panel-lifecycle">
+          <div class="surface-head">
+            <div><small>CONTROL · SERVICE &amp; GITHUB</small><h3>Управление YadroKreator</h3></div>
+            <span id="panelServiceStatus" class="tag neutral" aria-live="polite">Проверяем службу…</span>
+          </div>
+          <p id="panelServiceMessage" class="muted">Состояние веб-панели на Huananzhi · systemd --user.</p>
+          <div class="update-actions lifecycle-actions">
+            <button id="panelStart" class="secondary" type="button" disabled title="После выключения запуск через терминал Huananzhi">▶ Запустить (SSH)</button>
+            <button id="panelRestart" class="secondary" type="button" disabled>↻ Перезапустить панель</button>
+            <button id="panelStop" class="danger" type="button" disabled>■ Выключить панель</button>
+            <a class="secondary" href="#system">↓ Обновить из GitHub · Система</a>
+          </div>
+          <p class="muted">Выключение останавливает только сайт :62404, не сервер Ubuntu, SSH или сборки. После выключения запускай <code>bash start.sh</code> на Huananzhi. Обновление GitHub — во вкладке «Система».</p>
+        </div>
         <div class="section-heading"><div><small>ЖИВЫЕ ПОКАЗАТЕЛИ</small><h2>Состояние станции</h2></div><span class="muted">Обновляется автоматически</span></div>
         <div class="metrics">
           <div class="metric"><div class="metric-top"><span>НАГРУЗКА · 1 МИН</span><b>◉</b></div><div class="metric-value" id="load">—</div><div class="meter"><div id="loadBar"></div></div><small id="loadInfo">из 32 логических CPU</small></div>
@@ -98,6 +112,18 @@
       </section>
       <section data-panel="system" class="panel" hidden>
         <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
+        <div class="surface panel-lifecycle">
+          <div class="surface-head"><div><small>LOCAL DASHBOARD SERVICE</small><h3>Запуск, состояние и выключение панели</h3></div>
+            <span id="systemServiceStatus" class="tag neutral" aria-live="polite">Проверяем службу…</span></div>
+          <p id="systemServiceMessage" class="muted">Работающая панель управляется отдельной службой systemd пользователя.</p>
+          <div class="update-actions lifecycle-actions">
+            <button id="systemStart" class="secondary" type="button" disabled title="После остановки веб-страница недоступна: запускайте через SSH">▶ Запустить (SSH)</button>
+            <button id="systemRestart" class="secondary" type="button" disabled>↻ Перезапустить</button>
+            <button id="systemStop" class="danger" type="button" disabled>■ Выключить</button>
+            <button id="systemRefresh" class="secondary" type="button">◉ Проверить статус</button>
+          </div>
+          <p class="muted">Восстановление с Linux: <code>cd /1tbdisk/PegineLab/projects/YadroKreator &amp;&amp; bash start.sh</code>. С Windows: <code>ssh user@192.168.0.100</code>, затем <code>bash start.sh</code>. Кнопка запуска в отключённой панели работать не может; не выключайте сайт ради обновления GitHub.</p>
+        </div>
         <div class="surface update-surface">
           <div class="surface-head"><div><small>GITHUB RELEASE CONTROL</small><h3>Обновления и восстановление YadroKreator</h3></div><span id="updateStatus" class="tag neutral">Проверка...</span></div>
           <div class="update-versions">
