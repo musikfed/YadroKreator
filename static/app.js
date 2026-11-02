@@ -399,7 +399,7 @@ function renderPanelService(data) {
   const activeBuild=!!(overview?.jobs||[]).find(j=>active.has(j.status));
   ["panelStart","systemStart"].forEach(id=>$(id).disabled=true);
   ["panelRestart","systemRestart"].forEach(id=>$(id).disabled=!running||busy);
-  ["panelStop","systemStop"].forEach(id=>$(id).disabled=!running||busy||activeBuild);
+  ["panelStop","systemStop"].forEach(id=>$(id).disabled=!running||busy);
 }
 async function refreshPanelService() {
   try {
@@ -420,21 +420,24 @@ async function refreshPanelService() {
 }
 async function panelServiceAction(action) {
   if(panelActionBusy)return;
-  const text=action==="stop"?
-    "Выключить ТОЛЬКО веб-панель YadroKreator :62404? После этого кнопки исчезнут: включить снова можно через SSH / bash start.sh. Сборки и Ubuntu не выключаются.":
+  const text=action==="stop-all"?
+    "ПОЛНОСТЬЮ остановить YadroKreator? Будут остановлены его systemd-сборки, служба и таймер обновления, а также контейнеры с меткой этого проекта, если есть. Ubuntu, SSH и чужие проекты останутся работать. Запуск снова — через SSH, bash start.sh.":
     "Перезапустить ТОЛЬКО веб-панель :62404? Браузер временно потеряет связь, сборки останутся отдельно.";
   if(!confirm(text))return;
+  const buildBusy=!!(overview?.jobs||[]).find(j=>active.has(j.status));
+  if(action==="stop-all" && buildBusy &&
+     !confirm("Есть активная сборка! Полная остановка ПРЕРВЁТ компиляцию и текущий кандидат образа. Отменить сборку и остановить проект?"))return;
   panelActionBusy=true;
   if(panelServiceState)renderPanelService(panelServiceState);
   try {
     await api("/api/panel/service/"+action,{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({confirm:action.toUpperCase()})
+      body:JSON.stringify({confirm:action.toUpperCase(),cancel_builds:action==="stop-all"&&buildBusy})
     });
-    if(action==="stop"){
+    if(action==="stop-all"){
       ["panelServiceMessage","systemServiceMessage"].forEach(id=>
-        $(id).textContent="Остановка заказана. Для запуска: SSH на Huananzhi → bash start.sh");
-      toast("Веб-панель выключается; восстановление только через SSH");
+        $(id).textContent="Полная остановка проекта запланирована. Для запуска: SSH на Huananzhi → bash start.sh");
+      toast("Все задачи YadroKreator выключаются; восстановление через SSH");
     }else{
       panelReconnect=true;
       panelReconnectAfter=Date.now()+3500;
@@ -469,7 +472,7 @@ async function init() {
   $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
   $("rollbackUpdate").addEventListener("click",()=>updateAction("rollback"));
   ["panelRestart","systemRestart"].forEach(id=>$(id).addEventListener("click",()=>panelServiceAction("restart")));
-  ["panelStop","systemStop"].forEach(id=>$(id).addEventListener("click",()=>panelServiceAction("stop")));
+  ["panelStop","systemStop"].forEach(id=>$(id).addEventListener("click",()=>panelServiceAction("stop-all")));
   $("systemRefresh").addEventListener("click",refreshPanelService);
 
   $("clearView").addEventListener("click",()=>{
