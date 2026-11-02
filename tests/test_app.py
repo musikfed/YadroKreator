@@ -111,6 +111,28 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(r.status_code, 403)
             self.assertIn("token", r.json["error"])
 
+    def test_one_time_ticket_streams_only_verified_bytes(self):
+        from unittest.mock import patch
+        import app as webmodule
+        job = {"id": "e" * 32, "profile": "t23n_sd", "status": "success"}
+        file = Path(self.tmp.name) / "checked.img"
+        file.write_bytes(b"preflight-passed-firmware-fixture")
+        with patch.object(webmodule, "safe_job", return_value=job), \
+             patch.object(webmodule, "saved_report", return_value={
+                 "verified": True, "sha256": "f" * 64}), \
+             patch.object(webmodule, "consume_download_ticket", return_value=True), \
+             patch.object(webmodule, "artifact_path", return_value=file), \
+             patch.object(webmodule, "validate_t23n", return_value={
+                 "sha256": "f" * 64, "verified": True}):
+            r = self.client.post("/api/jobs/" + job["id"] + "/download",
+                                 headers={"X-PegineLab-Action": "1",
+                                          "X-PegineLab-Download-Token": "ticket-fixture"})
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.data, b"preflight-passed-firmware-fixture")
+            self.assertIn(".img", r.headers["Content-Disposition"])
+            self.assertIn("no-store", r.headers["Cache-Control"])
+        file.unlink()
+
     def test_download_requires_image_preflight(self):
         from unittest.mock import patch
         import app as webmodule
