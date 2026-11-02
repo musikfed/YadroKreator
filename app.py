@@ -14,6 +14,11 @@ from update_manager import view as update_view, start as start_update, finish as
 from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
 from download_access import consume as consume_download_ticket
+from download_browser_auth import (
+    COOKIE as SD_ACCESS_COOKIE, TTL as SD_ACCESS_TTL, trusted_network,
+    configured as sd_password_configured, authorized as sd_cookie_authorized,
+    initialize as sd_password_initialize, login as sd_password_login,
+)
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -69,6 +74,42 @@ def safe_job(job_id: str):
     if not JOB_ID.fullmatch(job_id):
         return None
     return get_job(job_id)
+
+@app.get("/api/download-auth")
+def download_auth_status():
+    """Private export state, never exposes a password/hash or signing secret."""
+    if not trusted_network(request.remote_addr):
+        return jsonify(error="Private LAN/VPN connection required"), 403
+    return jsonify(configured=sd_password_configured(),
+                   authenticated=sd_cookie_authorized(
+                       request.cookies.get(SD_ACCESS_COOKIE)))
+
+
+@app.post("/api/download-auth/<action>")
+def download_auth_action(action):
+    """First visit: set a browser password. Later visits: login only once."""
+    if not trusted_network(request.remote_addr):
+        return jsonify(error="Private LAN/VPN connection required"), 403
+    if action not in ("setup", "login", "logout"):
+        return jsonify(error="Invalid authentication action"), 404
+    if action == "logout":
+        response = jsonify(ok=True)
+        response.delete_cookie(SD_ACCESS_COOKIE, path="/api", samesite="Strict")
+        return response
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get("password"), str):
+        return jsonify(error="Введите пароль"), 400
+    try:
+        token = (sd_password_initialize(data["password"]) if action == "setup"
+                 else sd_password_login(data["password"]))
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 409 if action == "setup" else 403
+    response = jsonify(ok=True)
+    response.set_cookie(SD_ACCESS_COOKIE, token, max_age=SD_ACCESS_TTL,
+                        httponly=True, secure=request.is_secure,
+                        samesite="Strict", path="/api")
+    return response
+
 
 @app.get("/api/update")
 def update_status():
@@ -286,7 +327,7 @@ def job_layout(job_id):
 
 @app.post("/api/jobs/<job_id>/download")
 def download_sd_image(job_id):
-    """Download a successful job's private SD image with one-time SSH token.
+    """Download a private SD image after browser login or a legacy SSH ticket.
 
     Preflight is automatically performed on the existing image if needed.
     This NEVER starts a kernel build or writes to a disk. Do not remove the
@@ -296,9 +337,14 @@ def download_sd_image(job_id):
     if not job or job.get("profile") != "t23n_sd" or job.get("status") != "success":
         return jsonify(error="Successful T23N SD build required"), 404
 
-    token = request.headers.get("X-PegineLab-Download-Token", "")
-    if not consume_download_ticket(job_id, token):
-        return jsonify(error="One-time download token missing, expired or used"), 403
+    # Browser login makes repeat exports one click; retain the old SSH
+    # ticket only as a backward-compatible fallback for legacy clients.
+    # Refuse anonymous export, even from a private IP: images may hold PSKs.
+    browser_ok = (trusted_network(request.remote_addr) and
+                  sd_cookie_authorized(request.cookies.get(SD_ACCESS_COOKIE)))
+    legacy_token = request.headers.get("X-PegineLab-Download-Token", "")
+    if not browser_ok and not (legacy_token and consume_download_ticket(job_id, legacy_token)):
+        return jsonify(error="Войдите для скачивания в браузере (или используйте legacy token)"), 403
     try:
         path = artifact_path(job, ROOT)
         # Lightweight local check of existing image bytes (~85 MB), NOT a
