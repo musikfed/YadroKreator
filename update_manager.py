@@ -26,7 +26,6 @@ APP = ROOT / "projects" / "YadroKreator"
 VENV = ROOT / "factory-venv"
 STATE_FILE = DATA / "updates.json"
 LOCK_FILE = DATA / "updates.lock"
-UPDATE_LOGS = DATA / "update-logs"
 # An updater is one detached systemd process. Contextvars prevent command
 # output from leaking into another operation if tests run in-process.
 _CURRENT_OP = contextvars.ContextVar("dashboard_update_op", default="")
@@ -79,14 +78,14 @@ def _write(state: dict) -> None:
 def _log_file(operation: str) -> Path:
     if not re.fullmatch(r"[0-9a-f]{32}", operation):
         raise ValueError("Invalid update operation ID")
-    return UPDATE_LOGS / (operation + ".log")
+    return DATA / "update-logs" / (operation + ".log")
 
 
 def append_log(operation: str, message: str) -> None:
     """Write only updater diagnostics, *never* the firmware build log."""
     if not operation:
         return
-    UPDATE_LOGS.mkdir(parents=True, exist_ok=True, mode=0o700)
+    (DATA / "update-logs").mkdir(parents=True, exist_ok=True, mode=0o700)
     with _log_file(operation).open("a", encoding="utf-8") as stream:
         os.chmod(_log_file(operation), 0o600)
         stream.write("[" + stamp() + "] " + message.strip()[-12000:] + "\n")
