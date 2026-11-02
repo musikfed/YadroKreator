@@ -116,13 +116,16 @@ function renderOverview(data) {
       const actions=element("div","artifact-actions");
       const checked=image.validation?.verified===true;
       actions.append(element("small","",checked?"✓ Структура проверена":
-        "Структурная проверка не выполнена"));
+        "Проверка будет выполнена при скачивании (без пересборки)"));
       const button=element("button","secondary","✓ Проверить SD");
       button.addEventListener("click",()=>{select(image.job_id);validateSelected();});
       actions.append(button);
       const download=element("button","secondary","↓ Скачать образ .img");
-      download.disabled=!checked;
-      download.title=checked?"Нужен одноразовый код с SSH сервера":"Сначала проверьте образ";
+      // A successful job already contains a complete SD candidate. The
+      // server validates its real bytes automatically during download.
+      download.disabled=false;
+      download.title=checked?"Проверено. Нужен одноразовый SSH-код":
+        "Скачать после автоматической проверки файла; SSH-код обязателен";
       download.addEventListener("click",()=>downloadImage(image.job_id));
       actions.append(download);
       const id=element("code","artifact-id",image.job_id);
@@ -244,7 +247,7 @@ async function downloadImage(jobId){
   // possible. A short-lived one-use ticket must be generated via SSH.
   const token=prompt("Введите одноразовый код для скачивания.\nВ SSH: cd /1tbdisk/PegineLab/projects/YadroKreator && python3 download_access.py issue "+jobId);
   if(!token)return;
-  toast("Проверяем образ и готовим скачивание…");
+  toast("Проверяем SHA256/структуру готового образа и скачиваем без пересборки…");
   try{
     const response=await fetch("/api/jobs/"+jobId+"/download",{
       method:"POST",credentials:"same-origin",cache:"no-store",
