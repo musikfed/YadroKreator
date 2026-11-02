@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Explicit opt-in: poll GitHub main and deploy only when no build is active.
+# Explicit opt-in: poll GitHub main to report updates. Never deploy without explicit consent.
 set -euo pipefail
 ROOT="${PEGINELAB_HOME:-/1tbdisk/PegineLab}"
 APP="$ROOT/projects/YadroKreator"
@@ -9,15 +9,15 @@ case "${1:-}" in
     mkdir -p "$UNIT_DIR"
     cat > "$UNIT_DIR/peginelab-factory-update.service" <<EOF
 [Unit]
-Description=PegineLab YadroKreator GitHub fast-forward update
+Description=PegineLab YadroKreator GitHub update availability check
 [Service]
 Type=oneshot
 Environment=PEGINELAB_HOME=$ROOT
-ExecStart=/bin/bash $APP/deploy.sh --apply
+ExecStart=/bin/bash $APP/deploy.sh --check
 EOF
     cat > "$UNIT_DIR/peginelab-factory-update.timer" <<'EOF'
 [Unit]
-Description=Check YadroKreator main for new commits every 15 minutes
+Description=Check YadroKreator GitHub main availability every 15 minutes (no deployment)
 [Timer]
 OnBootSec=3min
 OnUnitActiveSec=15min
