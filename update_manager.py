@@ -301,7 +301,8 @@ def verify_and_restart(operation: str = "") -> None:
     run([py, "-m", "compileall", "-q", str(APP / "app.py"),
          str(APP / "core.py"), str(APP / "worker.py"),
          str(APP / "git_sources.py"), str(APP / "artifact_checks.py"),
-         str(APP / "build_metrics.py"), str(APP / "update_manager.py")], timeout=30)
+         str(APP / "build_metrics.py"), str(APP / "export_policy.py"),
+         str(APP / "update_manager.py")], timeout=30)
     run(["bash", "-n", str(APP / "deploy.sh"), str(APP / "install.sh"),
          str(APP / "bootstrap.sh"), str(APP / "setup-update-timer.sh")], timeout=30)
     if operation:

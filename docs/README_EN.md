@@ -18,7 +18,7 @@ Builds display start/end, elapsed time and historical same-branch ETA. Progress 
 
 ## Step-by-step updates and protected SD image downloads
 
-The System tab displays persistent Git fetch, checkout, dependencies, tests, restart and done stages; after a successful restart the browser reloads and previous successful SHA rollback remains available. After image preflight, the Artifacts tab offers a one-time SSH-ticket-protected .img download. See [SD download and flashing guide](SD_DOWNLOAD_EN.md).
+The System tab displays persistent Git fetch, checkout, dependencies, tests, restart and done stages; after a successful restart the browser reloads and previous successful SHA rollback remains available. After a successful build, the Artifacts tab offers one-click .img download with automatic image preflight and trusted-LAN network filtering (not user authentication). See [SD download and flashing guide](SD_DOWNLOAD_EN.md).
 
 ## New: storage imaging / installer USB guide
 

@@ -2,14 +2,11 @@
 
 The YadroKreator **Artifacts** panel offers a **Download .img** button as soon as a T23N SD build succeeds. No kernel rebuild is required. The download endpoint automatically runs image preflight on the existing bytes before sending them (SHA256/MBR/MSPL at LBA34/FAT16 uImage at LBA2048/ext4 at LBA34816). This does NOT verify camera hardware.
 
-Since personal Wi-Fi credentials may be embedded and the dashboard has no login, downloads require an **SSH-issued, one-use, 10-minute token**. On Huananzhi:
+**One-click export:** on **Artifacts**, click **Download .img** for a successful T23N job. There is no SSH ticket, terminal command or manual job ID. The server validates the existing complete image (SHA256 + partitions) and transfers its unchanged bytes; **no kernel rebuild or SD write occurs**.
 
-```bash
-cd /1tbdisk/PegineLab/projects/YadroKreator
-python3 download_access.py issue FULL_JOB_ID
-```
+**Security trade-off:** the dashboard does not authenticate users and firmware may embed personal Wi-Fi keys. The HTTP endpoint only allows clients from `192.168.0.0/24` or loopback by default. **Every device on the trusted subnet could download the image.** Keep port 62404 off the public Internet and exclude untrusted Wi-Fi guests. For other VPN subnets the server admin can configure `PEGINELAB_EXPORT_TRUSTED_NETWORKS` (comma-separated CIDR networks; `0.0.0.0/0` is forbidden). This is network segmentation, NOT user authentication or encryption; use secure VPN/HTTPS or SCP for remote export.
 
-Copy the complete job ID from its artifact card. Paste the token into the browser Download button. The downloaded `.img` contains the **exact same bytes** as the server-side `.bin`; no layout changes are applied. The token is not placed in a URL or repo. **Warning:** plain HTTP on an untrusted LAN exposes token/contents to sniffing. Restrict the service to trusted LAN/VPN with secure transport, or use SSH/SCP instead.
+**GitHub:** retain source, offline image layout tests, checksums/manifests without secrets; never commit the private `.bin`/`.img` files to the repository. A CI regression test rejects accidentally tracked firmware images.
 
 **Windows:** choose the `.img` in Rufus or balenaEtcher, choose the correct SD card in a reader (all existing data will be destroyed), write the complete raw disk image, wait for verification, and safely eject. Never format ext4 when Windows prompts.
 
