@@ -14,6 +14,7 @@ from update_manager import view as update_view, start as start_update, finish as
 from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
 from export_policy import allow_private_export
+from helper_profiles import load_helper_profile, snapshot_profile
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -301,6 +302,17 @@ def start_job():
         repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"))
     except ValueError:
         return jsonify(error="Unsupported WIFICAM branch"), 400
+    # Opt-in only: read one allowlisted preset from the sibling helper project.
+    # Never execute tests or import a kernel script from an arbitrary path.
+    helper_selected = data.get("helper_preset", False)
+    if not isinstance(helper_selected, bool):
+        return jsonify(error="helper_preset must be boolean"), 400
+    helper_profile = None
+    if helper_selected:
+        try:
+            helper_profile = load_helper_profile(root=ROOT, branch=repo_ref)
+        except (ValueError, OSError) as exc:
+            return jsonify(error="WifCam Helper profile unavailable or invalid: " + str(exc)), 409
     if not (THINGINO / ".git").is_dir():
         return jsonify(error="Missing pinned Thingino checkout"), 409
     # Refuse to race with the earlier manually launched system-level build unit.
@@ -329,6 +341,12 @@ def start_job():
         db.commit()
     finally:
         db.close()
+    if helper_profile is not None:
+        try:
+            snapshot_profile(job_id, helper_profile, root=ROOT)
+        except (OSError, ValueError) as exc:
+            record_status(job_id, "failed", details="Helper snapshot failed: " + str(exc))
+            return jsonify(error="Cannot pin WifCam Helper build profile", job_id=job_id), 500
     cmd = [
         "systemd-run", "--user", "--collect", "--unit=" + unit,
         "--description=PegineLab T23N SD firmware",
@@ -345,7 +363,7 @@ def start_job():
     except (OSError, subprocess.TimeoutExpired) as exc:
         record_status(job_id, "failed", details=str(exc))
         return jsonify(error="Cannot start systemd-run", job_id=job_id), 500
-    return jsonify(ok=True, job_id=job_id, branch=repo_ref), 201
+    return jsonify(ok=True, job_id=job_id, branch=repo_ref, helper_preset=helper_selected), 201
 
 @app.post("/api/jobs/<job_id>/validate")
 def validate_job_image(job_id):
