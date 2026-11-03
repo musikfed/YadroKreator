@@ -340,6 +340,52 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(overview.json["allowed_branches"],
                          ["mymarrchWFcam", "main"])
 
+    def test_irila_and_wificam_share_one_atomic_build_queue(self):
+        import sys
+        from unittest.mock import patch
+        import core
+        webmodule = sys.modules["app"]
+        jid = "9" * 32
+        db = core.connect()
+        try:
+            db.execute("INSERT INTO jobs (id,profile,status,created_at,unit,log_path,repo_ref) "
+                       "VALUES (?,?,?,?,?,?,?)",
+                       (jid, "t23n_sd", "running", core.now(),
+                        "peginelab-t23n-" + jid, "test.log", "mymarrchWFcam"))
+            db.commit()
+            with patch.object(webmodule, "reconcile"), \
+                 patch.object(webmodule, "update_view", return_value={}), \
+                 patch.object(webmodule.subprocess, "run",
+                              return_value=__import__("subprocess").CompletedProcess([], 1)):
+                reply = self.client.post("/api/jobs",
+                    json={"profile": "irila_preflight", "branch": "main"},
+                    headers={"X-PegineLab-Action": "1"})
+            self.assertEqual(reply.status_code, 409)
+            self.assertEqual(reply.json["job_id"], jid)
+        finally:
+            db.execute("DELETE FROM jobs WHERE id=?", (jid,))
+            db.commit()
+            db.close()
+
+    def test_irila_source_audit_cannot_be_used_as_sd_firmware(self):
+        from unittest.mock import patch
+        import sys
+        webmodule = sys.modules["app"]
+        jid = "8" * 32
+        job = {"id": jid, "profile": "irila_preflight",
+               "status": "success", "source_sha": "a" * 40}
+        with patch.object(webmodule, "safe_job", return_value=job):
+            self.assertEqual(self.client.post("/api/jobs/" + jid + "/download",
+                             headers={"X-PegineLab-Action": "1"}).status_code, 404)
+            self.assertEqual(self.client.post("/api/jobs/" + jid + "/validate",
+                             headers={"X-PegineLab-Action": "1"}).status_code, 422)
+            self.assertEqual(self.client.get("/api/jobs/" + jid + "/layout.svg").status_code, 409)
+        blocked = self.client.post("/api/jobs",
+                                  json={"profile": "irila_preflight", "branch": "main",
+                                        "helper_preset": True},
+                                  headers={"X-PegineLab-Action": "1"})
+        self.assertEqual(blocked.status_code, 400)
+
     def test_dashboard_no_login(self):
         result = self.client.get("/")
         self.assertEqual(result.status_code, 200)
