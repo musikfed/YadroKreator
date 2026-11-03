@@ -105,6 +105,22 @@ async function showIrilaReport(){
     $("irilaLog").textContent=JSON.stringify(report,null,2);
   }catch(e){toast("Отчёт Irila: "+e.message)}
 }
+async function downloadIrilaReport(){
+  if(!selectedIrila)return;
+  const job=overview?.jobs?.find(j=>j.id===selectedIrila&&j.profile==="irila_preflight");
+  if(!job||job.status!=="success")return;
+  try{
+    const report=await api("/api/jobs/"+job.id+"/irila-audit");
+    if(report.profile!=="irila_preflight")throw Error("Неверный профиль отчёта");
+    const blob=new Blob([JSON.stringify(report,null,2)+"\n"],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const anchor=document.createElement("a");
+    anchor.href=url;
+    anchor.download="Irila_Baikal_audit_"+job.id.slice(0,8)+".json";
+    document.body.append(anchor);anchor.click();anchor.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){toast("Скачивание Irila: "+e.message)}
+}
 async function stopIrila(){
   if(!selectedIrila||!confirm("Остановить только текущий аудит Irila?"))return;
   try{await api("/api/jobs/"+selectedIrila+"/stop",{method:"POST"});await refresh();}
@@ -135,7 +151,15 @@ function renderJobs() {
   $("irilaCheck").disabled=!!running || !!(updateState&&["queued","running"].includes(updateState.phase));
   $("irilaStop").disabled=!irilaCurrent||!active.has(irilaCurrent.status);
   $("irilaReport").disabled=!irilaCurrent||irilaCurrent.status!=="success";
-  for(const job of jobs.slice(0,4)) recent.append(jobItem(job,true));
+  $("irilaExport").disabled=!irilaCurrent||irilaCurrent.status!=="success";
+  if(cameraJobs.length){
+    recent.append(element("div","lane-history-heading camera","WIFICAM T23N · SD-прошивки"));
+    for(const job of cameraJobs.slice(0,2))recent.append(jobItem(job,true));
+  }
+  if(irilaJobs.length){
+    recent.append(element("div","lane-history-heading irila","IRILA BAIKAL · отдельные аудиты"));
+    for(const job of irilaJobs.slice(0,2))recent.append(jobItem(job,true));
+  }
   const current=jobs.find(j=>j.id===selected);
   if(!selected&&cameraJobs.length){selected=cameraJobs[0].id;offset=0;
     logInitial=true;logFinalized=false;logFullRequested=false;}
@@ -151,6 +175,9 @@ function renderJobs() {
 }
 function renderOverview(data) {
   overview=data;renderJobs();
+  $text("wificamBuildRoot",data.paths.wificam_build);
+  $text("irilaBuildRoot",data.paths.irila_build);
+  $text("helperSourcePath",data.paths.helper);
   if(Array.isArray(data.allowed_branches)){
     for(const option of $("sourceBranch").options)option.disabled=!data.allowed_branches.includes(option.value);
   }
@@ -525,6 +552,7 @@ async function init() {
   $("irilaCheck").addEventListener("click",runIrilaAudit);
   $("irilaStop").addEventListener("click",stopIrila);
   $("irilaReport").addEventListener("click",showIrilaReport);
+  $("irilaExport").addEventListener("click",downloadIrilaReport);
   $("validateBuild").addEventListener("click",validateSelected);
   $("checkUpdate").addEventListener("click",()=>updateAction("check"));
   $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
