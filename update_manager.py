@@ -312,7 +312,11 @@ def verify_and_restart(operation: str = "") -> None:
          str(APP / "bootstrap.sh"), str(APP / "setup-update-timer.sh"),
          str(APP / "scripts" / "sync_core_projects.sh"),
          str(APP / "scripts" / "prune_merged_branches.sh"),
-         str(APP / "scripts" / "cleanup_old_results.sh")], timeout=30)
+         str(APP / "scripts" / "cleanup_old_results.sh"),
+         str(APP / "scripts" / "update_factory.sh"),
+         str(APP / "scripts" / "update_wificam.sh"),
+         str(APP / "scripts" / "update_irila.sh"),
+         str(APP / "scripts" / "update_wifcam_helper.sh")], timeout=30)
     if operation:
         mark_step(operation, "restart", "Перезапуск веб-панели и проверка службы")
     run(["systemctl", "--user", "restart", "peginelab-factory.service"],
