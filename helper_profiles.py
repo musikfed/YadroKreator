@@ -69,9 +69,12 @@ def snapshot_profile(job_id: str, profile: dict, *, root: Path = ROOT) -> Path:
 
 def job_env(job_id: str, *, root: Path = ROOT, branch: str = BRANCH) -> dict[str, str]:
     path = job_profile_path(job_id, root=root)
+    # A broken symlink fails exists(), but must never be treated as "no opt-in".
+    if path.is_symlink():
+        raise ValueError("Symlinked job profile refused")
     if not path.exists():
         return {}
-    if path.is_symlink() or path.stat().st_size > 8192:
+    if path.stat().st_size > 8192:
         raise ValueError("Invalid job-pinned helper profile")
     data = checked_profile(json.loads(path.read_text(encoding="utf-8")), branch=branch)
     return data["build_env"].copy()
