@@ -1,70 +1,91 @@
-# Раздельные проекты сборки YadroKreator · T23N / Irila / Helper
+# YadroKreator: физически и визуально независимые проекты
 
-## Назначение
+Huananzhi CORE 192.168.0.100 · Ubuntu Server 24.04 · 2 × Xeon E5-2650 · 48 ГБ DDR3 · RTX 3060.
 
-Веб-интерфейс имеет разделы **WIFICAM T23N**, **Irila Baikal**, **WifCam Helper**, **Образы WIFICAM**, **Система**.
+## Правило производства
 
-| Проект | GitHub | Папка исходников на CORE | Поддерживаемое действие |
+YadroKreator — общий **диспетчер** и веб-интерфейс. Но ни один проект не использует чужие исходники, каталоги заданий, Git-кеш, временные файлы, журналы, отчёты или образ. Вкладки интерфейса визуально помечены разными цветами и собственным путём, а история отфильтрована по типу проекта. Одна общая SQLite хранит только учёт заданий и блокировку занятости; это **не** общий каталог сборки.
+
+| Вкладка | Проект | Операция | Результат |
 |---|---|---|---|
-| WIFICAM T23N | `musikfed/wificam_T23N` | `/1tbdisk/PegineLab/projects/wificam_T23N` | Полная сборка MIPS/Thingino в SD-кандидат, из отдельно закреплённого SHA |
-| Irila Baikal | `musikfed/Irila_baikal_v1.0` | `/1tbdisk/PegineLab/projects/Irila_baikal_v1.0` | Изолированная Git-проверка исходников; сборка x86-64 Secure Boot IMG **отдельной GitHub Actions** |
-| WifCam Helper | `musikfed/wifcam_helper` | `/1tbdisk/PegineLab/projects/wifcam_helper` | Стенд камеры, JSON-профиль `WIFICAM_WEBRTC=0|1`, по галочке в разделе WIFICAM |
-| YadroKreator | `musikfed/YadroKreator` | `/1tbdisk/PegineLab/projects/YadroKreator` | Веб-панель, журнал, systemd workers, контроль статуса, выдача образа |
+| WIFICAM T23N | `musikfed/wificam_T23N` | Реальная MIPS Thingino/Buildroot сборка | Отдельный SD IMG, SHA256 и проверка MBR/FAT16/ext4 |
+| Irila Baikal | `musikfed/Irila_baikal_v1.0` | Только проверка SHA-закреплённых исходников | Отдельный JSON-аудит (можно скачать с вкладки Irila) |
+| WifCam Helper | `musikfed/wifcam_helper` | Тесты камеры в отдельной панели и разрешённый профиль для WIFICAM | Независимый тестовый JSON, опция `WIFICAM_WEBRTC=0|1` |
+| Система | `musikfed/YadroKreator` | Обновление панели, перезапуск, остановка | Свой журнал обновления |
 
-**Имя важно:** `wificam_T23N` с конечной **N**, не `wificam_T23`. Фабрика не пытается угадать, что это одна и та же папка, и не сливает их.
+Полный Irila x86-64 Secure Boot IMG сейчас создаётся в [собственном GitHub Actions Irila](https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml). Кнопка аудита **не** запускает `sudo`, `losetup`, `mkfs` и не компилирует ядро. Для этого потребуется отдельный изолированный привилегированный сборщик с проверенными файловыми loop-устройствами, а не общая команда камеры.
 
-## Каталоги сборок
+## Новое размещение на Huananzhi
 
-Рабочие копии ни одного Git-проекта не перезаписываются. Для каждой задачи `<job_id>` отдельный Git SHA и файловая система:
 ```text
 /1tbdisk/PegineLab/
-  build/
-    git-cache/
-      wificam_T23N.git/               # bare cache исходников камеры
-      Irila_baikal_v1.0.git/          # другой bare cache исходников Irila
-      fetch.lock                      # кратковременная Git-блокировка
-    locks/factory-build.lock          # всего ОДНА активная worker задача
-    jobs/<job_id>/
-      wificam_T23N/out/candidate-sd/  # только T23N, когда профиль T23N
-      wificam_T23N/out/private-sd/    # только T23N + локальная Wi-Fi конфигурация
-      helper-preset.json              # только по галочке Helper
-      Irila_baikal_v1.0/              # только когда Irila audit
-      irila-source-audit.json         # результат НЕ является образом .img
-  factory-state/
-    factory.sqlite3
-    logs/<job_id>.log
+├── projects/
+│   ├── YadroKreator/             # исходники самой веб-фабрики
+│   ├── wificam_T23N/             # оригинальный проект камеры и эталон Thingino/
+│   ├── Irila_baikal_v1.0/       # оригинальный проект Irila
+│   └── wifcam_helper/           # независимый стенд
+├── build/
+│   ├── projects/
+│   │   ├── wificam_T23N/
+│   │   │   ├── git-cache/wificam_T23N.git/
+│   │   │   ├── tmp/
+│   │   │   ├── cache/ccache/
+│   │   │   └── jobs/<job-id>/wificam_T23N/out/{candidate-sd,private-sd}/
+│   │   └── Irila_baikal_v1.0/
+│   │       ├── git-cache/Irila_baikal_v1.0.git/
+│   │       ├── tmp/
+│   │       ├── cache/ccache/
+│   │       └── jobs/<job-id>/
+│   │           ├── Irila_baikal_v1.0/
+│   │           └── irila-source-audit.json
+│   ├── locks/factory-build.lock # единственная общая блокировка
+│   └── thingino-firmware/       # закреплённый upstream для T23N
+└── factory-state/
+    ├── factory.sqlite3          # общий учёт заданий, не сборочные файлы
+    ├── projects/
+    │   ├── wificam_T23N/
+    │   │   ├── logs/<job-id>.log
+    │   │   └── validation/<job-id>.json
+    │   └── Irila_baikal_v1.0/
+    │       └── logs/<job-id>.log
+    └── update-logs/             # только обновления панели
 ```
 
-Точное имя UUID и `profile` фиксируется в SQLite. Артефакты камеры выбираются исключительно из T23N worktree успешного задания; при скачивании проверяются SHA256, MBR, LBA34, FAT16/uImage, ext4. Irila report — **JSON-аудит**, для него запрещены маршруты WIFICAM `/download`, `/validate`, `/layout.svg`.
+**Точное имя проекта:** `wificam_T23N` с конечной буквой N. Пути `wificam_T23` и `wificam_T23N` в Linux не взаимозаменяемы.
 
-## Одновременные сборки запрещены
+## Общая очередь, но раздельные рабочие области
 
-Новый job для любой поддерживаемой операции не запускается, когда другая в статусе `queued`, `running` или `stopping`. Проверка и вставка в SQLite происходит в одной `BEGIN IMMEDIATE` транзакции. В worker независимо удерживается неблокирующий `flock` `build/locks/factory-build.lock`, так что повторный запуск user systemd worker с ошибкой завершится, а не затрёт shared Thingino кеш.
+В SQLite активным считается только одно задание в статусе `queued`, `running`, `stopping`. Создание блокируется через `BEGIN IMMEDIATE`. Worker дополнительно захватывает `flock` `build/locks/factory-build.lock`. 32 потока и 48 ГБ памяти не являются основанием для безопасного параллельного запуска двух тяжёлых сборок.
 
-Ограничение распространяется **только на задачи фабрики**, не на вручную запущенный `make`, другую независимую systemd-службу или внешние GitHub Actions runner. Для любых ручных операций нужно отдельно проверять активность фабрики. Режим «параллельно» намеренно не предлагается до независимых buildroot/output/cache/cgroup memory quota. 48 ГБ ОЗУ и 2×Xeon не доказывают безопасность параллельных компиляций.
+Глобальная блокировка распространяется на **задачи YadroKreator**, но не на посторонние ручные `make` или другие CI runner. При полной остановке фабрики учтены и `peginelab-t23n-*`, и `peginelab-irila-*` user systemd units. Общий Linux/SSH/другие Docker-службы не останавливаются.
 
-`stop-all` останавливает оба типа user units `peginelab-t23n-<id>` и `peginelab-irila-<id>`, помимо веб-панели и собственного таймера обновлений. Службы всего хоста, Docker daemon и другие проекты не трогаются.
+## Удаление старых результатов после перехода на новую структуру
 
-## Irila: сборка образа != компиляция ядра T23N
+Старое дерево `build/jobs/<id>` и журналы `factory-state/logs/<id>.log` **не копируются и не смешиваются** с новыми проектами. Пользователь разрешил удалить прежние результаты, но **обновление из GitHub никогда не удаляет их автоматически**. На самом сервере скрипт нужно запускать вручную.
 
-Irila предназначена для Acer Swift 3 / Ryzen 3500U / x86-64 и использует *подписанное ядро Ubuntu*, не скрипт сборки Linux MIPS T23N. Её IMG конвейер использует `sudo`, `losetup`, `parted`, `mkfs` и `mount`. Такой конвейер **не исполняется веб-панелью**, где нет отдельного ограниченного root-helper и защиты целевых устройств. Кнопка «Проверить исходники Irila» получает `main` Git SHA, изолирует worktree и проверяет ожидаемые исходные скрипты/CI. Она не создаёт IMG и не делает вид, что компилирует ядро.
+**Важное отличие:** GitHub хранит Git-коммиты исходников и документацию. Сгенерированные локально `.bin`, `.img`, логи и секреты `wifi.env` **не обязательно находятся в GitHub**. Удаление единственного локального IMG может быть необратимым. Перед подтверждением смотрите список реальных файлов в dry-run.
 
-Для настоящего Irila IMG:
-[Build Installed FULL Secure Boot IMG](https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml) — вручную Run workflow в GitHub Actions. IMG и SHA256 принадлежат Irila (не T23N/SD).
-
-Будущий локальный режим требует отдельный изолированный root-сборщик с разрешёнными только loop из файла внутри per-job каталога, без физических устройств и с полноценной валидацией GPT/EFI/ext4/Secure Boot, квотами диска и отменой. До этой реализации **не выдавать кнопку «Собрать Irila IMG» как действующую**.
-
-## Установка на Huananzhi
-
-```sh
+```bash
 cd /1tbdisk/PegineLab/projects/YadroKreator
-# После обновления через раздел «Система» появятся новые вкладки.
-# Не запускайте два разных билда вручную в обход фабрики.
-bash scripts/project-control.sh status
+# 1. Только показать, какие старые UUID-деревья/логи будут удалены:
+python3 scripts/cleanup_legacy_builds.py
+
+# 2. Если список подходит и сборка не идёт, явно удалить старые
+#    ЗАВЕРШЁННЫЕ задания и их ранее сохранённые отчёты:
+python3 scripts/cleanup_legacy_builds.py --apply --confirm DELETE-LEGACY-JOBS
+
+# 3. Необязательно отдельно очистить старый ОБЩИЙ Git-кеш.
+#    Новые раздельные кеши под build/projects/ не затрагиваются.
+python3 scripts/cleanup_legacy_builds.py --prune-old-git-cache
+python3 scripts/cleanup_legacy_builds.py --apply --confirm DELETE-LEGACY-JOBS --prune-old-git-cache
 ```
 
-Web UI/CI также не могут подтвердить, что каталоги исходников уже физически клонированы на вашей Ubuntu; Irila Git source audit может получить ветку напрямую с GitHub в изолированный кеш, не сбрасывая ваш `projects/Irila_baikal_v1.0`. Для опции Helper профиль должен действительно присутствовать в соседнем `projects/wifcam_helper/profiles/t23n_lean.json`.
+Защита сценария: проверяет глобальный `flock`, SQLite-статусы, UUID, старый `log_path`, не следует символическим ссылкам и не удаляет `projects/`, `build/projects/`, `build/thingino-firmware/`, `factory-state/factory.sqlite3`, `~/crt-cert/`, эталон `wificam_T23N/Thingino/thingino-t23-sd.bin` и данные других служб. После просмотра удаляются только старые строки SQLite и соответствующие им старые локальные файлы. Новые задания не затрагиваются.
 
-## Контроль
+Просто `git pull` или обновление панели через «Система» не является командой очистки и не запускает сборку.
 
-`python3 -m unittest discover -s tests -p 'test_*.py' -v` проверяет ограничения по проектам, атомарный запрет параллельных задач, отчёт Irila без T23N .img, Git-изоляцию, worker flock, повторную загрузку веб-интерфейса и остановку systemd. Это **программные** проверки — аппаратной сборки и загрузки Irila/Acer или камеры не выполняют.
+## Разделение отчётов и скачивания
+
+На вкладке WIFICAM доступны только проверенные образы T23N из её отдельной задачи. Вкладка Irila показывает только собственный аудит исходников и скачивает его как JSON, не как IMG. WifCam Helper остаётся независимым сервисом на `127.0.0.1:8765` (открывайте с ноутбука через SSH-туннель). Попытки передать Irila report в T23N image validator возвращают ошибку.
+
+Автоматические GitHub CI проверки проверяют код и файловые границы; они не доказывают физическую загрузку камеры, Acer или звук из динамика.
