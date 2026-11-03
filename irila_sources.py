@@ -10,7 +10,7 @@ from project_profiles import profile_workspace
 
 ORIGIN = "https://github.com/musikfed/Irila_baikal_v1.0.git"
 BRANCH = "main"
-SHA = re.compile(r"[0-9a-f]{40}\\Z")
+SHA = re.compile(r"[0-9a-f]{40}"+r"\Z")
 
 
 def checkout_irila(job_id: str, log, *, root: Path = ROOT, on_process=None,
