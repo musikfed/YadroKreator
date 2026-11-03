@@ -123,34 +123,46 @@ def sync_one(root: Path, name: str, *, apply: bool) -> dict:
     return {"project": name, "action": "UPDATED / NO RESET", **state}
 
 
-def sync(root: Path, *, apply: bool, with_factory: bool = False) -> list[dict]:
+def sync(root: Path, *, apply: bool, with_factory: bool = False, only: str | None = None) -> list[dict]:
     root = check_root(root)
+    names = [only] if only is not None else list(REPOS)
+    if any(name not in REPOS for name in names):
+        raise SyncError("Unsupported project selection")
     if apply:
         ensure_idle(root)
-    results = []
-    for name in REPOS:
-        results.append(sync_one(root, name, apply=apply))
+        # Validate ALL selected working directories *before* updating any.
+        # A dirty final project must not leave earlier siblings half-synced.
+        for name in names:
+            directory = root / "projects" / name
+            if directory.exists() or directory.is_symlink():
+                inspect_checkout(directory, REPOS[name])
+    factory_state = None
     if with_factory:
         factory = root / "projects/YadroKreator"
         if not factory.is_dir() or factory.is_symlink():
             raise SyncError("Factory checkout missing")
-        state = inspect_checkout(factory, FACTORY_URL)
-        if state["branch"] != "main":
+        factory_state = inspect_checkout(factory, FACTORY_URL)
+        if factory_state["branch"] != "main":
             raise SyncError("Factory must be on main; use its approved updater")
+    results = []
+    for name in names:
+        results.append(sync_one(root, name, apply=apply))
+    if with_factory:
         if apply:
             # Already implements SHA comparison, test gate, service restart and
             # rollback. Never implement competing git reset/pull here.
             invoke("bash", str(factory / "deploy.sh"), "--apply",
                    capture=False, timeout=1200)
-            results.append({"project": "YadroKreator", "action": "FACTORY UPDATER", **state})
+            results.append({"project": "YadroKreator", "action": "FACTORY UPDATER", **factory_state})
         else:
-            results.append({"project": "YadroKreator", "action": "WOULD CALL deploy.sh --apply", **state})
+            results.append({"project": "YadroKreator", "action": "WOULD CALL deploy.sh --apply", **factory_state})
     return results
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Safely sync PegineLab sibling projects from GitHub")
     p.add_argument("--apply", action="store_true", help="clone/fetch/fast-forward projects")
+    p.add_argument("--project", choices=sorted(REPOS), help="sync only this independent project")
     p.add_argument("--with-factory", action="store_true", help="also run approved factory deploy.sh --apply")
     args = p.parse_args(argv)
     if os.geteuid() == 0:
@@ -159,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(os.environ.get("PEGINELAB_HOME", str(ROOT_DEFAULT)))
     try:
         print("SYNC" if args.apply else "DRY RUN", "ROOT", root, flush=True)
-        for result in sync(root, apply=args.apply, with_factory=args.with_factory):
+        for result in sync(root, apply=args.apply, with_factory=args.with_factory, only=args.project):
             print(result, flush=True)
         print("No reset, clean, reflashing, deletion or branch switching performed.")
         return 0
