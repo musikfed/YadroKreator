@@ -32,9 +32,9 @@ if [ ! -e "$VENV/bin/python" ]; then
   }
 fi
 
-mkdir -p "$STATE/logs" "$ROOT/build/tmp" "$ROOT/build/cache" "$(dirname "$UNIT")"
+mkdir -p "$STATE/logs" "$ROOT/build/projects/YadroKreator/cache/pip" "$(dirname "$UNIT")"
 chmod 700 "$STATE" "$STATE/logs"
-export PIP_CACHE_DIR="$ROOT/build/cache/pip"
+export PIP_CACHE_DIR="$ROOT/build/projects/YadroKreator/cache/pip"
 "$VENV/bin/python" -m pip install --disable-pip-version-check -r "$APP/requirements.txt"
 echo "Running dashboard tests before systemd installation..."
 "$VENV/bin/python" -m unittest discover -s "$APP/tests" -p "test_*.py" -v
