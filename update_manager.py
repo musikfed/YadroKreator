@@ -304,6 +304,7 @@ def verify_and_restart(operation: str = "") -> None:
          str(APP / "build_metrics.py"), str(APP / "export_policy.py"),
          str(APP / "project_profiles.py"), str(APP / "irila_sources.py"),
          str(APP / "irila_preflight.py"), str(APP / "helper_profiles.py"),
+         str(APP / "scripts" / "cleanup_legacy_builds.py"),
          str(APP / "update_manager.py")], timeout=30)
     run(["bash", "-n", str(APP / "deploy.sh"), str(APP / "install.sh"),
          str(APP / "bootstrap.sh"), str(APP / "setup-update-timer.sh")], timeout=30)
