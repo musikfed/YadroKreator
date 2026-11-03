@@ -45,8 +45,8 @@ class SeparateProjectsTests(unittest.TestCase):
             subprocess.run(["git", "-C", str(upstream), "add", "."], check=True)
             subprocess.run(["git", "-C", str(upstream), "commit", "-m", "fixture"], check=True,
                            capture_output=True)
-            log = io.BytesIO()
-            snapshot, sha = checkout_irila(jid, log, root=root, repo_url=str(upstream))
+            with tempfile.TemporaryFile(mode="w+b") as log:
+                snapshot, sha = checkout_irila(jid, log, root=root, repo_url=str(upstream))
             self.assertEqual(snapshot, profile_workspace(jid, "irila_preflight", root=root))
             self.assertTrue((snapshot / "hardware/acer_swift3_sf314-41.json").is_file())
             self.assertEqual(subprocess.check_output(["git", "-C", str(snapshot), "rev-parse", "HEAD"]).decode().strip(), sha)
