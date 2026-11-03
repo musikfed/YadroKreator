@@ -15,6 +15,9 @@ import re
 import subprocess
 import sys
 
+# Work both as "python -m scripts.prune_merged_branches" and direct script invocation.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.sync_core_projects import REPOS, FACTORY_URL, check_root, inspect_checkout, invoke, SyncError
 
 REPOSITORIES = {**REPOS, "YadroKreator": FACTORY_URL}
