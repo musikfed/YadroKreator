@@ -1,7 +1,7 @@
-"""Project-specific factory trees; legacy jobs stay readable, never relocated.
+"""Strict project-separated sources, build outputs, caches, logs and reports.
 
-SQLite remains the shared scheduler. Every new job has a project-scoped source,
-cache, temporary files, report and log directory. No cross-project fallbacks.
+Existing jobs in legacy directories require explicit opt-in cleanup; they are
+never silently copied or merged into a new project build tree.
 """
 from __future__ import annotations
 
@@ -44,15 +44,8 @@ def project_build_root(profile: str, *, root: Path) -> Path:
 
 
 def job_root(job_id: str, profile: str, *, root: Path) -> Path:
-    """New layout; old job workspaces continue to resolve without migration.
-
-    An existing legacy job is identified by its old UUID directory. Never
-    move, merge or overwrite an old tree as part of a dashboard update.
-    """
+    """Exact per-project build tree; never fall back to a foreign/legacy job."""
     _check(profile, job_id)
-    legacy = root / "build" / "jobs" / job_id
-    if legacy.exists() or legacy.is_symlink():
-        return legacy
     return project_build_root(profile, root=root) / "jobs" / job_id
 
 
@@ -66,8 +59,6 @@ def project_cache_root(profile: str, *, root: Path) -> Path:
 
 
 def project_log_path(job_id: str, profile: str, *, root: Path, data: Path) -> Path:
+    """Project-scoped logs under factory-state; same scheduler, separate files."""
     name = _check(profile, job_id)
-    legacy = data / "logs" / (job_id + ".log")
-    if legacy.is_file() and not legacy.is_symlink():
-        return legacy
     return data / "projects" / name / "logs" / (job_id + ".log")
