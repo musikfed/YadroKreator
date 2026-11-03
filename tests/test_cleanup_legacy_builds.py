@@ -89,6 +89,41 @@ class LegacyCleanupTests(unittest.TestCase):
             plan(self.root)
         self.assertTrue(foreign.exists())
 
+    def test_orphan_legacy_files_are_opt_in(self):
+        old = "9" * 32
+        legacy = self.root / "build/jobs" / old
+        legacy.mkdir(parents=True)
+        (legacy / "dummy").write_text("old only")
+        extra = self.data / "logs" / (old + ".log")
+        extra.parent.mkdir(parents=True, exist_ok=True)
+        extra.write_text("orphan")
+        clean = self.root / "build/projects/wificam_T23N/jobs" / old
+        clean.mkdir(parents=True)
+        (clean / "keep").write_text("new project data")
+        self.assertNotIn(str(legacy), plan(self.root)["delete_paths"])
+        proposed = plan(self.root, orphans=True)
+        self.assertIn(str(legacy), proposed["delete_paths"])
+        self.assertIn(str(extra), proposed["delete_paths"])
+        self.assertIn(old, proposed["orphan_legacy_job_ids"])
+        run(self.root, apply=True, confirm="DELETE-LEGACY-JOBS", orphans=True)
+        self.assertFalse(legacy.exists())
+        self.assertFalse(extra.exists())
+        self.assertEqual((clean / "keep").read_text(), "new project data")
+
+    def test_shared_old_cache_only_with_explicit_switch(self):
+        old = self.root / "build/cache/ccache"
+        old.mkdir(parents=True)
+        (old / "marker").write_text("old cache")
+        pinned = self.root / "build/thingino-firmware"
+        pinned.mkdir()
+        (pinned / "HEAD").write_text("pinned")
+        self.assertFalse(any("/build/cache" in p for p in plan(self.root)["delete_paths"]))
+        selected = plan(self.root, shared_cache=True)["delete_paths"]
+        self.assertIn(str(self.root / "build/cache"), selected)
+        run(self.root, apply=True, confirm="DELETE-LEGACY-JOBS", shared_cache=True)
+        self.assertFalse(old.exists())
+        self.assertEqual((pinned / "HEAD").read_text(), "pinned")
+
     def test_refuse_symlinked_old_build_root(self):
         jid = "f" * 32
         self.job(jid)
