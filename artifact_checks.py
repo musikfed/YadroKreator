@@ -21,6 +21,7 @@ from xml.sax.saxutils import escape
 
 from core import DATA, ROOT
 from git_sources import workspace_for
+from project_profiles import project_build_root
 
 SECTOR = 512
 IMAGE_NAME = "thingino-t23-sd.bin"
@@ -177,7 +178,7 @@ def validate_t23n(path: Path) -> dict:
 def report_path(job_id: str, data: Path = DATA) -> Path:
     if not JOB_ID.fullmatch(job_id):
         raise ValueError("Invalid job ID")
-    return data / "validation" / (job_id + ".json")
+    return data / "projects" / "wificam_T23N" / "validation" / (job_id + ".json")
 
 
 def save_report(job_id: str, result: dict, image: Path, data: Path = DATA) -> None:
