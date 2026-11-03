@@ -18,7 +18,7 @@
       <a class="nav" href="#builds" data-tab="builds"><span>▣</span> WIFICAM T23N <i id="navBuildCount">0</i></a>
       <a class="nav" href="#irila" data-tab="irila"><span>◈</span> Irila Baikal</a>
       <a class="nav" href="#helper" data-tab="helper"><span>⚙</span> WifCam Helper</a>
-      <a class="nav" href="#artifacts" data-tab="artifacts"><span>▣</span> Артефакты</a>
+      <a class="nav" href="#artifacts" data-tab="artifacts"><span>▣</span> Образы T23N</a>
       <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
     </nav>
     <div class="sidebar-bottom">
@@ -67,7 +67,8 @@
           </div></div>
       </section>
       <section data-panel="builds" class="panel" hidden>
-        <div class="page-heading"><div><small>WIFICAM T23N · MIPS</small><h1>Сборка SD-прошивки камеры</h1><p>Thingino/Buildroot · Ingenic T23N · собственные журналы и IMG. Irila и Helper здесь не собираются.</p></div><button id="newBuild" class="primary">▶ Собрать WIFICAM</button></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 01 / WIFICAM T23N · MIPS</small><h1>Сборка SD-прошивки камеры</h1><p>Thingino/Buildroot · Ingenic T23N · собственные журналы и IMG. Irila и Helper здесь не собираются.</p></div><button id="newBuild" class="primary">▶ Собрать WIFICAM</button></div>
+        <div class="lane-bar"><span>▣ Дерево WIFICAM</span><code id="wificamBuildRoot">—</code><span>Только MIPS · FAT16/ext4 · SD</span></div>
         <div class="surface" style="margin-bottom:20px;padding:18px">
           <div class="surface-head"><div><small>GITHUB → HUANANZHI → BUILD</small><h3>Исходники из GitHub без копирования</h3></div></div>
           <p>При запуске станция сама получает выбранную ветку GitHub, сохраняет точный SHA и собирает отдельный SD-кандидат. Без автоматической прошивки камеры.</p>
@@ -105,7 +106,8 @@
           </div></div>
       </section>
       <section data-panel="irila" class="panel" hidden>
-        <div class="page-heading"><div><small>IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal — независимый проект</h1><p>Отдельный GitHub SHA, рабочая папка, systemd unit и журнал. Никаких драйверов T23N и SD-образов.</p></div></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 02 / IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal — независимый проект</h1><p>Отдельный GitHub SHA, рабочая папка, systemd unit и журнал. Никаких драйверов T23N и SD-образов.</p></div></div>
+        <div class="lane-bar"><span>◈ Дерево Irila</span><code id="irilaBuildRoot">—</code><span>Только x86-64 · Secure Boot · отдельный CI</span></div>
         <div class="surface" style="margin-bottom:20px;padding:20px">
           <h3>Исходники и проверка конвейера</h3>
           <p>Проверяется только закреплённая ветка <code>musikfed/Irila_baikal_v1.0/main</code>. Кнопка ниже выполняет <strong>аудит исходников</strong> и создаёт отчёт — <strong>не компилирует ядро и не создаёт IMG</strong>.</p>
@@ -117,11 +119,13 @@
           <div class="surface log-surface"><div class="surface-head"><h3>Журнал и аудит Irila</h3><button class="danger" id="irilaStop" type="button" disabled>■ Остановить аудит</button></div>
             <pre id="irilaLog" class="terminal">Выберите проверку Irila.</pre>
             <button id="irilaReport" class="secondary" type="button" disabled>✓ Посмотреть отчёт проверки исходников</button>
+            <button id="irilaExport" class="secondary" type="button" disabled>↓ Скачать только отчёт Irila (.json)</button>
           </div>
         </div>
       </section>
       <section data-panel="helper" class="panel" hidden>
-        <div class="page-heading"><div><small>WIFCAM HELPER · TEST BENCH</small><h1>Тестирование камеры</h1><p>Тесты микрофона, динамика, RTSP, изображения и безопасный профиль сборки.</p></div></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 03 / WIFCAM HELPER · TEST BENCH</small><h1>Тестирование камеры</h1><p>Тесты микрофона, динамика, RTSP, изображения и безопасный профиль сборки.</p></div></div>
+        <div class="lane-bar"><span>⚙ Исходники стенда</span><code id="helperSourcePath">—</code><span>Только тесты и JSON-профили; не компилятор ядра</span></div>
         <div class="surface" style="padding:20px">
           <h3>Отдельный проект, а не прошивка</h3>
           <p>Путь: <code>/1tbdisk/PegineLab/projects/wifcam_helper</code>. Инструменты диагностики запускаются отдельно на CORE и <strong>не передают произвольные команды ядру</strong>. Для T23N передаётся только утверждённый JSON с <code>WIFICAM_WEBRTC=0|1</code>.</p>
