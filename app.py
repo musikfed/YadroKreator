@@ -15,6 +15,7 @@ from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
 from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
+from project_profiles import PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -258,7 +259,7 @@ def overview():
         # A Git worktree may already contain an old tracked SD image before
         # a new build starts. Never label it as a build result on failure,
         # cancellation, or while the compiler is still running.
-        if job["status"] != "success" or not job["source_sha"]:
+        if job["profile"] != "t23n_sd" or job["status"] != "success" or not job["source_sha"]:
             continue
         source = workspace_for(job["id"], ROOT)
         for candidate in (
@@ -284,6 +285,8 @@ def overview():
             break
     return jsonify(
         jobs=jobs, images=images, allowed_branches=list(BRANCHES),
+        profiles={name: dict(info) for name, info in PROFILES.items()},
+        irila_image_workflow=IRILA_IMAGE_WORKFLOW,
         metrics=dict(load_1=round(os.getloadavg()[0], 2),
                      load_5=round(os.getloadavg()[1], 2), cpus=os.cpu_count(),
                      memory_total=meminfo.get("MemTotal", 0),
@@ -296,15 +299,21 @@ def overview():
 @app.post("/api/jobs")
 def start_job():
     data = request.get_json(silent=True)
-    if not isinstance(data, dict) or data.get("profile") != "t23n_sd":
+    if not isinstance(data, dict) or data.get("profile") not in PROFILES:
         return jsonify(error="Unsupported build profile"), 400
-    try:
-        repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"))
-    except ValueError:
-        return jsonify(error="Unsupported WIFICAM branch"), 400
+    profile = data["profile"]
+    if profile == "irila_preflight":
+        if data.get("branch", "main") != "main" or data.get("helper_preset", False) is not False:
+            return jsonify(error="Irila source audit is main-only and cannot use WIFICAM helper"), 400
+        repo_ref = "main"
+    else:
+        try:
+            repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"))
+        except ValueError:
+            return jsonify(error="Unsupported WIFICAM branch"), 400
     # Opt-in only: read one allowlisted preset from the sibling helper project.
     # Never execute tests or import a kernel script from an arbitrary path.
-    helper_selected = data.get("helper_preset", False)
+    helper_selected = data.get("helper_preset", False) if profile == "t23n_sd" else False
     if not isinstance(helper_selected, bool):
         return jsonify(error="helper_preset must be boolean"), 400
     helper_profile = None
@@ -313,7 +322,7 @@ def start_job():
             helper_profile = load_helper_profile(root=ROOT, branch=repo_ref)
         except (ValueError, OSError) as exc:
             return jsonify(error="WifCam Helper profile unavailable or invalid: " + str(exc)), 409
-    if not (THINGINO / ".git").is_dir():
+    if profile == "t23n_sd" and not (THINGINO / ".git").is_dir():
         return jsonify(error="Missing pinned Thingino checkout"), 409
     # Refuse to race with the earlier manually launched system-level build unit.
     for scope in (["systemctl"], ["systemctl", "--user"]):
@@ -328,7 +337,7 @@ def start_job():
         return jsonify(error="Dashboard update is in progress"), 409
     reconcile()
     job_id = uuid.uuid4().hex
-    unit = "peginelab-t23n-" + job_id
+    unit = ("peginelab-irila-" if profile == "irila_preflight" else "peginelab-t23n-") + job_id
     db = connect()
     try:
         db.execute("BEGIN IMMEDIATE")
@@ -337,7 +346,7 @@ def start_job():
             db.rollback()
             return jsonify(error="Сборка уже выполняется", job_id=busy["id"]), 409
         db.execute("INSERT INTO jobs (id,profile,status,created_at,unit,log_path,repo_ref) VALUES (?,?,?,?,?,?,?)",
-                   (job_id, "t23n_sd", "queued", now(), unit, str(LOGS / (job_id + ".log")), repo_ref))
+                   (job_id, profile, "queued", now(), unit, str(LOGS / (job_id + ".log")), repo_ref))
         db.commit()
     finally:
         db.close()
@@ -349,7 +358,7 @@ def start_job():
             return jsonify(error="Cannot pin WifCam Helper build profile", job_id=job_id), 500
     cmd = [
         "systemd-run", "--user", "--collect", "--unit=" + unit,
-        "--description=PegineLab T23N SD firmware",
+        "--description=PegineLab " + PROFILES[profile]["name"],
         "--property=Nice=10", "--property=CPUAffinity=0-15",
         "--property=IOSchedulingClass=3",
         "--setenv=PEGINELAB_HOME=" + str(ROOT),
@@ -363,7 +372,8 @@ def start_job():
     except (OSError, subprocess.TimeoutExpired) as exc:
         record_status(job_id, "failed", details=str(exc))
         return jsonify(error="Cannot start systemd-run", job_id=job_id), 500
-    return jsonify(ok=True, job_id=job_id, branch=repo_ref, helper_preset=helper_selected), 201
+    return jsonify(ok=True, job_id=job_id, branch=repo_ref, profile=profile,
+                   helper_preset=helper_selected), 201
 
 @app.post("/api/jobs/<job_id>/validate")
 def validate_job_image(job_id):
@@ -401,8 +411,8 @@ def job_layout(job_id):
     if job is None:
         return jsonify(error="Job not found"), 404
     result = saved_report(job, ROOT, DATA) if job["status"] == "success" else None
-    if not result or result.get("verified") is not True:
-        return jsonify(error="Run image preflight first"), 409
+    if not result or result.get("verified") is not True or result.get("profile") != "t23n_sd":
+        return jsonify(error="Only validated WIFICAM SD images have a disk map"), 409
     from flask import Response
     return Response(layout_svg(result), mimetype="image/svg+xml",
                     headers={"Content-Disposition": "inline; filename=t23n-layout.svg"})
