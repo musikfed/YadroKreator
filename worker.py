@@ -2,6 +2,7 @@
 """Run each source-pinned firmware build inside its own systemd user unit."""
 from __future__ import annotations
 import os
+import fcntl
 import signal
 import subprocess
 import sys
@@ -10,11 +11,13 @@ from pathlib import Path
 from core import ROOT, PROJECT, THINGINO, LOGS, get_job, record_status, record_source_sha, now
 from git_sources import checkout_source
 from helper_profiles import job_env
+from irila_sources import checkout_irila
+from irila_preflight import audit as audit_irila
 
 
 def main(job_id: str) -> int:
     job = get_job(job_id)
-    if not job or job["profile"] != "t23n_sd":
+    if not job or job["profile"] not in ("t23n_sd", "irila_preflight"):
         return 2
     log_path = LOGS / (job_id + ".log")
     stopped = False
@@ -50,32 +53,52 @@ def main(job_id: str) -> int:
         "PUBLISH": "0",
     })
     code = 1
-    with log_path.open("ab", buffering=0) as log:
-        log.write(("\n=== PegineLab T23N build " + now() + " ===\n").encode())
+    # Secondary lock: the SQLite transaction already allows one active job.
+    # This also protects against a second worker accidentally started by systemd.
+    lock_dir = ROOT / "build" / "locks"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    with (lock_dir / "factory-build.lock").open("a+b") as factory_lock:
+      try:
+        fcntl.flock(factory_lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+      except BlockingIOError:
+        record_status(job_id, "failed", details="Another factory worker owns the build lock")
+        return 3
+      with log_path.open("ab", buffering=0) as log:
+        log.write(("\n=== PegineLab " + job["profile"] + " job " + now() + " ===\n").encode())
         try:
             record_status(job_id, "running")
-            if not (THINGINO / ".git").is_dir():
-                raise RuntimeError("Thingino checkout not found on ext4")
-            source, sha = checkout_source(job["repo_ref"], job_id, log, on_process=current_process)
-            record_source_sha(job_id, sha)
-            if stopped:
-                raise RuntimeError("Build stopped during source fetch")
-            if not (source / "scripts/build_thingino_wificam_image.sh").is_file():
-                raise RuntimeError("WIFICAM build script missing in pinned Git revision")
-            log.write(f"WIFICAM source = {job['repo_ref']} @ {sha}\n".encode())
-            log.write(b"PUBLISH=0: candidate stays local; no Git push or SD flashing.\n")
-            # Profile is snapshotted at job creation; never use a mutable live
-            # helper report during hours of compilation.
-            extra = job_env(job_id, root=ROOT, branch=job["repo_ref"])
-            if extra:
-                env.update(extra)
-                log.write(b"WifCam Helper approved preset: WIFICAM_WEBRTC=" +
-                          extra["WIFICAM_WEBRTC"].encode() + b" (not hardware verified).\n")
-            proc = subprocess.Popen(
-                ["/bin/sh", "scripts/build_thingino_wificam_image.sh"],
-                cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT,
-            )
-            code = proc.wait()
+            if job["profile"] == "irila_preflight":
+                if job["repo_ref"] != "main":
+                    raise RuntimeError("Irila accepts only the pinned main branch")
+                source, sha = checkout_irila(job_id, log, on_process=current_process)
+                record_source_sha(job_id, sha)
+                if stopped:
+                    raise RuntimeError("Irila checkout stopped")
+                report = audit_irila(job_id, sha, root=ROOT)
+                log.write((report["message"] + "\n").encode())
+                log.write(b"No sudo, loop, mkfs, USB IMG or kernel build executed.\n")
+                code = 0
+            elif job["profile"] == "t23n_sd":
+                if not (THINGINO / ".git").is_dir():
+                    raise RuntimeError("Thingino checkout not found on ext4")
+                source, sha = checkout_source(job["repo_ref"], job_id, log, on_process=current_process)
+                record_source_sha(job_id, sha)
+                if stopped:
+                    raise RuntimeError("Build stopped during source fetch")
+                if not (source / "scripts/build_thingino_wificam_image.sh").is_file():
+                    raise RuntimeError("WIFICAM build script missing in pinned Git revision")
+                log.write(f"WIFICAM source = {job['repo_ref']} @ {sha}\n".encode())
+                log.write(b"PUBLISH=0: candidate stays local; no Git push or SD flashing.\n")
+                extra = job_env(job_id, root=ROOT, branch=job["repo_ref"])
+                if extra:
+                    env.update(extra)
+                    log.write(b"WifCam Helper preset WIFICAM_WEBRTC=" +
+                              extra["WIFICAM_WEBRTC"].encode() + b".\n")
+                proc = subprocess.Popen(
+                    ["/bin/sh", "scripts/build_thingino_wificam_image.sh"],
+                    cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT,
+                )
+                code = proc.wait()
         except Exception as exc:
             log.write(("BUILD ERROR: " + str(exc) + "\n").encode())
         status = "stopped" if stopped else ("success" if code == 0 else "failed")
