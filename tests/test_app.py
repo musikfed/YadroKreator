@@ -107,7 +107,7 @@ class DashboardTests(unittest.TestCase):
         # Fetching its worktree must not make it look newly compiled.
         import core
         job_id = "d" * 32
-        image = (Path(self.tmp.name) / "build/jobs" / job_id /
+        image = (Path(self.tmp.name) / "build/projects/wificam_T23N/jobs" / job_id /
                  "wificam_T23N/Thingino/thingino-t23-sd.bin")
         image.parent.mkdir(parents=True, exist_ok=True)
         image.write_bytes(b"historical-bin-in-git")
@@ -252,7 +252,7 @@ class DashboardTests(unittest.TestCase):
             db.close()
         images = []
         for job_id in success_ids:
-            path = Path(self.tmp.name) / "build/jobs" / job_id / \
+            path = Path(self.tmp.name) / "build/projects/wificam_T23N/jobs" / job_id / \
                 "wificam_T23N/out/private-sd/thingino-t23-sd.bin"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"artifact-" + job_id.encode())
@@ -286,10 +286,10 @@ class DashboardTests(unittest.TestCase):
         from unittest.mock import patch
         import app as webmodule
         job_id = "f" * 32
-        path = Path(self.tmp.name) / "factory-state/logs" / (job_id + ".log")
+        path = Path(self.tmp.name) / "factory-state/projects/wificam_T23N/logs" / (job_id + ".log")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"OLD_HEADER\\n" + b"x" * 80000 + b"\\nFINISHED_SUCCESS\\n")
-        job = {"id": job_id, "status": "success"}
+        job = {"id": job_id, "status": "success", "profile": "t23n_sd"}
         with patch.object(webmodule, "safe_job", return_value=job):
             tail = self.client.get("/api/jobs/" + job_id + "/log?tail=1")
             self.assertEqual(tail.status_code, 200)
@@ -309,10 +309,10 @@ class DashboardTests(unittest.TestCase):
         from unittest.mock import patch
         import app as webmodule
         job_id = "e" * 32
-        path = Path(self.tmp.name) / "factory-state/logs" / (job_id + ".log")
+        path = Path(self.tmp.name) / "factory-state/projects/wificam_T23N/logs" / (job_id + ".log")
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("line before browser refresh\\n")
-        with patch.object(webmodule, "safe_job", return_value={"id": job_id, "status": "running"}):
+        with patch.object(webmodule, "safe_job", return_value={"id": job_id, "status": "running", "profile": "t23n_sd"}):
             first = self.client.get("/api/jobs/" + job_id + "/log?tail=1")
             self.assertFalse(first.json["archive"])
             with path.open("a") as out:
