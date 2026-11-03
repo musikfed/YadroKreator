@@ -15,7 +15,8 @@ from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
 from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
-from project_profiles import PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace
+from project_profiles import (PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace,
+                              job_root, project_build_root, project_log_path)
 
 app = Flask(__name__)
 app.config.update(MAX_CONTENT_LENGTH=4096, JSON_AS_ASCII=False)
@@ -228,7 +229,7 @@ def overview():
         j.pop("log_path", None)
         # Validation is read from saved metadata, not re-hashing 85 MiB
         # every 2.5 seconds when the dashboard refreshes.
-        j["validation"] = saved_report(j, ROOT, DATA) if j["status"] == "success" else None
+        j["validation"] = saved_report(j, ROOT, DATA) if j["profile"] == "t23n_sd" and j["status"] == "success" else None
     meminfo = {}
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -292,7 +293,11 @@ def overview():
                      memory_total=meminfo.get("MemTotal", 0),
                      memory_used=meminfo.get("MemTotal", 0) - meminfo.get("MemAvailable", 0),
                      disk_total=disk.total, disk_used=disk.used),
-        paths=dict(root=str(ROOT), project=str(PROJECT), thingino=str(THINGINO)),
+        paths=dict(root=str(ROOT), project=str(PROJECT), thingino=str(THINGINO),
+                   wificam_build=str(project_build_root("t23n_sd", root=ROOT)),
+                   irila_build=str(project_build_root("irila_preflight", root=ROOT)),
+                   helper=str(ROOT / "projects" / "wifcam_helper")),
+        concurrency=dict(max_builds=1, active_profile=next((j["profile"] for j in jobs if j["status"] in ACTIVE), None)),
         port=62404,
     )
 
@@ -346,7 +351,8 @@ def start_job():
             db.rollback()
             return jsonify(error="Сборка уже выполняется", job_id=busy["id"]), 409
         db.execute("INSERT INTO jobs (id,profile,status,created_at,unit,log_path,repo_ref) VALUES (?,?,?,?,?,?,?)",
-                   (job_id, profile, "queued", now(), unit, str(LOGS / (job_id + ".log")), repo_ref))
+                   (job_id, profile, "queued", now(), unit,
+                    str(project_log_path(job_id, profile, root=ROOT, data=DATA)), repo_ref))
         db.commit()
     finally:
         db.close()
@@ -381,7 +387,7 @@ def irila_source_audit(job_id):
     job = safe_job(job_id)
     if not job or job.get("profile") != "irila_preflight" or job.get("status") != "success":
         return jsonify(error="No completed Irila source audit for this job"), 404
-    path = ROOT / "build" / "jobs" / job_id / "irila-source-audit.json"
+    path = job_root(job_id, "irila_preflight", root=ROOT) / "irila-source-audit.json"
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 16384:
         return jsonify(error="No valid Irila audit artifact"), 404
     import json
@@ -504,7 +510,7 @@ def job_log(job_id):
         offset = max(0, int(request.args.get("offset", "0")))
     except ValueError:
         return jsonify(error="Invalid offset"), 400
-    path = LOGS / (job_id + ".log")
+    path = project_log_path(job_id, j["profile"], root=ROOT, data=DATA)
     if not path.is_file():
         return jsonify(text="", offset=0, status=j["status"])
     size = path.stat().st_size
