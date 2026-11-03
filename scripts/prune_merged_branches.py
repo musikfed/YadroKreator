@@ -18,7 +18,7 @@ import sys
 # Work both as "python -m scripts.prune_merged_branches" and direct script invocation.
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from scripts.sync_core_projects import REPOS, FACTORY_URL, check_root, inspect_checkout, invoke, SyncError
+from scripts.sync_core_projects import REPOS, FACTORY_URL, check_root, inspect_checkout, invoke, ensure_idle, SyncError
 
 REPOSITORIES = {**REPOS, "YadroKreator": FACTORY_URL}
 PROTECTED = {
@@ -117,6 +117,7 @@ def delete_named(root: Path, project: str, names: list[str], *, apply: bool, con
         return selected
     if confirm != CONFIRM:
         raise BranchError("Deletion needs --apply --confirm " + CONFIRM)
+    ensure_idle(check_root(root))
     repo = root / "projects" / project
     for row in selected:
         # Lease fails if someone updated GitHub branch since the report.
