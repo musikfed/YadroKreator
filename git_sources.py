@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from core import ROOT, PROJECT
+from project_profiles import job_root, project_cache_root
 
 REPO_URL = "https://github.com/musikfed/wificam_T23N.git"
 BRANCHES = ("mymarrchWFcam", "main")
@@ -30,7 +31,7 @@ def validate_branch(value: object) -> str:
 def workspace_for(job_id: str, root: Path = ROOT) -> Path:
     if not JOB_ID.fullmatch(job_id):
         raise ValueError("Invalid job ID")
-    return root / "build" / "jobs" / job_id / "wificam_T23N"
+    return job_root(job_id, "t23n_sd", root=root) / "wificam_T23N"
 
 
 def checkout_source(branch: str, job_id: str, log, *,
@@ -43,7 +44,7 @@ def checkout_source(branch: str, job_id: str, log, *,
     """
     validate_branch(branch)
     work = workspace_for(job_id, root)
-    cache_dir = root / "build" / "git-cache"
+    cache_dir = project_cache_root("t23n_sd", root=root)
     cache = cache_dir / "wificam_T23N.git"
     cache_dir.mkdir(parents=True, exist_ok=True)
     work.parent.mkdir(parents=True, exist_ok=True)
