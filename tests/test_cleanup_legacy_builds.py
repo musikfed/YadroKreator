@@ -89,6 +89,17 @@ class LegacyCleanupTests(unittest.TestCase):
             plan(self.root)
         self.assertTrue(foreign.exists())
 
+    def test_refuse_symlinked_old_build_root(self):
+        jid = "f" * 32
+        self.job(jid)
+        foreign = self.root / "foreign"
+        foreign.mkdir()
+        old_build = self.root / "build"
+        old_build.symlink_to(foreign, target_is_directory=True)
+        with self.assertRaisesRegex(CleanupError, "symlinked cleanup anchor"):
+            run(self.root, apply=True, confirm="DELETE-LEGACY-JOBS")
+        self.assertTrue(foreign.exists())
+
     def test_old_git_cache_requires_separate_flag(self):
         old_cache = self.root / "build/git-cache/wificam_T23N.git"
         old_cache.mkdir(parents=True)
