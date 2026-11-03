@@ -30,4 +30,4 @@ jobs:
       - name: Recovery helper shell syntax
         run: bash -n scripts/recover_dashboard_update.sh
       - name: Installer shell syntax
-        run: bash -n install.sh bootstrap.sh deploy.sh setup-update-timer.sh start.sh stop.sh scripts/project-control.sh scripts/cleanup_old_results.sh scripts/sync_core_projects.sh scripts/prune_merged_branches.sh
+        run: bash -n install.sh bootstrap.sh deploy.sh setup-update-timer.sh start.sh stop.sh scripts/project-control.sh scripts/cleanup_old_results.sh scripts/sync_core_projects.sh scripts/prune_merged_branches.sh scripts/update_factory.sh scripts/update_wificam.sh scripts/update_irila.sh scripts/update_wifcam_helper.sh
