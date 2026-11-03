@@ -13,13 +13,15 @@ from git_sources import checkout_source
 from helper_profiles import job_env
 from irila_sources import checkout_irila
 from irila_preflight import audit as audit_irila
+from project_profiles import project_build_root, project_log_path
 
 
 def main(job_id: str) -> int:
     job = get_job(job_id)
     if not job or job["profile"] not in ("t23n_sd", "irila_preflight"):
         return 2
-    log_path = LOGS / (job_id + ".log")
+    log_path = project_log_path(job_id, job["profile"], root=ROOT, data=LOGS.parent)
+    log_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     stopped = False
     proc = None
 
@@ -37,7 +39,9 @@ def main(job_id: str) -> int:
     signal.signal(signal.SIGINT, terminate)
 
     env = os.environ.copy()
-    build = ROOT / "build"
+    # Temporary files and compiler cache belong to the selected production.
+    # Irila and WIFICAM never share temp, XDG cache, CCACHE or bare Git cache.
+    build = project_build_root(job["profile"], root=ROOT)
     for directory in (build / "tmp", build / "cache", build / "cache" / "ccache"):
         directory.mkdir(parents=True, exist_ok=True)
     # Buildroot rejects an inherited LD_LIBRARY_PATH with an empty/current-dir
