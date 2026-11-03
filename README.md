@@ -6,6 +6,43 @@
 
 Проект полностью отделён от исходников камеры `wificam_T23N`. Веб-интерфейс, SQLite, systemd-управление, документация и макеты принадлежат этому репозиторию. WIFICAM — лишь первый внешний профиль сборки.
 
+## Обновление CORE, исходников и безопасная очистка / Core Git sync
+
+**Первый запуск:** `bash bootstrap.sh` на Huananzhi автоматически клонирует 3 независимых Git-проекта `wificam_T23N`, `wifcam_helper` и `Irila_baikal_v1.0`, закрепляет Thingino и устанавливает панель. Учитывает существующие каталоги, но не перезаписывает грязные checkout и не переключает ветки.
+
+**Обновление из GitHub после установки** (без `sudo`; без автоматической компиляции):
+
+```bash
+cd /1tbdisk/PegineLab/projects/YadroKreator
+
+# По умолчанию ПРЕДПРОСМОТР:
+bash scripts/sync_core_projects.sh
+
+# Синхронизировать все 3 соседних репозитория:
+bash scripts/sync_core_projects.sh --apply
+
+# При желании также применить штатный безопасный updater веб-фабрики:
+bash scripts/sync_core_projects.sh --apply --with-factory
+
+# Независимые обновления по проектам:
+bash scripts/update_factory.sh --apply
+bash scripts/update_wificam.sh --apply
+bash scripts/update_irila.sh --apply
+bash scripts/update_wifcam_helper.sh --apply
+
+# Проверить старые GitHub-ветки, без удаления:
+bash scripts/prune_merged_branches.sh --project YadroKreator
+
+# Увидеть старые локальные build/jobs и логи перед очисткой:
+bash scripts/cleanup_old_results.sh --include-orphans --prune-old-git-cache --prune-old-shared-cache
+```
+
+**Ключевое отличие:** веб-панель «Система → Обновить» обновляет **только сам YadroKreator**. Сборка WIFICAM сама получает выбранную ветку по Git и закрепляет SHA в отдельном задании, без предварительного обновления `projects/wificam_T23N`. Локальные Helper/Irila можно обновлять независимо вышеуказанными скриптами.
+
+Удаление удалённых GitHub-веток — **только явно названных, полностью влитых в main, с отдельным подтверждением**. `main`, `mymarrchWFcam`, `release/0.1_test` защищены. Очистка старых файлов выполняется отдельно после dry-run; код исходников, эталон SD, новые build/projects, SQLite-база и TLS-ключи не удаляются. **GitHub не обязательно содержит локальные скомпилированные IMG/BIN.**
+
+[Подробные команды на русском](docs/CORE_PROJECT_UPDATE_RU.md) · [English](docs/CORE_PROJECT_UPDATE_EN.md)
+
 ## Полный старт/стоп YadroKreator / Full project start and stop
 
 **Linux / Huananzhi** (обычный пользователь, без sudo):
