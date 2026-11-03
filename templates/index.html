@@ -15,7 +15,9 @@
     <div class="sidebar-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
     <nav aria-label="Навигация">
       <a class="nav active" href="#overview" data-tab="overview"><span>◈</span> Обзор</a>
-      <a class="nav" href="#builds" data-tab="builds"><span>⌘</span> Сборки <i id="navBuildCount">0</i></a>
+      <a class="nav" href="#builds" data-tab="builds"><span>▣</span> WIFICAM T23N <i id="navBuildCount">0</i></a>
+      <a class="nav" href="#irila" data-tab="irila"><span>◈</span> Irila Baikal</a>
+      <a class="nav" href="#helper" data-tab="helper"><span>⚙</span> WifCam Helper</a>
       <a class="nav" href="#artifacts" data-tab="artifacts"><span>▣</span> Артефакты</a>
       <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
     </nav>
@@ -58,14 +60,14 @@
         <div class="dashboard-bottom"><div class="surface">
             <div class="surface-head"><div><small>ПРОФИЛИ СБОРКИ</small><h3>Доступные проекты</h3></div><span class="count">01</span></div>
             <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · Ingenic MIPS · MMC/SD · SC2336</small><span class="tag">ПОДДЕРЖИВАЕТСЯ</span></div><button class="round-btn" id="profileBuild" title="Собрать">↗</button></div>
-            <div class="profile future"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Linux Kernel Lab</strong><small>ARM · MIPS · RISC-V · новые профили</small><span class="tag neutral">В ПЛАНАХ</span></div><span>+</span></div>
+            <div class="profile future"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Irila Baikal</strong><small>Ubuntu x86-64 · Acer · Secure Boot · отдельно от T23N</small><span class="tag neutral">АУДИТ И CI</span></div><span>+</span></div>
           </div><div class="surface">
             <div class="surface-head"><div><small>ПОСЛЕДНИЕ СОБЫТИЯ</small><h3>История запусков</h3></div><a class="small-link" href="#builds">Все сборки ↗</a></div>
             <div id="recentJobs" class="recent-list"><p class="empty">История пока пуста</p></div>
           </div></div>
       </section>
       <section data-panel="builds" class="panel" hidden>
-        <div class="page-heading"><div><small>BUILD CONTROL CENTER</small><h1>Управление сборками</h1><p>Запуск независимых задач через systemd. Можно закрывать браузер и SSH.</p></div><button id="newBuild" class="primary">▶ Новая сборка</button></div>
+        <div class="page-heading"><div><small>WIFICAM T23N · MIPS</small><h1>Сборка SD-прошивки камеры</h1><p>Thingino/Buildroot · Ingenic T23N · собственные журналы и IMG. Irila и Helper здесь не собираются.</p></div><button id="newBuild" class="primary">▶ Собрать WIFICAM</button></div>
         <div class="surface" style="margin-bottom:20px;padding:18px">
           <div class="surface-head"><div><small>GITHUB → HUANANZHI → BUILD</small><h3>Исходники из GitHub без копирования</h3></div></div>
           <p>При запуске станция сама получает выбранную ветку GitHub, сохраняет точный SHA и собирает отдельный SD-кандидат. Без автоматической прошивки камеры.</p>
@@ -102,8 +104,34 @@
 </pre><div class="terminal-footer"><span>LOGS / SQLITE / SYSTEMD</span><span id="logBytes">0 B</span></div>
           </div></div>
       </section>
+      <section data-panel="irila" class="panel" hidden>
+        <div class="page-heading"><div><small>IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal — независимый проект</h1><p>Отдельный GitHub SHA, рабочая папка, systemd unit и журнал. Никаких драйверов T23N и SD-образов.</p></div></div>
+        <div class="surface" style="margin-bottom:20px;padding:20px">
+          <h3>Исходники и проверка конвейера</h3>
+          <p>Проверяется только закреплённая ветка <code>musikfed/Irila_baikal_v1.0/main</code>. Кнопка ниже выполняет <strong>аудит исходников</strong> и создаёт отчёт — <strong>не компилирует ядро и не создаёт IMG</strong>.</p>
+          <button id="irilaCheck" class="primary" type="button">▶ Проверить исходники Irila</button>
+          <p class="muted">Полная сборка Irila: Canonical/Microsoft Secure Boot, GPT/EFI/ext4 и привилегированные loop/mkfs. До отдельной настройки безопасного root-окружения запускается в своём <a href="https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml" target="_blank" rel="noopener noreferrer">GitHub Actions workflow</a>. Она не является сборкой кастомного ядра T23N.</p>
+        </div>
+        <div class="build-layout">
+          <div class="surface"><div class="surface-head"><h3>История Irila</h3></div><div id="irilaJobs" class="jobs-list"></div></div>
+          <div class="surface log-surface"><div class="surface-head"><h3>Журнал и аудит Irila</h3><button class="danger" id="irilaStop" type="button" disabled>■ Остановить аудит</button></div>
+            <pre id="irilaLog" class="terminal">Выберите проверку Irila.</pre>
+            <button id="irilaReport" class="secondary" type="button" disabled>✓ Посмотреть отчёт проверки исходников</button>
+          </div>
+        </div>
+      </section>
+      <section data-panel="helper" class="panel" hidden>
+        <div class="page-heading"><div><small>WIFCAM HELPER · TEST BENCH</small><h1>Тестирование камеры</h1><p>Тесты микрофона, динамика, RTSP, изображения и безопасный профиль сборки.</p></div></div>
+        <div class="surface" style="padding:20px">
+          <h3>Отдельный проект, а не прошивка</h3>
+          <p>Путь: <code>/1tbdisk/PegineLab/projects/wifcam_helper</code>. Инструменты диагностики запускаются отдельно на CORE и <strong>не передают произвольные команды ядру</strong>. Для T23N передаётся только утверждённый JSON с <code>WIFICAM_WEBRTC=0|1</code>.</p>
+          <p>Проверьте наличие локального каталога и <a href="https://github.com/musikfed/wifcam_helper/blob/main/README.md" target="_blank" rel="noopener noreferrer">инструкцию стенда</a>. Его отдельная веб-панель запускается на <code>127.0.0.1:8765</code> с SSH-туннелем.</p>
+          <p class="muted">Сам WifCam Helper не создаёт Linux-ядро и не является третьей взаимозаменяемой прошивкой.</p>
+          <a href="#builds" class="secondary">Перейти к сборке WIFICAM с профилем Helper</a>
+        </div>
+      </section>
       <section data-panel="artifacts" class="panel" hidden>
-        <div class="page-heading"><div><small>BUILD OUTPUT</small><h1>Артефакты</h1><p>Готовые образы, размеры и SHA256. Приватные Wi-Fi-образы не публикуются.</p></div></div>
+        <div class="page-heading"><div><small>BUILD OUTPUT</small><h1>Образы WIFICAM T23N</h1><p>Только SD-прошивки камеры, MBR/MSPL и ext4. Аудиты Irila остаются в разделе Irila, образы USB Secure Boot — в её отдельном GitHub Actions.</p></div></div>
         <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
         <div class="surface sd-export-guide">
           <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
