@@ -4,7 +4,7 @@
 const $ = (id) => document.getElementById(id);
 const active = new Set(["queued", "running", "stopping"]);
 const labels = {queued:"В очереди",running:"Собирается",stopping:"Останавливается",success:"Готово",failed:"Ошибка",stopped:"Остановлено",interrupted:"Прервано"};
-let selected = null, offset = 0, loading = false, overview = null, refreshedLog = false;
+let selected = null, selectedIrila = null, offset = 0, loading = false, overview = null, refreshedLog = false;
 let logInitial = true, logFinalized = false, logFullRequested = false;
 let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
 let updateHadActive = false, updateAutoReloaded = false;
@@ -34,13 +34,14 @@ async function api(path, options={}) {
 }
 function setTab() {
   const tab=(location.hash||"#overview").slice(1);
-  const valid=["overview","builds","artifacts","system"];
+  const valid=["overview","builds","irila","helper","artifacts","system"];
   const current=valid.includes(tab)?tab:"overview";
-  const names={overview:"Обзор",builds:"Сборки",artifacts:"Артефакты",system:"Система"};
+  const names={overview:"Обзор",builds:"WIFICAM T23N",irila:"Irila Baikal",helper:"WifCam Helper",artifacts:"Образы WIFICAM",system:"Система"};
   document.querySelectorAll("[data-panel]").forEach(el=>el.hidden=el.dataset.panel!==current);
   document.querySelectorAll("[data-tab]").forEach(el=>el.classList.toggle("active",el.dataset.tab===current));
   $text("pageName",names[current]);document.title="PegineLab · "+names[current];
   if(current==="builds") refreshLog();
+  if(current==="irila") refreshIrilaLog();
 }
 function metric(numberId,barId,infoId,value,part,total,suffix) {
   $text(numberId,value);
@@ -52,15 +53,15 @@ function statusPill(status) {
 }
 function jobItem(job,compact=false) {
   const item=element("button",compact?"recent-job":"job-row");
-  if(job.id===selected)item.classList.add("selected");
+  if(job.id===(job.profile==="irila_preflight"?selectedIrila:selected))item.classList.add("selected");
   const left=element("div","job-main");
-  left.append(element("strong","",job.profile==="t23n_sd"?"WIFICAM · T23N SD":"Firmware"));
+  left.append(element("strong","",job.profile==="t23n_sd"?"WIFICAM · T23N SD":job.profile==="irila_preflight"?"IRILA · аудит источников":"Неизвестный профиль"));
   left.append(element("small","",date(job.created_at)+" · "+job.id.slice(0,8)));
   if(job.repo_ref)left.append(element("small","",job.repo_ref+" · "+(job.source_sha?job.source_sha.slice(0,12):"Git fetch pending")));
   if(job.elapsed_seconds!==null && job.elapsed_seconds!==undefined)
     left.append(element("small","", "Время "+clockDuration(job.elapsed_seconds)));
   item.append(left,statusPill(job.status));
-  item.addEventListener("click",()=>select(job.id));
+  item.addEventListener("click",()=>job.profile==="irila_preflight"?selectIrila(job.id):select(job.id));
   return item;
 }
 function select(id) {
@@ -69,24 +70,76 @@ function select(id) {
     $("log").textContent="";$text("logBytes","0 Б");}
   location.hash="builds";setTab();renderJobs();refreshLog();
 }
+function selectIrila(id) {
+  selectedIrila=id;
+  location.hash="irila";
+  setTab();
+  renderJobs();
+  refreshIrilaLog();
+}
+async function refreshIrilaLog(){
+  if(!selectedIrila)return;
+  const job=overview?.jobs?.find(j=>j.id===selectedIrila&&j.profile==="irila_preflight");
+  if(!job)return;
+  try {
+    const result=await api("/api/jobs/"+job.id+"/log?tail=1");
+    $("irilaLog").textContent="IRILA SOURCE AUDIT · "+(labels[job.status]||job.status)+"\n\n"+(result.text||"Журнал пока пуст");
+  }catch(e){$("irilaLog").textContent="Ошибка журнала Irila: "+e.message}
+}
+async function runIrilaAudit(){
+  if(!confirm("Запустить только проверку исходников Irila/main? Без сборки IMG, root, loop или записи дисков."))return;
+  try {
+    const result=await api("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({profile:"irila_preflight",branch:"main"})});
+    selectedIrila=result.job_id;
+    $("irilaLog").textContent="Задание добавлено в очередь...\n";
+    toast("Аудит Irila запущен; настоящую IMG собирает отдельный GitHub Actions workflow");
+    await refresh();
+    refreshIrilaLog();
+  }catch(e){toast("Irila: "+e.message)}
+}
+async function showIrilaReport(){
+  if(!selectedIrila)return;
+  try {
+    const report=await api("/api/jobs/"+selectedIrila+"/irila-audit");
+    $("irilaLog").textContent=JSON.stringify(report,null,2);
+  }catch(e){toast("Отчёт Irila: "+e.message)}
+}
+async function stopIrila(){
+  if(!selectedIrila||!confirm("Остановить только текущий аудит Irila?"))return;
+  try{await api("/api/jobs/"+selectedIrila+"/stop",{method:"POST"});await refresh();}
+  catch(e){toast("Не удалось остановить Irila: "+e.message)}
+}
+
 function renderJobs() {
   if(!overview)return;
   const jobs=overview.jobs||[];
+  const cameraJobs=jobs.filter(j=>j.profile==="t23n_sd");
+  const irilaJobs=jobs.filter(j=>j.profile==="irila_preflight");
   $text("jobsNumber",jobs.length);
-  $text("buildCount",jobs.length);
-  $text("navBuildCount",jobs.length);
+  $text("buildCount",cameraJobs.length);
+  $text("navBuildCount",cameraJobs.length);
   const running=jobs.find(j=>active.has(j.status));
   $text("currentStatus",running?"● "+labels[running.status]:"Нет активных задач");
   ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).disabled=!!running || !!(updateState && ["queued","running"].includes(updateState.phase) && ["apply","rollback"].includes(updateState.action)));
   const recent=$("recentJobs");recent.replaceChildren();
   const list=$("jobsList");list.replaceChildren();
-  if(!jobs.length){recent.append(element("p","empty","История пока пуста"));list.append(element("p","empty","Сборок пока нет"));}
-  for(const job of jobs) {list.append(jobItem(job));}
+  if(!jobs.length)recent.append(element("p","empty","История пока пуста"));
+  if(!cameraJobs.length)list.append(element("p","empty","Пока нет сборок WIFICAM"));
+  for(const job of cameraJobs) {list.append(jobItem(job));}
+  const irilaList=$("irilaJobs");irilaList.replaceChildren();
+  if(!irilaJobs.length)irilaList.append(element("p","empty","Пока нет аудитов Irila"));
+  for(const job of irilaJobs)irilaList.append(jobItem(job));
+  if(!selectedIrila && irilaJobs.length)selectedIrila=irilaJobs[0].id;
+  const irilaCurrent=irilaJobs.find(j=>j.id===selectedIrila);
+  $("irilaCheck").disabled=!!running || !!(updateState&&["queued","running"].includes(updateState.phase));
+  $("irilaStop").disabled=!irilaCurrent||!active.has(irilaCurrent.status);
+  $("irilaReport").disabled=!irilaCurrent||irilaCurrent.status!=="success";
   for(const job of jobs.slice(0,4)) recent.append(jobItem(job,true));
   const current=jobs.find(j=>j.id===selected);
-  if(!selected&&jobs.length){selected=jobs[0].id;offset=0;
+  if(!selected&&cameraJobs.length){selected=cameraJobs[0].id;offset=0;
     logInitial=true;logFinalized=false;logFullRequested=false;}
-  const selectedJob=jobs.find(j=>j.id===selected)||current;
+  const selectedJob=cameraJobs.find(j=>j.id===selected)||null;
   $("stopBuild").disabled=!selectedJob||!active.has(selectedJob.status);
   $("fullBuildLog").disabled=!selectedJob || active.has(selectedJob.status);
   $text("logState",selectedJob?(labels[selectedJob.status]||selectedJob.status):"Выберите задачу");
@@ -205,6 +258,7 @@ async function refresh() {
   catch(e){$("connection").textContent="Нет связи";}
   finally{loading=false;}
   if(location.hash==="#builds")refreshLog();
+  if(location.hash==="#irila")refreshIrilaLog();
 }
 async function refreshLog() {
   // A browser refresh must NOT replay an archived 9-MB log as if it were
@@ -468,6 +522,9 @@ async function init() {
   setTab();window.addEventListener("hashchange",setTab);
   ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).addEventListener("click",start));
   $("stopBuild").addEventListener("click",stop);
+  $("irilaCheck").addEventListener("click",runIrilaAudit);
+  $("irilaStop").addEventListener("click",stopIrila);
+  $("irilaReport").addEventListener("click",showIrilaReport);
   $("validateBuild").addEventListener("click",validateSelected);
   $("checkUpdate").addEventListener("click",()=>updateAction("check"));
   $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
@@ -489,7 +546,7 @@ async function init() {
   await refresh();
   await refreshUpdate(true);
   await refreshPanelService();
-  setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();},2500);
+  setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();if(location.hash==="#irila")refreshIrilaLog();},2500);
   setInterval(()=>refreshUpdate(true),15000);
   setInterval(refreshPanelService,15000);
   setInterval(()=>$text("clock",new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})),15000);
