@@ -46,6 +46,23 @@ Docker daemon, SSH, Ubuntu и VPN не выключаются.
 - [Полная инструкция RU: папки, профили, запрет параллельности](docs/MULTI_PROJECT_BUILDS_RU.md)
 - [EN: build isolation and Irila boundary](docs/MULTI_PROJECT_BUILDS_EN.md)
 
+## Физически раздельные сборочные деревья / Strict project isolation
+
+Никакого общего цеха: `build/projects/wificam_T23N/{git-cache,tmp,cache,jobs}/` и `build/projects/Irila_baikal_v1.0/{git-cache,tmp,cache,jobs}/` полностью независимы. У каждого проекта есть собственные журналы в `factory-state/projects/<name>/logs/`; T23N дополнительно имеет собственную валидацию SD. Общая SQLite — только очередь заданий; одновременно допускается **одна** задача. Вкладки панели визуально разделены, скачивания и журналы не смешиваются.
+
+**Irila:** локальная вкладка пока запускает лишь проверку Git-исходников. Настоящий подписанный x86-64 IMG пока создаётся только её отдельным CI. **WifCam Helper:** самостоятельный стенд и опциональный JSON-профиль камеры, а не замена компилятора ядра.
+
+Старые рабочие деревья `build/jobs/<uuid>` не копируются в новую структуру. Для удаления ненужных завершённых заданий используйте только ручной сценарий с dry-run и подтверждением:
+
+```sh
+python3 scripts/cleanup_legacy_builds.py
+python3 scripts/cleanup_legacy_builds.py --apply --confirm DELETE-LEGACY-JOBS
+```
+
+**GitHub не гарантирует сохранность локально скомпилированных .bin/.img!** Обновление YadroKreator само ничего не удаляет. Эталонная SD-прошивка в `projects/wificam_T23N/Thingino/` защищена от очистки.
+
+[Подробная инструкция RU](docs/MULTI_PROJECT_BUILDS_RU.md) · [English](docs/MULTI_PROJECT_BUILDS_EN.md)
+
 ## Первый профиль / First build target
 
 - **WIFICAM T23N**: внешний checkout `musikfed/wificam_T23N` и Thingino на том же Linux-хосте.
