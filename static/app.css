@@ -77,3 +77,34 @@
 .lifecycle-actions button,.lifecycle-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:10px 16px;border-radius:8px;font-size:12px;text-decoration:none}
 .lifecycle-actions button:disabled{opacity:.4;cursor:not-allowed}
 .panel-lifecycle code{font-family:monospace;overflow-wrap:anywhere}
+
+
+/* Visually independent production lanes. Shared CORE metrics are neutral;
+   source tree, job history, log and download stay inside selected lane. */
+.nav[data-tab="builds"].active,.nav[data-tab="artifacts"].active{box-shadow:inset 4px 0 #60e2c2}
+.nav[data-tab="irila"].active{box-shadow:inset 4px 0 #fab46b;background:#302719}
+.nav[data-tab="helper"].active{box-shadow:inset 4px 0 #61a9ff;background:#19283e}
+.panel[data-panel="builds"],.panel[data-panel="artifacts"]{--lane-accent:#60e2c2}
+.panel[data-panel="irila"]{--lane-accent:#fab46b}
+.panel[data-panel="helper"]{--lane-accent:#61a9ff}
+.panel[data-panel="builds"] .page-heading,.panel[data-panel="artifacts"] .page-heading,
+.panel[data-panel="irila"] .page-heading,.panel[data-panel="helper"] .page-heading{
+  padding:18px 24px;border:1px solid #2d3a52;border-left:5px solid var(--lane-accent);
+  border-radius:14px;background:linear-gradient(110deg,#192438,#101824);
+}
+.panel[data-panel="builds"] .page-heading small,.panel[data-panel="artifacts"] .page-heading small,
+.panel[data-panel="irila"] .page-heading small,.panel[data-panel="helper"] .page-heading small{
+  color:var(--lane-accent)
+}
+.lane-bar{display:flex;align-items:center;gap:15px;flex-wrap:wrap;
+  padding:13px 18px;margin:-12px 0 23px;border:1px solid #2a3951;
+  background:#101a29;border-radius:10px;font-size:12px;color:#a8bdd6}
+.lane-bar span:first-child{font-weight:800;color:var(--lane-accent)}
+.lane-bar code{overflow-wrap:anywhere;color:#d8e6f7;font-size:11px}
+.lane-bar span:last-child{margin-left:auto;color:#859bb4;font-size:10px}
+.lane-history-heading{font-size:10px;font-weight:850;letter-spacing:1.5px;
+  padding:12px 0 6px;border-top:1px solid #2a3951}
+.lane-history-heading.camera{color:#60e2c2}
+.lane-history-heading.irila{color:#fab46b}
+.panel[data-panel="irila"] #irilaExport{margin-top:12px}
+@media(max-width:760px){.lane-bar span:last-child{margin-left:0;width:100%}}
