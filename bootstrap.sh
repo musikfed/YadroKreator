@@ -14,6 +14,10 @@ if [ "$(cd "$(dirname "$0")" && pwd -P)" != "$APP" ]; then
 fi
 command -v git >/dev/null || { echo "Install git first"; exit 1; }
 mkdir -p "$ROOT/build" "$ROOT/projects"
+# One-time bootstrap also prepares each sibling repository separately.
+# Never reset local branches or delete any tree; a dirty checkout is refused.
+# Later, use scripts/sync_core_projects.sh --apply for updates.
+bash "$APP/scripts/sync_core_projects.sh" --apply
 if [ ! -e "$THINGINO" ]; then
   echo "Getting Thingino from upstream Git (first install only)..."
   git clone --recurse-submodules "$THINGINO_URL" "$THINGINO"
