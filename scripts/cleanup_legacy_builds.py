@@ -40,7 +40,7 @@ def _safe_root(root: Path) -> Path:
 def _check_anchors(root: Path) -> None:
     """Do not let any symlinked ancestor redirect a cleanup outside CORE."""
     for relative in (
-        "build", "build/jobs", "build/git-cache", "build/locks",
+        "build", "build/jobs", "build/git-cache", "build/cache", "build/tmp", "build/locks",
         "factory-state", "factory-state/logs", "factory-state/validation",
     ):
         item = root / relative
@@ -54,7 +54,7 @@ def _within(child: Path, parent: Path) -> bool:
     return not child.is_symlink() and child.resolve().is_relative_to(parent.resolve())
 
 
-def plan(root: Path, *, caches: bool = False) -> dict:
+def plan(root: Path, *, caches: bool = False, orphans: bool = False, shared_cache: bool = False) -> dict:
     root = _safe_root(root)
     _check_anchors(root)
     data = root / "factory-state"
@@ -68,6 +68,8 @@ def plan(root: Path, *, caches: bool = False) -> dict:
     selected: list[Path] = []
     db_ids: list[str] = []
     active: list[str] = []
+    existing_ids: set[str] = set()
+    orphan_ids: set[str] = set()
 
     if database.is_file():
         db = sqlite3.connect(database)
@@ -79,6 +81,7 @@ def plan(root: Path, *, caches: bool = False) -> dict:
             db.close()
 
         for job_id, status, log in jobs:
+            existing_ids.add(str(job_id))
             if status in ACTIVE:
                 active.append(str(job_id))
                 continue
@@ -100,6 +103,37 @@ def plan(root: Path, *, caches: bool = False) -> dict:
                         raise CleanupError("Unsafe legacy result path")
                     selected.append(path)
 
+    # Optional orphan scan: only precisely named old UUID worktrees/logs
+    # with NO matching row in SQLite. Never recurse into project trees.
+    if orphans:
+        for directory, suffix, is_directory in (
+            (legacy_jobs, "", True),
+            (legacy_logs, ".log", False),
+            (legacy_validation, ".json", False),
+        ):
+            if not directory.is_dir():
+                continue
+            for candidate in directory.iterdir():
+                basename = candidate.name
+                job_id = basename[:-len(suffix)] if suffix else basename
+                if not JOB_ID.fullmatch(job_id) or job_id in existing_ids:
+                    continue
+                if candidate.is_symlink() or not _within(candidate, directory):
+                    raise CleanupError("Refusing unsafe orphan path " + str(candidate))
+                if (candidate.is_dir() if is_directory else candidate.is_file()):
+                    orphan_ids.add(job_id)
+                    selected.append(candidate)
+
+    if shared_cache:
+        for dirname in ("cache", "tmp"):
+            path = root / "build" / dirname
+            if path.is_symlink():
+                raise CleanupError("Refusing symlinked shared cache")
+            if path.is_dir():
+                if not _within(path, root / "build"):
+                    raise CleanupError("Unsafe old shared cache path")
+                selected.append(path)
+
     if caches:
         directory = root / "build" / "git-cache"
         if directory.is_symlink():
@@ -116,12 +150,14 @@ def plan(root: Path, *, caches: bool = False) -> dict:
         "root": str(root),
         "active_jobs": active,
         "finished_legacy_job_ids": sorted(db_ids),
+        "orphan_legacy_job_ids": sorted(orphan_ids),
         "delete_paths": sorted(set(map(str, selected))),
         "prune_git_cache": caches,
+        "prune_shared_cache": shared_cache,
     }
 
 
-def run(root: Path, *, apply: bool = False, confirm: str = "", caches: bool = False) -> dict:
+def run(root: Path, *, apply: bool = False, confirm: str = "", caches: bool = False, orphans: bool = False, shared_cache: bool = False) -> dict:
     root = _safe_root(root)
     _check_anchors(root)
     # Cooperate with the worker's global file lock. A running job aborts cleanup.
@@ -135,7 +171,7 @@ def run(root: Path, *, apply: bool = False, confirm: str = "", caches: bool = Fa
         except BlockingIOError as exc:
             raise CleanupError("Factory worker is running; refusing cleanup") from exc
 
-        report = plan(root, caches=caches)
+        report = plan(root, caches=caches, orphans=orphans, shared_cache=shared_cache)
         if report["active_jobs"]:
             raise CleanupError("Factory has active/queued/stopping jobs; refusing cleanup")
         if not apply:
@@ -178,11 +214,16 @@ def run(root: Path, *, apply: bool = False, confirm: str = "", caches: bool = Fa
             finally:
                 db.close()
         elif report["delete_paths"]:
-            # Only old bare caches can exist with no old database.
+            # Explicit orphan-only/file cleanup can run without a database.
+            _check_anchors(root)
             for filename in report["delete_paths"]:
                 path = Path(filename)
+                if path.is_symlink():
+                    raise CleanupError("Symlink appeared during cleanup")
                 if path.is_dir():
                     shutil.rmtree(path)
+                elif path.is_file():
+                    path.unlink()
         report["applied"] = True
         return report
 
@@ -191,6 +232,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Dry-run legacy PegineLab job cleanup")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--confirm", default="")
+    parser.add_argument("--include-orphans", action="store_true",
+                        help="also inspect old 32-hex UUID files with no SQLite record")
+    parser.add_argument("--prune-old-shared-cache", action="store_true",
+                        help="also remove old global build/cache and build/tmp, not new project caches")
     parser.add_argument("--prune-old-git-cache", action="store_true",
                         help="also remove only old bare caches from build/git-cache")
     args = parser.parse_args(argv)
@@ -200,9 +245,12 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(os.environ.get("PEGINELAB_HOME", "/1tbdisk/PegineLab"))
     try:
         result = run(root, apply=args.apply, confirm=args.confirm,
-                     caches=args.prune_old_git_cache)
+                     caches=args.prune_old_git_cache,
+                     orphans=args.include_orphans,
+                     shared_cache=args.prune_old_shared_cache)
         print(("DELETED" if args.apply else "DRY RUN — nothing removed"))
-        print("Old jobs:", len(result["finished_legacy_job_ids"]))
+        print("Old DB jobs:", len(result["finished_legacy_job_ids"]))
+        print("Orphan legacy IDs:", len(result["orphan_legacy_job_ids"]))
         for path in result["delete_paths"]:
             print("  ", path)
         print("Source trees in projects/, new build/projects/, and Thingino baseline: NEVER targeted")
