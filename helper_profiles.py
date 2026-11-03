@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 from core import ROOT
+from project_profiles import job_root
 
 SCHEMA = "peginelab.wifcam-helper.build-preset.v1"
 CAMERA = "galayou_g2_t23n_sc2336_atbm6012bx"
@@ -53,7 +54,7 @@ def load_helper_profile(*, root: Path = ROOT, branch: str = BRANCH) -> dict:
 def job_profile_path(job_id: str, *, root: Path = ROOT) -> Path:
     if not ID_RE.fullmatch(job_id):
         raise ValueError("Invalid job ID")
-    return root / "build" / "jobs" / job_id / "helper-preset.json"
+    return job_root(job_id, "t23n_sd", root=root) / "helper-preset.json"
 
 
 def snapshot_profile(job_id: str, profile: dict, *, root: Path = ROOT) -> Path:
