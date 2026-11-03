@@ -451,9 +451,10 @@ async function panelServiceAction(action) {
 }
 async function start() {
   const branch=$("sourceBranch").value;
-  if(!confirm("Получить "+branch+" напрямую с GitHub и собрать из точного коммита? Новый образ останется на сервере, камера не прошивается."))return;
+  const helper_preset=$("helperPreset").checked;
+  if(!confirm("Получить "+branch+" напрямую с GitHub и собрать из точного коммита?" +(helper_preset?" С утверждённым профилем WifCam Helper.":"") +" Новый образ останется на сервере, камера не прошивается."))return;
   try {
-    const r=await api("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:"t23n_sd",branch})});
+    const r=await api("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:"t23n_sd",branch,helper_preset})});
     toast("Сборка запущена независимо от SSH");selected=r.job_id;offset=0;$("log").textContent="";location.hash="builds";setTab();await refresh();
   }catch(e){toast(e.message);}
 }
