@@ -36,6 +36,10 @@ def main(job_id: str) -> int:
     build = ROOT / "build"
     for directory in (build / "tmp", build / "cache", build / "cache" / "ccache"):
         directory.mkdir(parents=True, exist_ok=True)
+    # Buildroot rejects an inherited LD_LIBRARY_PATH with an empty/current-dir
+    # element. Do not pass host loader paths to cross-compilation at all.
+    # Preserve the system/user environment; sanitize this worker's child only.
+    env.pop("LD_LIBRARY_PATH", None)
     env.update({
         "TMPDIR": str(build / "tmp"),
         "XDG_CACHE_HOME": str(build / "cache"),
