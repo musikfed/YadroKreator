@@ -28,6 +28,27 @@ class SeparateProjectsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             profile_workspace("../../outside", "irila_preflight", root=root)
 
+    def test_separate_project_caches_logs_and_artifacts(self):
+        from project_profiles import project_build_root, project_cache_root, project_log_path, job_root
+        root = Path("/test/peginelab")
+        data = root / "factory-state"
+        jid = "9" * 32
+        w = project_build_root("t23n_sd", root=root)
+        i = project_build_root("irila_preflight", root=root)
+        self.assertNotEqual(w, i)
+        self.assertEqual(project_cache_root("t23n_sd", root=root), w / "git-cache")
+        self.assertEqual(project_cache_root("irila_preflight", root=root), i / "git-cache")
+        self.assertEqual(job_root(jid, "t23n_sd", root=root), w / "jobs" / jid)
+        self.assertEqual(job_root(jid, "irila_preflight", root=root), i / "jobs" / jid)
+        self.assertNotEqual(
+            project_log_path(jid, "t23n_sd", root=root, data=data),
+            project_log_path(jid, "irila_preflight", root=root, data=data),
+        )
+        self.assertEqual(
+            project_log_path(jid, "t23n_sd", root=root, data=data),
+            data / "projects/wificam_T23N/logs" / (jid + ".log"),
+        )
+
     def test_irila_detached_git_checkout_and_read_only_report(self):
         jid = "b" * 32
         with tempfile.TemporaryDirectory() as d:
