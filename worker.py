@@ -9,6 +9,7 @@ from pathlib import Path
 
 from core import ROOT, PROJECT, THINGINO, LOGS, get_job, record_status, record_source_sha, now
 from git_sources import checkout_source
+from helper_profiles import job_env
 
 
 def main(job_id: str) -> int:
@@ -63,6 +64,13 @@ def main(job_id: str) -> int:
                 raise RuntimeError("WIFICAM build script missing in pinned Git revision")
             log.write(f"WIFICAM source = {job['repo_ref']} @ {sha}\n".encode())
             log.write(b"PUBLISH=0: candidate stays local; no Git push or SD flashing.\n")
+            # Profile is snapshotted at job creation; never use a mutable live
+            # helper report during hours of compilation.
+            extra = job_env(job_id, root=ROOT, branch=job["repo_ref"])
+            if extra:
+                env.update(extra)
+                log.write(b"WifCam Helper approved preset: WIFICAM_WEBRTC=" +
+                          extra["WIFICAM_WEBRTC"].encode() + b" (not hardware verified).\n")
             proc = subprocess.Popen(
                 ["/bin/sh", "scripts/build_thingino_wificam_image.sh"],
                 cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT,
