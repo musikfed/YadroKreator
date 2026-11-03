@@ -20,8 +20,8 @@ class SeparateProjectsTests(unittest.TestCase):
         w = profile_workspace(jid, "t23n_sd", root=root)
         i = profile_workspace(jid, "irila_preflight", root=root)
         self.assertNotEqual(i, w)
-        self.assertEqual(w, root / "build/jobs" / jid / "wificam_T23N")
-        self.assertEqual(i, root / "build/jobs" / jid / "Irila_baikal_v1.0")
+        self.assertEqual(w, root / "build/projects/wificam_T23N/jobs" / jid / "wificam_T23N")
+        self.assertEqual(i, root / "build/projects/Irila_baikal_v1.0/jobs" / jid / "Irila_baikal_v1.0")
         self.assertNotEqual(PROFILES["irila_preflight"]["repository"],
                             PROFILES["t23n_sd"]["repository"])
         self.assertNotIn("irila_img", PROFILES)
@@ -55,8 +55,8 @@ class SeparateProjectsTests(unittest.TestCase):
             self.assertFalse(report["linux_kernel_build_started"])
             self.assertFalse(report["usb_image_built"])
             self.assertFalse(report["hardware_boot_verified"])
-            self.assertFalse((root / "build/jobs" / jid / "irina_baikal_1.0.img").exists())
-            self.assertEqual(json.loads((root / "build/jobs" / jid / "irila-source-audit.json").read_text())["source_sha"], sha)
+            self.assertFalse((root / "build/projects/Irila_baikal_v1.0/jobs" / jid / "irina_baikal_1.0.img").exists())
+            self.assertEqual(json.loads((root / "build/projects/Irila_baikal_v1.0/jobs" / jid / "irila-source-audit.json").read_text())["source_sha"], sha)
             with self.assertRaises(RuntimeError):
                 checkout_irila(jid, log, root=root, repo_url=str(upstream))
 
