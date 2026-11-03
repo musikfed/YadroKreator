@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import json
 import os
 import re
 import shutil
@@ -48,6 +49,25 @@ def _check_anchors(root: Path) -> None:
             raise CleanupError("Refusing symlinked cleanup anchor: " + str(item))
         if item.exists() and not item.resolve().is_relative_to(root):
             raise CleanupError("Cleanup anchor escaped PegineLab root")
+
+
+def _verify_no_dashboard_update(root: Path) -> None:
+    """Never remove old shared caches during a dashboard apply/rollback."""
+    state = root / "factory-state" / "updates.json"
+    if state.is_symlink():
+        raise CleanupError("Refusing symlinked updater state")
+    if not state.is_file():
+        return
+    try:
+        if state.stat().st_size > 128_000:
+            raise CleanupError("Updater state unexpectedly large")
+        status = json.loads(state.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError) as exc:
+        raise CleanupError("Cannot verify YadroKreator updater is idle") from exc
+    if not isinstance(status, dict):
+        raise CleanupError("Invalid updater state")
+    if status.get("phase") in ("queued", "running"):
+        raise CleanupError("YadroKreator update is running; refuse legacy cleanup")
 
 
 def _within(child: Path, parent: Path) -> bool:
@@ -171,6 +191,7 @@ def run(root: Path, *, apply: bool = False, confirm: str = "", caches: bool = Fa
         except BlockingIOError as exc:
             raise CleanupError("Factory worker is running; refusing cleanup") from exc
 
+        _verify_no_dashboard_update(root)
         report = plan(root, caches=caches, orphans=orphans, shared_cache=shared_cache)
         if report["active_jobs"]:
             raise CleanupError("Factory has active/queued/stopping jobs; refusing cleanup")
