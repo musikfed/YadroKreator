@@ -35,6 +35,17 @@ Docker daemon, SSH, Ubuntu и VPN не выключаются.
 [EN](docs/PROJECT_CONTROL_EN.md).
 
 
+## Раздельные проекты / Separate build lanes (November 2026)
+
+После обновления панели из GitHub доступны отдельные вкладки **WIFICAM T23N**, **Irila Baikal**, **WifCam Helper** и **Образы WIFICAM**. Папки исходников не пересекаются; для каждой задачи используется отдельный SHA-пинованный Git worktree и журнал.
+
+**WIFICAM** действительно собирает Thingino/MIPS SD-кандидат. **Irila** сейчас выполняет только безопасный аудит исходников из `Irila_baikal_v1.0/main`; её полный x86-64 Secure Boot IMG нужно запускать через отдельный [официальный GitHub Actions workflow](https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml), так как упаковка использует sudo, loop, GPT и mkfs. **Helper** отдельно измеряет камеру и передаёт лишь утверждённый опциональный JSON-профиль в WIFICAM.
+
+**Параллельные задачи внутри фабрики запрещены.** SQLite транзакция и дополнительный worker flock позволяют только один queued/running/stopping job. Ручные сборки Linux/Thingino, запущенные вне фабрики, и внешние CI runner не охвачены этой блокировкой.
+
+- [Полная инструкция RU: папки, профили, запрет параллельности](docs/MULTI_PROJECT_BUILDS_RU.md)
+- [EN: build isolation and Irila boundary](docs/MULTI_PROJECT_BUILDS_EN.md)
+
 ## Первый профиль / First build target
 
 - **WIFICAM T23N**: внешний checkout `musikfed/wificam_T23N` и Thingino на том же Linux-хосте.
