@@ -305,9 +305,14 @@ def verify_and_restart(operation: str = "") -> None:
          str(APP / "project_profiles.py"), str(APP / "irila_sources.py"),
          str(APP / "irila_preflight.py"), str(APP / "helper_profiles.py"),
          str(APP / "scripts" / "cleanup_legacy_builds.py"),
+         str(APP / "scripts" / "sync_core_projects.py"),
+         str(APP / "scripts" / "prune_merged_branches.py"),
          str(APP / "update_manager.py")], timeout=30)
     run(["bash", "-n", str(APP / "deploy.sh"), str(APP / "install.sh"),
-         str(APP / "bootstrap.sh"), str(APP / "setup-update-timer.sh")], timeout=30)
+         str(APP / "bootstrap.sh"), str(APP / "setup-update-timer.sh"),
+         str(APP / "scripts" / "sync_core_projects.sh"),
+         str(APP / "scripts" / "prune_merged_branches.sh"),
+         str(APP / "scripts" / "cleanup_old_results.sh")], timeout=30)
     if operation:
         mark_step(operation, "restart", "Перезапуск веб-панели и проверка службы")
     run(["systemctl", "--user", "restart", "peginelab-factory.service"],
