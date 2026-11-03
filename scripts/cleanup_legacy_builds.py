@@ -194,6 +194,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prune-old-git-cache", action="store_true",
                         help="also remove only old bare caches from build/git-cache")
     args = parser.parse_args(argv)
+    if os.geteuid() == 0:
+        print("Refusing root: use the regular YadroKreator service user", file=sys.stderr)
+        return 2
     root = Path(os.environ.get("PEGINELAB_HOME", "/1tbdisk/PegineLab"))
     try:
         result = run(root, apply=args.apply, confirm=args.confirm,
