@@ -375,6 +375,25 @@ def start_job():
     return jsonify(ok=True, job_id=job_id, branch=repo_ref, profile=profile,
                    helper_preset=helper_selected), 201
 
+@app.get("/api/jobs/<job_id>/irila-audit")
+def irila_source_audit(job_id):
+    """Only project-specific nonsecret audit JSON, NEVER a WIFICAM disk image."""
+    job = safe_job(job_id)
+    if not job or job.get("profile") != "irila_preflight" or job.get("status") != "success":
+        return jsonify(error="No completed Irila source audit for this job"), 404
+    path = ROOT / "build" / "jobs" / job_id / "irila-source-audit.json"
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 16384:
+        return jsonify(error="No valid Irila audit artifact"), 404
+    import json
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+        if report.get("profile") != "irila_preflight" or report.get("source_sha") != job["source_sha"]:
+            raise ValueError("Irila report job mismatch")
+    except (OSError, ValueError, TypeError):
+        return jsonify(error="Invalid Irila report"), 422
+    return jsonify(report)
+
+
 @app.post("/api/jobs/<job_id>/validate")
 def validate_job_image(job_id):
     """Explicit, read-only preflight; never invokes dd or writes media."""
