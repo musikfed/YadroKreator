@@ -46,7 +46,7 @@ def valid_branch(name: str) -> None:
 
 def fetch_for_inspection(repo: Path) -> None:
     # Fetch into remote-tracking refs, never checkout, reset or modify local work.
-    invoke("git", "-C", str(repo), "fetch", "--no-tags", "origin",
+    invoke("git", "-C", str(repo), "fetch", "--prune", "--no-tags", "origin",
            "+refs/heads/*:refs/remotes/origin/*", capture=False, timeout=240)
 
 
@@ -124,6 +124,8 @@ def delete_named(root: Path, project: str, names: list[str], *, apply: bool, con
         invoke("git", "-C", str(repo), "push",
                f"--force-with-lease=refs/heads/{row['branch']}:{row['sha']}",
                "origin", f":refs/heads/{row['branch']}", capture=False)
+    # Remove only stale origin/* refs; local user branches are never deleted.
+    fetch_for_inspection(repo)
     return selected
 
 
