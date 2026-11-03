@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from core import ROOT
-from project_profiles import profile_workspace
+from project_profiles import profile_workspace, project_cache_root
 
 ORIGIN = "https://github.com/musikfed/Irila_baikal_v1.0.git"
 BRANCH = "main"
@@ -18,7 +18,7 @@ def checkout_irila(job_id: str, log, *, root: Path = ROOT, on_process=None,
     work = profile_workspace(job_id, "irila_preflight", root=root)
     if work.exists() or work.is_symlink():
         raise RuntimeError("Irila source workspace already exists")
-    cache_dir = root / "build" / "git-cache"
+    cache_dir = project_cache_root("irila_preflight", root=root)
     cache_dir.mkdir(parents=True, exist_ok=True)
     work.parent.mkdir(parents=True, exist_ok=True)
     cache = cache_dir / "Irila_baikal_v1.0.git"
