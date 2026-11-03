@@ -21,7 +21,7 @@ REPOS = {
     "Irila_baikal_v1.0": "https://github.com/musikfed/Irila_baikal_v1.0.git",
 }
 FACTORY_URL = "https://github.com/musikfed/YadroKreator.git"
-ALLOWED = {"main", "mymarrchWFcam", "release/0.1_test"}
+ALLOWED = {"main", "mymarrchWFcam"}  # never fast-forward the hardware baseline
 SHA = re.compile(r"[a-f0-9]{40}\Z")
 
 
