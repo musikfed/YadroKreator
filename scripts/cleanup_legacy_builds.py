@@ -37,12 +37,26 @@ def _safe_root(root: Path) -> Path:
     return root.resolve()
 
 
+def _check_anchors(root: Path) -> None:
+    """Do not let any symlinked ancestor redirect a cleanup outside CORE."""
+    for relative in (
+        "build", "build/jobs", "build/git-cache", "build/locks",
+        "factory-state", "factory-state/logs", "factory-state/validation",
+    ):
+        item = root / relative
+        if item.is_symlink():
+            raise CleanupError("Refusing symlinked cleanup anchor: " + str(item))
+        if item.exists() and not item.resolve().is_relative_to(root):
+            raise CleanupError("Cleanup anchor escaped PegineLab root")
+
+
 def _within(child: Path, parent: Path) -> bool:
     return not child.is_symlink() and child.resolve().is_relative_to(parent.resolve())
 
 
 def plan(root: Path, *, caches: bool = False) -> dict:
     root = _safe_root(root)
+    _check_anchors(root)
     data = root / "factory-state"
     database = data / "factory.sqlite3"
     if database.is_symlink():
@@ -109,6 +123,7 @@ def plan(root: Path, *, caches: bool = False) -> dict:
 
 def run(root: Path, *, apply: bool = False, confirm: str = "", caches: bool = False) -> dict:
     root = _safe_root(root)
+    _check_anchors(root)
     # Cooperate with the worker's global file lock. A running job aborts cleanup.
     lock_path = root / "build" / "locks" / "factory-build.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,6 +156,7 @@ def run(root: Path, *, apply: bool = False, confirm: str = "", caches: bool = Fa
                     raise CleanupError("A job became active; refusing cleanup")
                 # Paths and matching job IDs come solely from inspected legacy
                 # rows, and are allowlisted to dedicated old directories.
+                _check_anchors(root)
                 for file in report["delete_paths"]:
                     path = Path(file)
                     if path.is_symlink():
