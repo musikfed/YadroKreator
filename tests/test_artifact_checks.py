@@ -66,7 +66,7 @@ class T23NPreflight(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.job = dict(id="a"*32, profile="t23n_sd", status="success")
-        self.image = self.root / "build/jobs" / self.job["id"] / (
+        self.image = self.root / "build/projects/wificam_T23N/jobs" / self.job["id"] / (
             "wificam_T23N/out/private-sd/thingino-t23-sd.bin")
         make_fixture(self.image)
 
