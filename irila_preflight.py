@@ -6,7 +6,7 @@ import platform
 from pathlib import Path
 
 from core import ROOT
-from project_profiles import profile_workspace
+from project_profiles import profile_workspace, job_root
 
 REQUIRED = (
     "scripts/prepare_source.sh",
@@ -35,7 +35,7 @@ def audit(job_id: str, sha: str, *, root: Path = ROOT) -> dict:
         "message": "Source audit only: real IMG builder needs explicit privileged loop/mkfs; "
                    "the approved GitHub Actions workflow builds signed Ubuntu images.",
     }
-    out = root / "build" / "jobs" / job_id / "irila-source-audit.json"
+    out = job_root(job_id, "irila_preflight", root=root) / "irila-source-audit.json"
     with out.open("x", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
         f.write("\n")
