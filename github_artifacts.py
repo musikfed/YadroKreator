@@ -19,6 +19,26 @@ WORKFLOWS = {
 }
 ARTIFACT_ID=re.compile(r"[1-9][0-9]{0,18}\Z")
 
+def resolve_repo(project: str) -> str:
+    """Only explicitly registered build projects, never random URL or observe."""
+    if project in REPOS:
+        return REPOS[project]
+    from project_registry import load, validate_slug, validate_repo
+    try:
+        validate_slug(project)
+        candidates=load()["projects"]
+    except ValueError as exc:
+        raise ValueError("Invalid project registry") from exc
+    entry=next((p for p in candidates if p["slug"]==project
+                and p.get("mode")=="build"
+                and p.get("build_mode")=="pending_adapter"),None)
+    if not entry:
+        raise ValueError("Unknown or non-build project")
+    repo=entry["repository"]
+    validate_repo(repo)
+    return repo
+
+
 
 def gh(args: list[str], timeout: int=18) -> str:
     env=dict(os.environ, GH_PROMPT_DISABLED="1", GIT_TERMINAL_PROMPT="0",
@@ -35,9 +55,7 @@ def gh(args: list[str], timeout: int=18) -> str:
 
 
 def list_artifacts(project: str) -> list[dict[str, Any]]:
-    repo=REPOS.get(project)
-    if not repo:
-        raise ValueError("Unapproved GitHub project")
+    repo=resolve_repo(project)
     raw=gh(["api",f"repos/{repo}/actions/artifacts?per_page=60",
             "--jq",".artifacts"])
     items=json.loads(raw)
@@ -68,8 +86,8 @@ def list_artifacts(project: str) -> list[dict[str, Any]]:
 
 
 def delete_artifact(project: str, artifact_id: str) -> None:
-    repo=REPOS.get(project)
-    if not repo or not ARTIFACT_ID.fullmatch(str(artifact_id)):
+    repo=resolve_repo(project)
+    if not ARTIFACT_ID.fullmatch(str(artifact_id)):
         raise ValueError("Invalid GitHub artifact identity")
     if os.environ.get("PEGINELAB_GITHUB_ARTIFACT_DELETE","")!="1":
         raise ValueError("GitHub deletion disabled: opt in using PEGINELAB_GITHUB_ARTIFACT_DELETE=1")
