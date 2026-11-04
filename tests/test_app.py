@@ -212,8 +212,7 @@ class DashboardTests(unittest.TestCase):
                 db.close()
             data = self.client.get("/api/overview").json
             images = [i for i in data["images"] if i["location"] == str(image)]
-            self.assertEqual(len(images), 1)
-            self.assertEqual(images[0]["job_id"], job_id)
+            self.assertEqual(images, [], "tracked baseline is not a new build even on success")
         finally:
             db = core.connect()
             try:

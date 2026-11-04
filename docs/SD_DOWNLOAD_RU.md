@@ -39,16 +39,16 @@ lsblk -o NAME,PATH,SIZE,MODEL,TRAN,RM,MOUNTPOINTS
 
 Убедись, что устройство — `TYPE=disk`, `RM=1`, `TRAN=usb` и оно **не содержит системный диск**. Проверь пути повторно при переподключении карты.
 
-Скрипт из собранного исходного worktree: `build/jobs/<job-id>/wificam_T23N/scripts/write_thingino_wificam_sd.sh`. Его аргументы: **полный путь к целевому блочному устройству**, затем **полный путь к уже проверенному образу**.
+Скрипт из собранного исходного worktree: `build/projects/wificam_T23N/jobs/<job-id>/wificam_T23N/scripts/write_thingino_wificam_sd.sh`. Его аргументы: **полный путь к целевому блочному устройству**, затем **полный путь к уже проверенному образу**.
 
 ```bash
 # Пример синтаксиса; НЕ подставляй /dev/sdX до фактической проверки lsblk.
-sudo sh /1tbdisk/PegineLab/build/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/scripts/write_thingino_wificam_sd.sh \
+sudo sh /1tbdisk/PegineLab/build/projects/wificam_T23N/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/scripts/write_thingino_wificam_sd.sh \
   /dev/ПРОВЕРЕННАЯ_SD \
-  /1tbdisk/PegineLab/build/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/out/private-sd/thingino-t23-sd.bin
+  /1tbdisk/PegineLab/build/projects/wificam_T23N/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/out/private-sd/thingino-t23-sd.bin
 ```
 
-Если образ без Wi-Fi-конфигурации, он может находиться в `out/candidate-sd/` или `Thingino/`. Копируй **фактический путь** из раздела «Артефакты». Скрипт дополнительно проверяет USB/RM, MBR, MSPL, нужный размер, требует явное подтверждение `THINGINO-WIFICAM:/dev/sdX`, записывает с **LBA0** и сверяет SHA-256 чтением с SD. Использовать команду только после полного осознания, что данные на устройстве будут уничтожены.
+Если образ без Wi-Fi-конфигурации, он находится только в `out/candidate-sd/`. `Thingino/` — старый проверенный эталон `0.1_test`, не результат задания и не экспортируемый кандидат. Копируй **фактический путь** из раздела «Артефакты». Скрипт дополнительно проверяет USB/RM, MBR, MSPL, нужный размер, требует явное подтверждение `THINGINO-WIFICAM:/dev/sdX`, записывает с **LBA0** и сверяет SHA-256 чтением с SD. Использовать команду только после полного осознания, что данные на устройстве будут уничтожены.
 
 ## 5. Аппаратная проверка и откат
 

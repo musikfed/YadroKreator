@@ -271,28 +271,25 @@ def overview():
         # cancellation, or while the compiler is still running.
         if job["profile"] != "t23n_sd" or job["status"] != "success" or not job["source_sha"]:
             continue
-        source = workspace_for(job["id"], ROOT)
-        for candidate in (
-            source / "out/private-sd/thingino-t23-sd.bin",
-            source / "out/candidate-sd/thingino-t23-sd.bin",
-            source / "Thingino/thingino-t23-sd.bin",
-        ):
-            if not candidate.is_file():
-                continue
-            checksum = candidate.with_name(candidate.name + ".sha256")
-            digest = ""
-            if checksum.is_file():
-                token = checksum.read_text(errors="replace").split()
-                if token and re.fullmatch("[0-9a-fA-F]{64}", token[0]):
-                    digest = token[0]
-            images.append(dict(
-                label="Git-сборка " + job["repo_ref"] + "@" + (job["source_sha"][:12] or "?") +
-                      " — НЕ проверена на камере",
-                name=candidate.name, bytes=candidate.stat().st_size,
-                sha256=digest, location=str(candidate), job_id=job["id"],
-                validation=job["validation"],
-            ))
-            break
+        # Use the exact same candidate-only selection as preflight/download.
+        # Never list a Git-tracked Thingino/0.1_test recovery image as a job result.
+        try:
+            candidate = artifact_path(job, ROOT)
+        except (ValueError, FileNotFoundError, OSError):
+            continue
+        checksum = candidate.with_name(candidate.name + ".sha256")
+        digest = ""
+        if checksum.is_file():
+            token = checksum.read_text(errors="replace").split()
+            if token and re.fullmatch("[0-9a-fA-F]{64}", token[0]):
+                digest = token[0]
+        images.append(dict(
+            label="Git-сборка " + job["repo_ref"] + "@" + (job["source_sha"][:12] or "?") +
+                  " — НЕ проверена на камере",
+            name=candidate.name, bytes=candidate.stat().st_size,
+            sha256=digest, location=str(candidate), job_id=job["id"],
+            validation=job["validation"],
+        ))
     return jsonify(
         jobs=jobs, active_job=active_job, images=images, allowed_branches=list(BRANCHES),
         profiles={name: dict(info) for name, info in PROFILES.items()},

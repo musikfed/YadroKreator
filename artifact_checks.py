@@ -45,10 +45,11 @@ def artifact_path(job: dict, root: Path = ROOT) -> Path:
     if not isinstance(job_id, str) or not JOB_ID.fullmatch(job_id):
         raise ValueError("Invalid build ID")
     work = workspace_for(job_id, root)
+    # PUBLISH=0 only produces per-job out/ candidates. Thingino/ is a
+    # Git-tracked 0.1_test recovery baseline, NOT a new factory artifact.
     for relative in (
         "out/private-sd/" + IMAGE_NAME,
         "out/candidate-sd/" + IMAGE_NAME,
-        "Thingino/" + IMAGE_NAME,
     ):
         candidate = work / relative
         if candidate.is_symlink():
