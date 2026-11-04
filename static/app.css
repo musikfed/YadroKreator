@@ -108,3 +108,27 @@
 .lane-history-heading.irila{color:#fab46b}
 .panel[data-panel="irila"] #irilaExport{margin-top:12px}
 @media(max-width:760px){.lane-bar span:last-child{margin-left:0;width:100%}}
+
+
+/* Neutral global dispatcher: current job is from SQLite, never hard-coded T23N. */
+html{scroll-behavior:smooth}
+.hero-actions a.primary,.hero-actions a.secondary{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.profile a.round-btn{display:grid;place-items:center;text-decoration:none;flex-shrink:0}
+#buildLines,#activity{scroll-margin-top:90px}
+.active-job-panel{padding:22px 25px;margin:0 0 24px;border-left:4px solid #61a9ff;background:linear-gradient(115deg,#1c293b,#121b2a)}
+.active-job-panel .surface-head{margin-bottom:12px}
+.active-job-panel .surface-head small{color:#82b9fa}
+.active-job-panel .surface-head h3{font-size:20px}
+.active-job-body{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px}
+.active-job-body strong{display:block;font-size:22px;letter-spacing:-.4px}
+.active-job-body p{margin:8px 0;color:#a3b3c7;line-height:1.6;font-size:12px;max-width:680px}
+.active-job-body button{flex-shrink:0}
+.active-job-facts{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 0}
+.active-job-facts span{border:1px solid #364963;border-radius:7px;padding:7px 11px;color:#b5c9dd;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+#lastJobSummary{border-top:1px solid #304156;padding-top:13px;margin:17px 0 0;font-size:11px}
+#activeJobState{white-space:nowrap}
+@media(max-width:760px){
+  .active-job-body{align-items:stretch}
+  .active-job-body button{width:100%}
+  .active-job-facts{flex-direction:column}
+}
