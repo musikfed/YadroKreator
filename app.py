@@ -16,7 +16,7 @@ from project_registry import (
 )
 from update_manager import view as update_view, start as start_update, finish as finish_update
 from build_metrics import decorate_jobs
-from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
+from artifact_checks import artifact_path, validate_t23n, validate_helper_t23n, save_report, saved_report, layout_svg, report_path
 from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
 from helper_service import status as helper_status, lifecycle as helper_lifecycle
@@ -317,7 +317,7 @@ def overview():
         j.pop("log_path", None)
         # Validation is read from saved metadata, not re-hashing 85 MiB
         # every 2.5 seconds when the dashboard refreshes.
-        j["validation"] = saved_report(j, ROOT, DATA) if j["profile"] == "t23n_sd" and j["status"] == "success" else None
+        j["validation"] = saved_report(j, ROOT, DATA) if j["profile"] in ("t23n_sd", "t23n_helper_sd") and j["status"] == "success" else None
     # A unified artifact ledger includes failed builds as failed entries, not
     # pretend IMG files. Keep tombstones when a user deletes an output.
     db = connect()
@@ -327,7 +327,7 @@ def overview():
     finally:
         db.close()
     artifact_rows = [classify_artifact(j, j["id"] in gone, root=ROOT, data=DATA)
-                     for j in jobs if j["profile"] in ("t23n_sd", "irila_preflight")]
+                     for j in jobs if j["profile"] in ("t23n_sd", "t23n_helper_sd", "irila_preflight")]
     active_job = next((job for job in jobs if job["status"] in ACTIVE), None)
     meminfo = {}
     try:
@@ -359,7 +359,7 @@ def overview():
         # A Git worktree may already contain an old tracked SD image before
         # a new build starts. Never label it as a build result on failure,
         # cancellation, or while the compiler is still running.
-        if job["profile"] != "t23n_sd" or job["status"] != "success" or not job["source_sha"]:
+        if job["profile"] not in ("t23n_sd", "t23n_helper_sd") or job["status"] != "success" or not job["source_sha"]:
             continue
         # Use the exact same candidate-only selection as preflight/download.
         # Never list a Git-tracked Thingino/0.1_test recovery image as a job result.
@@ -374,7 +374,8 @@ def overview():
             if token and re.fullmatch("[0-9a-fA-F]{64}", token[0]):
                 digest = token[0]
         images.append(dict(
-            label="Git-сборка " + job["repo_ref"] + "@" + (job["source_sha"][:12] or "?") +
+            label=("WifCam Helper / " if job["profile"]=="t23n_helper_sd" else "Git-сборка ") +
+                   job["repo_ref"] + "@" + (job["source_sha"][:12] or "?") +
                   " — НЕ проверена на камере",
             name=candidate.name, bytes=candidate.stat().st_size,
             sha256=digest, location=str(candidate), job_id=job["id"],
@@ -395,6 +396,7 @@ def overview():
         paths=dict(root=str(ROOT), project=str(PROJECT), thingino=str(THINGINO),
                    wificam_build=str(project_build_root("t23n_sd", root=ROOT)),
                    irila_build=str(project_build_root("irila_preflight", root=ROOT)),
+                   helper_build=str(project_build_root("t23n_helper_sd", root=ROOT)),
                    helper=str(ROOT / "projects" / "wifcam_helper")),
         concurrency=dict(max_builds=1, active_profile=active_job["profile"] if active_job else None),
         port=62404,
@@ -409,6 +411,10 @@ def start_job():
     if profile == "irila_preflight":
         if data.get("branch", "main") != "main" or data.get("helper_preset", False) is not False:
             return jsonify(error="Irila source audit is main-only and cannot use WIFICAM helper"), 400
+        repo_ref = "main"
+    elif profile == "t23n_helper_sd":
+        if data.get("branch", "main") != "main" or data.get("helper_preset", False) is not False:
+            return jsonify(error="Helper firmware uses its own main; WIFICAM base is pinned separately"), 400
         repo_ref = "main"
     else:
         try:
@@ -426,7 +432,7 @@ def start_job():
             helper_profile = load_helper_profile(root=ROOT, branch=repo_ref)
         except (ValueError, OSError) as exc:
             return jsonify(error="WifCam Helper profile unavailable or invalid: " + str(exc)), 409
-    if profile == "t23n_sd" and not (THINGINO / ".git").is_dir():
+    if profile in ("t23n_sd", "t23n_helper_sd") and not (THINGINO / ".git").is_dir():
         return jsonify(error="Missing pinned Thingino checkout"), 409
     # Refuse to race with the earlier manually launched system-level build unit.
     for scope in (["systemctl"], ["systemctl", "--user"]):
@@ -441,7 +447,9 @@ def start_job():
         return jsonify(error="Dashboard update is in progress"), 409
     reconcile()
     job_id = uuid.uuid4().hex
-    unit = ("peginelab-irila-" if profile == "irila_preflight" else "peginelab-t23n-") + job_id
+    unit = ("peginelab-irila-" if profile == "irila_preflight" else
+            "peginelab-helper-sd-" if profile == "t23n_helper_sd" else
+            "peginelab-t23n-") + job_id
     db = connect()
     try:
         db.execute("BEGIN IMMEDIATE")
@@ -507,20 +515,21 @@ def validate_job_image(job_id):
         return jsonify(error="Job not found"), 404
     if job["status"] != "success":
         return jsonify(error="Only successful builds can be checked"), 409
-    if job["profile"] != "t23n_sd":
+    if job["profile"] not in ("t23n_sd", "t23n_helper_sd"):
         return jsonify(error="No structural checker for this profile"), 422
     try:
         image = artifact_path(job, ROOT)
         # Reject mutable output if another build is working with the shared
         # Thingino tree; only per-job candidate image is opened.
-        result = validate_t23n(image)
-        save_report(job_id, result, image, DATA)
+        result = (validate_helper_t23n(image) if job["profile"]=="t23n_helper_sd"
+                  else validate_t23n(image))
+        save_report(job_id, result, image, DATA, profile=job["profile"])
         return jsonify(result), 200
     except (ValueError, FileNotFoundError, OSError, IndexError) as exc:
         # A failed check must invalidate any previously saved 'passed' state.
         # No arbitrary input path is accepted from the browser.
         try:
-            report = DATA / "validation" / (job_id + ".json")
+            report = report_path(job_id, DATA, profile=job["profile"])
             report.unlink(missing_ok=True)
         except OSError:
             pass
@@ -535,7 +544,7 @@ def job_layout(job_id):
     if job is None:
         return jsonify(error="Job not found"), 404
     result = saved_report(job, ROOT, DATA) if job["status"] == "success" else None
-    if not result or result.get("verified") is not True or result.get("profile") != "t23n_sd":
+    if not result or result.get("verified") is not True or result.get("profile") not in ("t23n_sd", "t23n_helper_sd"):
         return jsonify(error="Only validated WIFICAM SD images have a disk map"), 409
     from flask import Response
     return Response(layout_svg(result), mimetype="image/svg+xml",
@@ -551,7 +560,7 @@ def download_sd_image(job_id):
     check; never a kernel build, formatting, writing media or Git upload.
     """
     job = safe_job(job_id)
-    if not job or job.get("profile") != "t23n_sd" or job.get("status") != "success":
+    if not job or job.get("profile") not in ("t23n_sd", "t23n_helper_sd") or job.get("status") != "success":
         return jsonify(error="Successful T23N SD build required"), 404
 
     if not allow_private_export(request):
@@ -561,12 +570,13 @@ def download_sd_image(job_id):
         # Lightweight local check of existing image bytes (~85 MB), NOT a
         # repeat of the ~55-minute Thingino compilation. Always verify fresh
         # source bytes and expected sidecar even if a saved report exists.
-        checked = validate_t23n(path)
+        checked = (validate_helper_t23n(path) if job["profile"]=="t23n_helper_sd"
+                   else validate_t23n(path))
         previous = saved_report(job, ROOT, DATA)
         if previous and previous.get("verified") and previous.get("sha256") != checked["sha256"]:
             raise ValueError("Image checksum differs from previously validated bytes")
         # Publish a successful preflight result for Artifacts and Builds tabs.
-        save_report(job_id, checked, path, DATA)
+        save_report(job_id, checked, path, DATA, profile=job["profile"])
         # Transfer the exact image unchanged. The friendly .img extension
         # does not transform or offset this whole-disk raw .bin.
         stream = path.open("rb")
@@ -574,7 +584,8 @@ def download_sd_image(job_id):
         return jsonify(error="Image integrity/structure check failed: " + str(exc)), 422
     response = send_file(stream, mimetype="application/octet-stream",
                          as_attachment=True,
-                         download_name="WIFICAM_T23N_" + job_id[:8] + ".img")
+                         download_name=("WifCam_Helper_T23N_" if job["profile"]=="t23n_helper_sd" else
+                                         "WIFICAM_T23N_") + job_id[:8] + ".img")
     response.headers["Cache-Control"] = "no-store, private"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-PegineLab-Preflight"] = "passed"
