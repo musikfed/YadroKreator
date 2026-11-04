@@ -148,7 +148,16 @@ function renderRegisteredProjects(projects){
         for(const output of outputs)
           catalog.append(element("p","muted","Ожидается: "+output.type+" · "+output.path));
       }
-      catalog.append(element("p","muted","Собранных файлов пока нет: адаптер не подключён. Нет и фиктивных журналов."));
+      catalog.append(element("p","muted","Локальных файлов пока нет: адаптер не подключён. Наличие GitHub Actions-артефактов не означает, что этот конвейер уже утверждён."));
+      const ghbar=element("div","factory-github-bar");
+      const ghbutton=element("button","secondary","↻ Проверить GitHub Actions");
+      ghbutton.type="button";ghbutton.addEventListener("click",()=>refreshGitHubArtifacts(p.slug));
+      const ghlink=element("a","small-link","↗ GitHub Actions");
+      ghlink.href="https://github.com/"+p.repository+"/actions";
+      ghlink.target="_blank";ghlink.rel="noopener noreferrer";
+      ghbar.append(ghbutton,ghlink);catalog.append(ghbar);
+      const ghitems=element("div","artifact-list");ghitems.id="ghArtifacts_"+p.slug;
+      catalog.append(ghitems);
       left.append(catalog);
       const log=element("div","surface log-surface");
       log.append(element("h3","","Журнал сборки"));
@@ -504,7 +513,8 @@ async function deleteLocalArtifact(record){
   }catch(error){toast("Не удалено: "+error.message);}
 }
 async function refreshGitHubArtifacts(project){
-  const id=project==="irila"?"irilaGithubArtifactList":"wificamGithubArtifactList";
+  const id=project==="irila"?"irilaGithubArtifactList":
+           project==="builds"?"wificamGithubArtifactList":"ghArtifacts_"+project;
   const container=$(id);container.replaceChildren(element("p","muted","Читаем GitHub Actions через gh на CORE…"));
   try{
     const res=await api("/api/projects/"+project+"/github-artifacts");
