@@ -277,21 +277,20 @@ def overview():
             candidate = artifact_path(job, ROOT)
         except (ValueError, FileNotFoundError, OSError):
             continue
-        for _ in (0,):
-            checksum = candidate.with_name(candidate.name + ".sha256")
-            digest = ""
-            if checksum.is_file():
-                token = checksum.read_text(errors="replace").split()
-                if token and re.fullmatch("[0-9a-fA-F]{64}", token[0]):
-                    digest = token[0]
-            images.append(dict(
-                label="Git-сборка " + job["repo_ref"] + "@" + (job["source_sha"][:12] or "?") +
-                      " — НЕ проверена на камере",
-                name=candidate.name, bytes=candidate.stat().st_size,
-                sha256=digest, location=str(candidate), job_id=job["id"],
-                validation=job["validation"],
-            ))
-            break
+        checksum = candidate.with_name(candidate.name + ".sha256")
+        digest = ""
+        if checksum.is_file():
+            token = checksum.read_text(errors="replace").split()
+            if token and re.fullmatch("[0-9a-fA-F]{64}", token[0]):
+                digest = token[0]
+        images.append(dict(
+            label="Git-сборка " + job["repo_ref"] + "@" + (job["source_sha"][:12] or "?") +
+                  " — НЕ проверена на камере",
+            name=candidate.name, bytes=candidate.stat().st_size,
+            sha256=digest, location=str(candidate), job_id=job["id"],
+            validation=job["validation"],
+        ))
+        break
     return jsonify(
         jobs=jobs, active_job=active_job, images=images, allowed_branches=list(BRANCHES),
         profiles={name: dict(info) for name, info in PROFILES.items()},
