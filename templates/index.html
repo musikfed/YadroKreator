@@ -18,7 +18,7 @@
       <a class="nav" href="#builds" data-tab="builds"><span>▣</span> WIFICAM T23N <i id="navBuildCount">0</i></a>
       <a class="nav" href="#irila" data-tab="irila"><span>◈</span> Irila Baikal</a>
       <a class="nav" href="#helper" data-tab="helper"><span>⚙</span> WifCam Helper</a>
-      <a class="nav" href="#artifacts" data-tab="artifacts"><span>▣</span> Образы T23N</a>
+      <div id="registeredProjectNav" class="registered-project-nav" aria-label="Подключённые GitHub-проекты"></div>
       <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
     </nav>
     <div class="sidebar-bottom">
@@ -78,6 +78,11 @@
       </section>
       <section data-panel="builds" class="panel" hidden>
         <div class="page-heading"><div><small>ЛИНИЯ 01 / WIFICAM T23N · MIPS</small><h1>Сборка SD-прошивки камеры</h1><p>Thingino/Buildroot · Ingenic T23N · собственные журналы и IMG. Irila и Helper здесь не собираются.</p></div><button id="newBuild" class="primary">▶ Собрать WIFICAM</button></div>
+        <div class="project-subnav" role="tablist" aria-label="Разделы WIFICAM T23N">
+          <button type="button" id="wificamTabBuild" class="project-tab active" data-wificam-mode="build" role="tab" aria-selected="true">▣ Сборки и журнал</button>
+          <button type="button" id="wificamTabImages" class="project-tab" data-wificam-mode="images" role="tab" aria-selected="false">▣ Образы и SD</button>
+        </div>
+        <div id="wificamBuildControls" class="project-subpanel">
         <div class="lane-bar"><span>▣ Дерево WIFICAM</span><code id="wificamBuildRoot">—</code><span>Только MIPS · FAT16/ext4 · SD</span></div>
         <div class="surface" style="margin-bottom:20px;padding:18px">
           <div class="surface-head"><div><small>GITHUB → HUANANZHI → BUILD</small><h3>Исходники из GitHub без копирования</h3></div></div>
@@ -114,6 +119,20 @@
 Здесь появится журнал компиляции.
 </pre><div class="terminal-footer"><span>LOGS / SQLITE / SYSTEMD</span><span id="logBytes">0 B</span></div>
           </div></div>
+        </div>
+        <div id="wificamImages" class="project-subpanel" hidden>
+        <div class="section-heading"><div><small>BUILD OUTPUT / PROJECT STORAGE</small><h2>Образы WIFICAM T23N</h2><p>Только SD-прошивки камеры, MBR/MSPL и ext4. Аудиты Irila остаются в разделе Irila, образы USB Secure Boot — в её отдельном GitHub Actions.</p></div></div>
+        <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
+        <div class="surface sd-export-guide">
+          <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
+          <p>После завершения сборки нажми <strong>«Скачать образ .img»</strong> на карточке нужного файла. <strong>Никакого одноразового кода, ID или терминала:</strong> панель сама выберет образ и сверит SHA256, MBR, MSPL LBA34, FAT16/uImage и ext4 перед передачей. <strong>Сборка ядра не повторяется.</strong> Кнопка «Проверить SD» остаётся для просмотра схемы.</p>
+          <p><strong>Доступ:</strong> скачивание приватных образов разрешено только клиентам доверенной локальной сети Huananzhi (по умолчанию <code>192.168.0.0/24</code> и loopback). Панель всё ещё без входа: любой, кто попал в разрешённую сеть, может скачать образ с персональными Wi-Fi настройками. Не открывай порт 62404 в интернет; для удалённого доступа используй защищённый VPN или SSH.</p>
+          <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
+          <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
+          <p><a href="https://github.com/musikfed/YadroKreator/blob/main/docs/SD_DOWNLOAD_RU.md" target="_blank" rel="noopener noreferrer">Подробная инструкция: скачать, записать, проверить и восстановить</a></p>
+        </div>
+        <div class="hint">⌁ Экспорт доступен одним нажатием из разрешённой LAN. Это не персональная авторизация: защити сеть и не публикуй приватные Wi-Fi-образы в GitHub. Скачивание не прошивает карту и не запускает сборку.</div>
+              </div>
       </section>
       <section data-panel="irila" class="panel" hidden>
         <div class="page-heading"><div><small>ЛИНИЯ 02 / IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal — независимый проект</h1><p>Отдельный GitHub SHA, рабочая папка, systemd unit и журнал. Никаких драйверов T23N и SD-образов.</p></div></div>
@@ -159,19 +178,7 @@
           <p class="muted">Открытие отдельного стенда — через собственный localhost:8765 (на Acer — SSH -L 8765:127.0.0.1:8765 user@192.168.0.100). Это не переход в сборку WIFICAM. Обновления исходников и пересборку выполняем отдельным SSH-скриптом, не из панели.</p>
         </div>
       </section>
-      <section data-panel="artifacts" class="panel" hidden>
-        <div class="page-heading"><div><small>BUILD OUTPUT</small><h1>Образы WIFICAM T23N</h1><p>Только SD-прошивки камеры, MBR/MSPL и ext4. Аудиты Irila остаются в разделе Irila, образы USB Secure Boot — в её отдельном GitHub Actions.</p></div></div>
-        <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
-        <div class="surface sd-export-guide">
-          <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
-          <p>После завершения сборки нажми <strong>«Скачать образ .img»</strong> на карточке нужного файла. <strong>Никакого одноразового кода, ID или терминала:</strong> панель сама выберет образ и сверит SHA256, MBR, MSPL LBA34, FAT16/uImage и ext4 перед передачей. <strong>Сборка ядра не повторяется.</strong> Кнопка «Проверить SD» остаётся для просмотра схемы.</p>
-          <p><strong>Доступ:</strong> скачивание приватных образов разрешено только клиентам доверенной локальной сети Huananzhi (по умолчанию <code>192.168.0.0/24</code> и loopback). Панель всё ещё без входа: любой, кто попал в разрешённую сеть, может скачать образ с персональными Wi-Fi настройками. Не открывай порт 62404 в интернет; для удалённого доступа используй защищённый VPN или SSH.</p>
-          <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
-          <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
-          <p><a href="https://github.com/musikfed/YadroKreator/blob/main/docs/SD_DOWNLOAD_RU.md" target="_blank" rel="noopener noreferrer">Подробная инструкция: скачать, записать, проверить и восстановить</a></p>
-        </div>
-        <div class="hint">⌁ Экспорт доступен одним нажатием из разрешённой LAN. Это не персональная авторизация: защити сеть и не публикуй приватные Wi-Fi-образы в GitHub. Скачивание не прошивает карту и не запускает сборку.</div>
-      </section>
+      <div id="registeredProjectPanels"></div>
       <section data-panel="system" class="panel" hidden>
         <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
         <div class="surface panel-lifecycle">
@@ -185,6 +192,32 @@
             <button id="systemRefresh" class="secondary" type="button">◉ Проверить статус</button>
           </div>
           <p class="muted">Остановка во время сборки прервёт компиляцию. Восстановление с Linux: <code>cd /1tbdisk/PegineLab/projects/YadroKreator &amp;&amp; bash start.sh</code>. С Windows: <code>ssh user@192.168.0.100</code>, затем <code>bash start.sh</code>. Кнопка запуска в отключённой панели работать не может; не выключайте сайт ради обновления GitHub.</p>
+        </div>
+        <div class="surface" id="githubProjectRegistry">
+          <div class="surface-head"><div><small>GITHUB PROJECT SOURCES</small><h3>Подключение веток и независимых проектов</h3></div><span class="tag neutral">Только доверенный GitHub · musikfed</span></div>
+          <p class="muted">Добавление ветки к WIFICAM включает её в реальную SD-сборку с закреплением Git SHA. Добавление нового репозитория создаёт собственную вкладку с Git-ссылками, источником и отдельным местом для конвейера, но не исполняет чужие build.sh до утверждения адаптера компиляции.</p>
+          <div class="registry-grid">
+            <form id="registerWificamBranch" class="registry-form">
+              <h4>Новая ветка WIFICAM T23N</h4>
+              <label for="registryBranch">Ветка musikfed/wificam_T23N</label>
+              <input id="registryBranch" name="branch" type="text" maxlength="101" placeholder="feature/new-kernel" required autocomplete="off">
+              <button type="submit" class="secondary">+ Проверить GitHub и добавить ветку</button>
+            </form>
+            <form id="registerGithubProject" class="registry-form">
+              <h4>Новый проект · своя вкладка</h4>
+              <label for="registryTitle">Название проекта</label>
+              <input id="registryTitle" name="title" maxlength="70" placeholder="Моё ядро Linux" required autocomplete="off">
+              <label for="registrySlug">Короткий ID для вкладки (латиница)</label>
+              <input id="registrySlug" name="slug" maxlength="32" placeholder="my-kernel" required autocomplete="off">
+              <label for="registryRepo">GitHub-репозиторий</label>
+              <input id="registryRepo" name="repository" maxlength="150" placeholder="musikfed/my-linux-kernel" required autocomplete="off">
+              <label for="registryProjectBranch">Ветка</label>
+              <input id="registryProjectBranch" name="branch" maxlength="101" value="main" required autocomplete="off">
+              <button type="submit" class="secondary">+ Проверить GitHub и создать вкладку</button>
+            </form>
+          </div>
+          <p id="registryMessage" class="muted" role="status" aria-live="polite">Настройки хранятся только в локальном factory-state/registered-projects.json. Задания и образы других проектов не изменяются.</p>
+          <div id="registryProjectList" class="registered-project-summary"></div>
         </div>
         <div class="surface update-surface">
           <div class="surface-head"><div><small>GITHUB RELEASE CONTROL</small><h3>Обновления и восстановление YadroKreator</h3></div><span id="updateStatus" class="tag neutral">Проверка...</span></div>
