@@ -34,14 +34,141 @@ async function api(path, options={}) {
 }
 function setTab() {
   const tab=(location.hash||"#overview").slice(1);
-  const valid=["overview","builds","irila","helper","artifacts","system"];
-  const current=valid.includes(tab)?tab:"overview";
-  const names={overview:"Обзор",builds:"WIFICAM T23N",irila:"Irila Baikal",helper:"WifCam Helper",artifacts:"Образы WIFICAM",system:"Система"};
+  const valid=["overview","builds","irila","helper","system"];
+  const configured=(overview?.registered_projects||[]).find(p=>tab==="project-"+p.slug);
+  const current=valid.includes(tab)||configured?tab:"overview";
+  const names={overview:"Обзор",builds:"WIFICAM T23N",irila:"Irila Baikal",helper:"WifCam Helper",system:"Система"};
+  if(configured)names[current]=configured.title;
   document.querySelectorAll("[data-panel]").forEach(el=>el.hidden=el.dataset.panel!==current);
   document.querySelectorAll("[data-tab]").forEach(el=>el.classList.toggle("active",el.dataset.tab===current));
   $text("pageName",names[current]);document.title="PegineLab · "+names[current];
   if(current==="builds") refreshLog();
   if(current==="irila") refreshIrilaLog();
+}
+let wificamMode="build";
+function setWificamMode(mode){
+  wificamMode=mode==="images"?"images":"build";
+  $("wificamBuildControls").hidden=wificamMode!=="build";
+  $("wificamImages").hidden=wificamMode!=="images";
+  for(const button of document.querySelectorAll("[data-wificam-mode]")){
+    const selected=button.dataset.wificamMode===wificamMode;
+    button.classList.toggle("active",selected);
+    button.setAttribute("aria-selected",String(selected));
+  }
+}
+function renderRegisteredProjects(projects){
+  const nav=$("registeredProjectNav"),panels=$("registeredProjectPanels"),summary=$("registryProjectList");
+  const previous=[...document.querySelectorAll('.panel[data-panel^="project-"]')]
+    .find(p=>p.dataset.panel===location.hash.slice(1));
+  nav.replaceChildren();
+  panels.replaceChildren();
+  summary.replaceChildren();
+  for(const p of projects){
+    const tab="project-"+p.slug;
+    const link=element("a","nav","▧  "+p.title);
+    link.href="#"+tab;link.dataset.tab=tab;nav.append(link);
+    const project=element("section","panel");
+    project.dataset.panel=tab;project.hidden=true;
+    const heading=element("div","page-heading");
+    const header=element("div");
+    const eyebrow=element("small","","GITHUB PROJECT / ISOLATED WORKSPACE");
+    const title=element("h1","",p.title);
+    const description=element("p","","Отдельный репозиторий и ветка. Адаптер компиляции ядра пока не утверждён.");
+    header.append(eyebrow,title,description);heading.append(header);project.append(heading);
+    const tabs=element("div","project-subnav");
+    tabs.setAttribute("role","tablist");tabs.setAttribute("aria-label","Разделы "+p.title);
+    const items=[
+      ["source","Исходники и GitHub"],
+      ["build","Сборки и очередь"],
+      ["images","Образы проекта"],
+      ["logs","Журналы"],
+      ["settings","Конфигурация"],
+    ];
+    const sections=new Map();
+    for(const [mode,label] of items){
+      const btn=element("button","project-tab",label);
+      btn.type="button";btn.dataset.projectMode=mode;btn.setAttribute("role","tab");
+      const area=element("div","surface project-detail");
+      area.dataset.projectView=mode;area.hidden=mode!=="source";
+      if(mode==="source"){
+        area.append(element("h3","","Исходники на GitHub"));
+        const anchor=element("a","small-link",p.repository+" · "+p.branch);
+        anchor.href="https://github.com/"+p.repository+"/tree/"+p.branch;
+        anchor.target="_blank";anchor.rel="noopener noreferrer";
+        area.append(anchor);
+        const sha=element("p","muted","Проверено при регистрации. Для свежего SHA запроси GitHub вручную.");
+        area.append(sha);
+        const refresh=element("button","secondary","↻ Проверить актуальный Git SHA");
+        refresh.type="button";
+        refresh.addEventListener("click",async()=>{
+          refresh.disabled=true;
+          try{
+            const data=await api("/api/projects/"+encodeURIComponent(p.slug)+"/git-ref");
+            sha.textContent="Текущая ветка: "+data.branch+" · "+data.sha;
+          }catch(error){sha.textContent="Проверка GitHub не удалась: "+error.message;}
+          finally{refresh.disabled=false;}
+        });
+        area.append(refresh);
+      }else if(mode==="build"){
+        area.append(element("h3","","Профиль сборки ядра"));
+        area.append(element("p","muted","Конвейер не подключён. До утверждения toolchain, архитектуры, build-рецепта и проверки артефактов запуск произвольных команд из GitHub запрещён. WIFICAM собирается отдельно через профиль t23n_sd."));
+      }else if(mode==="images"){
+        area.append(element("h3","","Образы этого проекта"));
+        area.append(element("p","muted","Сейчас нет локальных артефактов для скачивания. Образы другого проекта сюда не попадают."));
+      }else if(mode==="logs"){
+        area.append(element("h3","","Журнал проекта"));
+        area.append(element("p","muted","Пока нет заданий. После подключения собственного адаптера сюда будут поступать логи его сборок."));
+      }else{
+        area.append(element("h3","","Изолированная конфигурация"));
+        area.append(element("p","muted","Источник: "+p.repository+" · ветка: "+p.branch+" · режим: ожидание утверждённого адаптера"));
+        area.append(element("p","muted","Регистрация не запускает компилятор, не изменяет systemd, Docker и базу старых заданий."));
+      }
+      sections.set(mode,area);
+      btn.addEventListener("click",()=>{
+        for(const [key,sec] of sections)sec.hidden=key!==mode;
+        for(const child of tabs.querySelectorAll("button")){
+          const selected=child.dataset.projectMode===mode;
+          child.classList.toggle("active",selected);
+          child.setAttribute("aria-selected",String(selected));
+        }
+      });
+      tabs.append(btn);project.append(area);
+    }
+    tabs.firstChild.classList.add("active");
+    for(const child of tabs.children)child.setAttribute("aria-selected",String(child===tabs.firstChild));
+    project.insertBefore(tabs,project.children[1]);panels.append(project);
+    const row=element("div","registered-project-item");
+    const jump=element("a","small-link",p.title+" · "+p.repository+" / "+p.branch);
+    jump.href="#"+tab;
+    row.append(jump,element("span","tag neutral","АДАПТЕР ОЖИДАЕТ"));summary.append(row);
+  }
+  if(!projects.length){
+    summary.append(element("p","muted","Пока подключены только штатные проекты WIFICAM, Irila и Helper."));
+  }
+  if(previous || projects.some(p=>location.hash==="#project-"+p.slug))setTab();
+}
+async function registerGitHub(kind){
+  const branch=kind==="branch"?$("registryBranch").value.trim():$("registryProjectBranch").value.trim();
+  const data=kind==="branch"
+    ?{kind,branch,confirm:"REGISTER-BRANCH"}
+    :{kind,slug:$("registrySlug").value.trim(),title:$("registryTitle").value.trim(),
+       repository:$("registryRepo").value.trim(),branch,confirm:"REGISTER-PROJECT"};
+  const message=kind==="branch"
+    ?"Добавить ветку "+branch+" к настоящей сборке WIFICAM?"
+    :"Создать отдельную вкладку проекта "+data.title+" без выполнения неподтверждённого кода из GitHub?";
+  if(!confirm(message))return;
+  $text("registryMessage","Проверяем существование ветки в GitHub…");
+  try{
+    await api("/api/projects/register",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    await refresh();
+    $text("registryMessage",kind==="branch"
+      ?"Ветка зарегистрирована. Перейди в WIFICAM → Сборки и журнал и выбери её."
+      :"Новая вкладка зарегистрирована; сборка ядра потребует отдельного адаптера.");
+    if(kind==="project")location.hash="project-"+data.slug;
+    else location.hash="builds";
+    setTab();
+  }catch(error){$text("registryMessage","Не удалось зарегистрировать: "+error.message);}
 }
 let helperBusy=false;
 async function refreshHelper() {
@@ -251,7 +378,20 @@ function renderOverview(data) {
   $text("irilaBuildRoot",data.paths.irila_build);
   $text("helperSourcePath",data.paths.helper);
   if(Array.isArray(data.allowed_branches)){
-    for(const option of $("sourceBranch").options)option.disabled=!data.allowed_branches.includes(option.value);
+    const selector=$("sourceBranch");
+    const selectedBranch=selector.value||"mymarrchWFcam";
+    selector.replaceChildren();
+    for(const name of data.allowed_branches){
+      const option=element("option","",name);
+      option.value=name;selector.append(option);
+    }
+    selector.value=data.allowed_branches.includes(selectedBranch)?selectedBranch:data.allowed_branches[0];
+  }
+  const projects=data.registered_projects||[];
+  const currentIds=[...(overview.registered_projects||[])].map(p=>p.slug).join(",");
+  if(window.registeredIds!==currentIds){
+    renderRegisteredProjects(projects);
+    window.registeredIds=currentIds;
   }
   const m=data.metrics;
   metric("load","loadBar","loadInfo",m.load_1.toFixed(2),m.load_1,m.cpus||32,"1 мин · "+m.cpus+" логических CPU");
@@ -620,6 +760,16 @@ async function init() {
   $("clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   setTab();window.addEventListener("hashchange",setTab);
   $("newBuild").addEventListener("click",start);
+  for(const button of document.querySelectorAll("[data-wificam-mode]")){
+    button.addEventListener("click",()=>setWificamMode(button.dataset.wificamMode));
+  }
+  setWificamMode("build");
+  $("registerWificamBranch").addEventListener("submit",event=>{
+    event.preventDefault();void registerGitHub("branch");
+  });
+  $("registerGithubProject").addEventListener("submit",event=>{
+    event.preventDefault();void registerGitHub("project");
+  });
   $("activeJobOpen").addEventListener("click",()=>{
     const current=overview?.active_job && active.has(overview.active_job.status)
       ? overview.active_job : overview?.jobs?.find(j=>active.has(j.status));
