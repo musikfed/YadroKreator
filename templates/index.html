@@ -91,11 +91,7 @@
             <option value="mymarrchWFcam" selected>mymarrchWFcam — текущие наработки</option>
             <option value="main">main — объединённая ветка</option>
           </select>
-          <label style="display:flex;gap:10px;align-items:center;margin-top:14px" for="helperPreset">
-            <input id="helperPreset" type="checkbox" style="width:18px;height:18px">
-            <span>Использовать утверждённый профиль WifCam Helper (опционально)</span>
-          </label>
-          <p class="muted"><span id="helperBranchNote">Helper-профиль поддерживает только ветку mymarrchWFcam.</span> Профиль из соседнего проекта <code>projects/wifcam_helper/profiles/t23n_lean.json</code> фиксируется отдельно для этой сборки. Разрешён только <code>WIFICAM_WEBRTC=0|1</code>. Оценки тестового стенда не изменяют ядро автоматически.</p>
+          <p class="muted">Обычная WIFICAM и отдельная прошивка WifCam Helper теперь собираются в двух самостоятельных цехах. Для камеры-ассистента используй вкладку «WifCam Helper» рядом с WIFICAM.</p>
           <p class="muted">Источник: github.com/musikfed/wificam_T23N · загрузка по Git непосредственно на сервере · PUBLISH=0</p>
         </div>
         <div class="build-layout factory-build-grid"><div class="factory-list-column"><div class="surface"><div class="surface-head"><div><small>SQLITE HISTORY</small><h3>Очередь и история</h3></div><span class="count" id="buildCount">0</span></div><div id="jobsList" class="jobs-list"><p class="empty">Сборок пока нет</p></div></div>
