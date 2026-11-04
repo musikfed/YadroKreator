@@ -29,7 +29,8 @@ MAX_BRANCHES = 25
 def validate_ref(value: object) -> str:
     if (not isinstance(value, str) or not BRANCH.fullmatch(value)
             or value.endswith(("/", ".", ".lock")) or value.startswith(".")
-            or ".." in value or "//" in value or "/." in value or ".lock/" in value):
+            or ".." in value or "//" in value or "/." in value or ".lock/" in value
+            or value.startswith(("refs/", "origin/"))):
         raise ValueError("Invalid Git branch; use a normal branch name without Git ref metacharacters")
     return value
 
