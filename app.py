@@ -585,7 +585,10 @@ def download_sd_image(job_id):
 def project_github_artifacts(project):
     if not allow_private_export(request):
         return jsonify(error="GitHub inventory requires trusted LAN/VPN"), 403
-    if project not in ("builds", "irila"):
+    if project not in ("builds", "irila") and not any(
+        p["slug"]==project and p.get("mode")=="build"
+        for p in load_registry(DATA)["projects"]
+    ):
         return jsonify(error="Unknown GitHub Actions project"), 404
     try:
         records=list_github_artifacts(project)
@@ -599,8 +602,13 @@ def project_github_artifacts(project):
 def project_github_artifact_delete(project, artifact_id):
     if not allow_private_export(request):
         return jsonify(error="GitHub deletion requires trusted LAN/VPN"), 403
-    if project not in ("builds", "irila") or not re.fullmatch("[1-9][0-9]{0,18}",artifact_id):
-        return jsonify(error="Invalid project or artifact"), 404
+    if not re.fullmatch("[1-9][0-9]{0,18}",artifact_id):
+        return jsonify(error="Invalid artifact ID"), 404
+    if project not in ("builds", "irila") and not any(
+        p["slug"]==project and p.get("mode")=="build"
+        for p in load_registry(DATA)["projects"]
+    ):
+        return jsonify(error="Unknown build project"), 404
     data=request.get_json(silent=True)
     if not isinstance(data,dict) or data.get("confirm")!="DELETE-GITHUB-ACTIONS:"+project+":"+artifact_id or set(data)!={"confirm"}:
         return jsonify(error="Exact GitHub Actions artifact confirmation required"), 400
