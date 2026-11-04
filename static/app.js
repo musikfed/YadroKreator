@@ -452,6 +452,13 @@ function renderFactoryArtifacts(data){
     log.type="button";log.addEventListener("click",()=>record.profile==="t23n_sd"
       ?select(record.job_id):selectIrila(record.job_id));
     actions.append(log);
+    if(record.partial&&!record.available){
+      info.append(element("small","factory-error","Остаток неудачной сборки: "+size(record.cleanup_bytes)+
+        ". Не является образом, скачивание запрещено."));
+      const cleanup=element("button","danger","🗑 Очистить остаток");
+      cleanup.type="button";cleanup.addEventListener("click",()=>deleteLocalArtifact(record));
+      actions.append(cleanup);
+    }
     if(record.available){
       const check=element("button","secondary","✓ Проверить");
       check.type="button";
