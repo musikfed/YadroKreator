@@ -222,14 +222,23 @@ def overview():
     db = connect()
     try:
         jobs = [dict(r) for r in db.execute("SELECT * FROM jobs ORDER BY created_at DESC LIMIT 40")]
+        active_row = db.execute(
+            "SELECT * FROM jobs WHERE status IN ('queued','running','stopping') "
+            "ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
     finally:
         db.close()
+    # A long-running task must remain visible even with 40 newer finished jobs.
+    # Preserve the existing SQLite schema and historical rows.
+    if active_row and not any(j["id"] == active_row["id"] for j in jobs):
+        jobs.insert(0, dict(active_row))
     decorate_jobs(jobs)
     for j in jobs:
         j.pop("log_path", None)
         # Validation is read from saved metadata, not re-hashing 85 MiB
         # every 2.5 seconds when the dashboard refreshes.
         j["validation"] = saved_report(j, ROOT, DATA) if j["profile"] == "t23n_sd" and j["status"] == "success" else None
+    active_job = next((job for job in jobs if job["status"] in ACTIVE), None)
     meminfo = {}
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -285,7 +294,7 @@ def overview():
             ))
             break
     return jsonify(
-        jobs=jobs, images=images, allowed_branches=list(BRANCHES),
+        jobs=jobs, active_job=active_job, images=images, allowed_branches=list(BRANCHES),
         profiles={name: dict(info) for name, info in PROFILES.items()},
         irila_image_workflow=IRILA_IMAGE_WORKFLOW,
         metrics=dict(load_1=round(os.getloadavg()[0], 2),
@@ -297,7 +306,7 @@ def overview():
                    wificam_build=str(project_build_root("t23n_sd", root=ROOT)),
                    irila_build=str(project_build_root("irila_preflight", root=ROOT)),
                    helper=str(ROOT / "projects" / "wifcam_helper")),
-        concurrency=dict(max_builds=1, active_profile=next((j["profile"] for j in jobs if j["status"] in ACTIVE), None)),
+        concurrency=dict(max_builds=1, active_profile=active_job["profile"] if active_job else None),
         port=62404,
     )
 
