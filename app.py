@@ -290,7 +290,6 @@ def overview():
             sha256=digest, location=str(candidate), job_id=job["id"],
             validation=job["validation"],
         ))
-        break
     return jsonify(
         jobs=jobs, active_job=active_job, images=images, allowed_branches=list(BRANCHES),
         profiles={name: dict(info) for name, info in PROFILES.items()},
