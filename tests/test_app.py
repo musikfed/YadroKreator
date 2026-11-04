@@ -25,6 +25,66 @@ class DashboardTests(unittest.TestCase):
     def setUp(self):
         self.client = self.web.test_client()
 
+    def test_register_wificam_branch_and_independent_project(self):
+        from unittest.mock import patch
+        from project_registry import add_branch, add_project
+        import app as dashboard
+        with tempfile.TemporaryDirectory() as temp:
+            data=Path(temp)
+            with patch.object(dashboard,"DATA",data), \
+                 patch.object(dashboard,"register_branch",
+                     side_effect=lambda branch,data: add_branch(branch,data=data,verify=lambda *_:True)), \
+                 patch.object(dashboard,"register_project",
+                     side_effect=lambda slug,title,repository,branch,data:
+                         add_project(slug,title,repository,branch,data=data,verify=lambda *_:True)):
+                route="/api/projects/register"
+                self.assertEqual(self.client.post(route,json={"kind":"branch",
+                    "branch":"feature/new", "confirm":"REGISTER-BRANCH"}).status_code,403)
+                self.assertEqual(self.client.post(route,
+                    headers={"X-PegineLab-Action":"1"},
+                    json={"kind":"branch","branch":"feature/new",
+                          "confirm":"WRONG"}).status_code,400)
+                with patch.object(dashboard,"update_view",return_value={"phase":"success"}):
+                    first=self.client.post(route,
+                        headers={"X-PegineLab-Action":"1"},
+                        json={"kind":"branch","branch":"feature/new",
+                              "confirm":"REGISTER-BRANCH"})
+                    self.assertEqual(first.status_code,200)
+                    self.assertIn("feature/new",first.json["registry"]["branches"])
+                    another=self.client.post(route,
+                        headers={"X-PegineLab-Action":"1"},
+                        json={"kind":"project","slug":"new-linux","title":"Linux ядро",
+                              "repository":"musikfed/linux_kernel","branch":"main",
+                              "confirm":"REGISTER-PROJECT"})
+                    self.assertEqual(another.status_code,200)
+                view=self.client.get("/api/overview")
+                self.assertIn("feature/new",view.json["allowed_branches"])
+                self.assertEqual(view.json["registered_projects"][0]["build_mode"],
+                                 "pending_adapter")
+                denied=self.client.post("/api/jobs",json={"profile":"new-linux"},
+                                        headers={"X-PegineLab-Action":"1"})
+                self.assertEqual(denied.status_code,400)
+                with patch.object(dashboard,"git_ref_sha",return_value="e"*40) as sha:
+                    result=self.client.get("/api/projects/new-linux/git-ref")
+                    self.assertEqual(result.status_code,200)
+                    self.assertEqual(result.json["sha"],"e"*40)
+                    sha.assert_called_once_with("linux_kernel","main")
+
+    def test_dynamic_registry_rejects_external_github_and_does_not_run_code(self):
+        import app as dashboard
+        with tempfile.TemporaryDirectory() as temp:
+            with patch.object(dashboard,"DATA",Path(temp)), \
+                 patch.object(dashboard,"update_view",return_value={"phase":"success"}):
+                for repo in ("evil/repo","https://evil.example/kernel","musikfed/../oops"):
+                    with self.subTest(repo=repo):
+                        denied=self.client.post("/api/projects/register",
+                            headers={"X-PegineLab-Action":"1"},
+                            json={"kind":"project","slug":"new-linux","title":"Linux",
+                                  "repository":repo,"branch":"main",
+                                  "confirm":"REGISTER-PROJECT"})
+                        self.assertEqual(denied.status_code,422)
+                self.assertFalse((Path(temp)/"registered-projects.json").exists())
+
     def test_helper_status_is_read_only_and_lifecycle_requires_confirmation(self):
         from unittest.mock import patch
         import app as dashboard
