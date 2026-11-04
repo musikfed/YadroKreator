@@ -83,4 +83,5 @@ def delete_artifact(project: str, artifact_id: str) -> None:
 
 def dispatch_irila() -> None:
     workflow,branch=WORKFLOWS["irila"]
-    gh(["workflow","run",workflow,"--repo",REPOS["irila"],"--ref",branch])
+    gh(["workflow","run",workflow,"--repo",REPOS["irila"],"--ref",branch,
+        "-f","profile=full","-f","max_mib=12288"])
