@@ -160,3 +160,5 @@ html{scroll-behavior:smooth}
 .panel[data-panel^="project-"]{--lane-accent:#9fc7ff}
 .panel[data-panel^="project-"] .page-heading{border-left:5px solid #9fc7ff}
 @media(max-width:800px){.registered-project-nav .nav{font-size:11px;padding:12px 4px}.project-subnav{padding:4px}.project-tab{padding:9px 10px}}
+
+#newBuild[hidden]{display:none!important}
