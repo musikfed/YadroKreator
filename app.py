@@ -282,10 +282,11 @@ def add_github_project():
                 return jsonify(error="Unknown branch registration field"), 400
             result = register_branch(data["branch"], data=DATA)
         elif kind == "project" and data.get("confirm") == "REGISTER-PROJECT":
-            if set(data) != {"kind", "slug", "title", "repository", "branch", "confirm"}:
-                return jsonify(error="Unknown project registration field"), 400
+            if set(data) != {"kind", "slug", "title", "repository", "branch", "mode", "confirm"}:
+                return jsonify(error="Project registration requires mode and approved fields"), 400
             result = register_project(data["slug"], data["title"],
-                                      data["repository"], data["branch"], data=DATA)
+                                      data["repository"], data["branch"],
+                                      mode=data["mode"], data=DATA)
         else:
             return jsonify(error="Explicit project/branch confirmation required"), 400
     except (ValueError, KeyError, OSError) as exc:
