@@ -6,6 +6,9 @@ compiler adapter exists. Never execute arbitrary GitHub build scripts.
 """
 from __future__ import annotations
 from datetime import datetime, timezone
+from contextlib import contextmanager
+from functools import wraps
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -149,6 +152,34 @@ def _save(record: dict, data: Path) -> None:
         temp.unlink(missing_ok=True)
 
 
+@contextmanager
+def _registration_lock(data: Path):
+    """Prevent two operators losing each other's registry updates."""
+    data = Path(data)
+    if data.is_symlink():
+        raise ValueError("Project registry directory symlink refused")
+    data.mkdir(mode=0o700, parents=True, exist_ok=True)
+    lock = data / ".registered-projects.lock"
+    if lock.is_symlink():
+        raise ValueError("Project registry lock symlink refused")
+    fd = os.open(lock, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(fd, "r+b") as stream:
+        fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _serialized_registration(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with _registration_lock(kwargs.get("data", DATA)):
+            return func(*args, **kwargs)
+    return wrapper
+
+
+@_serialized_registration
 def add_branch(branch: str, *, data: Path = DATA, verify=git_ref_exists) -> dict:
     branch = validate_ref(branch)
     record = load(data)
@@ -163,6 +194,7 @@ def add_branch(branch: str, *, data: Path = DATA, verify=git_ref_exists) -> dict
     return record
 
 
+@_serialized_registration
 def add_project(slug: str, title: str, repository: str, branch: str, *,
                 data: Path = DATA, verify=git_ref_exists) -> dict:
     slug = validate_slug(slug)
