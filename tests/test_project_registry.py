@@ -124,7 +124,7 @@ class FactoryNavigationTests(unittest.TestCase):
         self.assertIn("pending_adapter", (root/"project_registry.py").read_text())
         self.assertIn('REGISTER-BRANCH',js)
         self.assertIn('REGISTER-PROJECT',js)
-        self.assertIn('project-tab',js)
+        self.assertIn('factory-build-grid',js)
 
 
 if __name__=="__main__":
