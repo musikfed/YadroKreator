@@ -197,7 +197,7 @@
         </div>
         <div class="surface" id="githubProjectRegistry">
           <div class="surface-head"><div><small>GITHUB PROJECT SOURCES</small><h3>Подключение веток и независимых проектов</h3></div><span class="tag neutral">Только доверенный GitHub · musikfed</span></div>
-          <p class="muted">Добавление ветки к WIFICAM включает её в реальную SD-сборку с закреплением Git SHA. Добавление нового репозитория создаёт собственную вкладку с Git-ссылками, источником и отдельным местом для конвейера, но не исполняет чужие build.sh до утверждения адаптера компиляции.</p>
+          <p class="muted">Добавление ветки к WIFICAM включает её в реальную SD-сборку с закреплением Git SHA. Новые проекты подключаются только вручную. Режим «Наблюдение» не компилирует ничего, а «Кандидат на сборку» требует peginelab.project.json в выбранной ветке и проверенного адаптера перед включением компиляции.</p>
           <div class="registry-grid">
             <form id="registerWificamBranch" class="registry-form">
               <h4>Новая ветка WIFICAM T23N</h4>
@@ -215,7 +215,14 @@
               <input id="registryRepo" name="repository" maxlength="150" placeholder="musikfed/my-linux-kernel" required autocomplete="off">
               <label for="registryProjectBranch">Ветка</label>
               <input id="registryProjectBranch" name="branch" maxlength="101" value="main" required autocomplete="off">
-              <button type="submit" class="secondary">+ Проверить GitHub и создать вкладку</button>
+              <label for="registryMode">Роль проекта</label>
+              <select id="registryMode" class="source-select" name="mode">
+                <option value="observe" selected>Наблюдение — Git, состояние, документация</option>
+                <option value="build">Кандидат на сборку — контракт ядра/прошивки</option>
+              </select>
+              <p class="muted" id="registryModeHint">Наблюдение не запускает сборку и не предполагает, что любой GitHub-проект является ядром.</p>
+              <a class="small-link" href="https://github.com/musikfed/YadroKreator/blob/feature/project-lanes-github-registry-20261104/docs/PROJECT_CONTRACT_RU.md" target="_blank" rel="noopener noreferrer">Формат подготовки проекта · PegineLab Contract v1</a>
+              <button type="submit" class="secondary">+ Проверить GitHub и подключить проект</button>
             </form>
           </div>
           <p id="registryMessage" class="muted" role="status" aria-live="polite">Настройки хранятся только в локальном factory-state/registered-projects.json. Задания и образы других проектов не изменяются.</p>
