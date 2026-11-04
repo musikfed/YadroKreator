@@ -137,7 +137,12 @@
               </div>
       </section>
       <section data-panel="irila" class="panel" hidden>
-        <div class="page-heading"><div><small>ЛИНИЯ 02 / IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal — независимый проект</h1><p>Отдельный GitHub SHA, рабочая папка, systemd unit и журнал. Никаких драйверов T23N и SD-образов.</p></div></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 02 / IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal</h1><p>Ubuntu x86-64, исходники и аудит в собственном конвейере. IMG выпускается отдельно через GitHub Actions.</p></div></div>
+        <div class="project-subnav" role="tablist" aria-label="Разделы Irila">
+          <button type="button" class="project-tab active" data-project-subtab="irila" data-target="irilaSource" role="tab" aria-selected="true">Исходники и профиль</button>
+          <button type="button" class="project-tab" data-project-subtab="irila" data-target="irilaHistory" role="tab" aria-selected="false">Аудиты и журнал</button>
+        </div>
+        <div id="irilaSource" class="project-subpanel">
         <div class="lane-bar"><span>◈ Дерево Irila</span><code id="irilaBuildRoot">—</code><span>Только x86-64 · Secure Boot · отдельный CI</span></div>
         <div class="surface" style="margin-bottom:20px;padding:20px">
           <h3>Исходники и проверка конвейера</h3>
@@ -145,6 +150,8 @@
           <button id="irilaCheck" class="primary" type="button">▶ Проверить исходники Irila</button>
           <p class="muted">Полная сборка Irila: Canonical/Microsoft Secure Boot, GPT/EFI/ext4 и привилегированные loop/mkfs. До отдельной настройки безопасного root-окружения запускается в своём <a href="https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml" target="_blank" rel="noopener noreferrer">GitHub Actions workflow</a>. Она не является сборкой кастомного ядра T23N.</p>
         </div>
+        </div>
+        <div id="irilaHistory" class="project-subpanel" hidden>
         <div class="build-layout">
           <div class="surface"><div class="surface-head"><h3>История Irila</h3></div><div id="irilaJobs" class="jobs-list"></div></div>
           <div class="surface log-surface"><div class="surface-head"><h3>Журнал и аудит Irila</h3><button class="danger" id="irilaStop" type="button" disabled>■ Остановить аудит</button></div>
@@ -153,10 +160,22 @@
             <button id="irilaExport" class="secondary" type="button" disabled>↓ Скачать только отчёт Irila (.json)</button>
           </div>
         </div>
+        </div>
       </section>
       <section data-panel="helper" class="panel" hidden>
-        <div class="page-heading"><div><small>ЛИНИЯ 03 / WIFCAM HELPER · TEST BENCH</small><h1>Тестирование камеры</h1><p>Тесты микрофона, динамика, RTSP, изображения и безопасный профиль сборки.</p></div></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 03 / WIFCAM HELPER · TEST BENCH</small><h1>WifCam Helper</h1><p>Наблюдение и диагностика камеры: микрофон, динамик, RTSP, видеопоток и результаты тестирования.</p></div></div>
+        <div class="project-subnav" role="tablist" aria-label="Разделы Helper">
+          <button type="button" class="project-tab active" data-project-subtab="helper" data-target="helperSource" role="tab" aria-selected="true">Исходники и назначение</button>
+          <button type="button" class="project-tab" data-project-subtab="helper" data-target="helperStatus" role="tab" aria-selected="false">Состояние и управление</button>
+        </div>
+        <div id="helperSource" class="project-subpanel">
         <div class="lane-bar"><span>⚙ Исходники стенда</span><code id="helperSourcePath">—</code><span>Только тесты и JSON-профили; не компилятор ядра</span></div>
+        <div class="surface project-detail"><div class="surface-head"><div><small>OBSERVATION LANE / STANDALONE</small><h3>Инженерный тестовый стенд</h3></div></div>
+          <p>Выполняет тесты камеры отдельно от прошивки. Репозиторий: <a class="small-link" href="https://github.com/musikfed/wifcam_helper" target="_blank" rel="noopener noreferrer">musikfed/wifcam_helper</a>.</p>
+          <p class="muted">Для тестирования на Huananzhi предусмотрен отдельный localhost:8765 и SSH-туннель на Acer. Сборку T23N выполняет только профиль WIFICAM.</p>
+        </div>
+        </div>
+        <div id="helperStatus" class="project-subpanel" hidden>
         <div class="surface" style="padding:20px">
           <h3>Отдельный проект, а не прошивка</h3>
           <p>Путь: <code>/1tbdisk/PegineLab/projects/wifcam_helper</code>. Инструменты диагностики запускаются отдельно на CORE и <strong>не передают произвольные команды ядру</strong>. Для T23N передаётся только утверждённый JSON с <code>WIFICAM_WEBRTC=0|1</code>.</p>
@@ -178,6 +197,7 @@
             <button type="button" class="danger" id="helperStop">■ Остановить Helper</button>
           </div>
           <p class="muted">Открытие отдельного стенда — через собственный localhost:8765 (на Acer — SSH -L 8765:127.0.0.1:8765 user@192.168.0.100). Это не переход в сборку WIFICAM. Обновления исходников и пересборку выполняем отдельным SSH-скриптом, не из панели.</p>
+        </div>
         </div>
       </section>
       <div id="registeredProjectPanels"></div>
