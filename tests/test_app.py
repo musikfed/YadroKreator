@@ -31,6 +31,78 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("metrics", overview.json)
         self.assertEqual(overview.json["jobs"], [])
 
+    def test_home_is_project_neutral_and_shows_live_job_without_sqlite_reset(self):
+        import core
+        from unittest.mock import patch
+        import app as webmodule
+        html = self.client.get("/").get_data(as_text=True)
+        self.assertIn('id="activeJobName"', html)
+        self.assertIn('id="activeJobOpen"', html)
+        self.assertIn('href="#builds"', html)
+        self.assertIn('href="#irila"', html)
+        self.assertIn('href="#helper"', html)
+        self.assertNotIn("Новая сборка T23N", html)
+        self.assertNotIn('id="heroBuild"', html)
+        self.assertNotIn('id="profileBuild"', html)
+        self.assertIn("Сейчас выполняется", html)
+
+        jid = "6" * 32
+        db = core.connect()
+        try:
+            db.execute(
+                "INSERT INTO jobs (id,profile,status,created_at,started_at,unit,log_path,repo_ref) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (jid, "irila_preflight", "running", core.now(), core.now(),
+                 "peginelab-irila-" + jid, "/tmp/no-real-log", "main"),
+            )
+            db.commit()
+            with patch.object(webmodule, "unit_active", return_value=True):
+                data = self.client.get("/api/overview").json
+            self.assertEqual(data["active_job"]["id"], jid)
+            self.assertEqual(data["active_job"]["profile"], "irila_preflight")
+            self.assertEqual(data["active_job"]["repo_ref"], "main")
+            self.assertEqual(data["concurrency"]["active_profile"], "irila_preflight")
+            self.assertNotIn("log_path", data["active_job"])
+        finally:
+            db.execute("DELETE FROM jobs WHERE id=?", (jid,))
+            db.commit()
+            db.close()
+
+    def test_active_old_task_is_visible_even_after_forty_recent_finished_jobs(self):
+        import core
+        from unittest.mock import patch
+        import app as webmodule
+        active_id = "7" * 32
+        ids = [f"{i:032x}" for i in range(200, 240)]
+        db = core.connect()
+        try:
+            db.execute(
+                "INSERT INTO jobs (id,profile,status,created_at,started_at,unit,log_path,repo_ref) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (active_id, "t23n_sd", "running", "2025-01-01T00:00:00+00:00",
+                 core.now(), "peginelab-t23n-" + active_id, "/tmp/none", "mymarrchWFcam"),
+            )
+            for i, jid in enumerate(ids):
+                db.execute(
+                    "INSERT INTO jobs (id,profile,status,created_at,unit,log_path,repo_ref) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (jid, "irila_preflight", "success", f"2026-01-01T00:{i:02d}:00+00:00",
+                     "peginelab-irila-" + jid, "/tmp/none", "main"),
+                )
+            db.commit()
+            with patch.object(webmodule, "unit_active", return_value=True):
+                response = self.client.get("/api/overview")
+            self.assertEqual(response.status_code, 200)
+            data = response.json
+            self.assertEqual(data["active_job"]["id"], active_id)
+            self.assertIn(active_id, [j["id"] for j in data["jobs"]])
+            self.assertEqual(data["concurrency"]["max_builds"], 1)
+        finally:
+            db.execute("DELETE FROM jobs WHERE id=? OR id IN (" +
+                       ",".join("?" for _ in ids) + ")", (active_id, *ids))
+            db.commit()
+            db.close()
+
     def test_panel_service_status_reads_only_dashboard_unit(self):
         from unittest.mock import patch
         import app as webmodule
