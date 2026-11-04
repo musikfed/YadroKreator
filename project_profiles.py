@@ -16,6 +16,13 @@ PROFILES = {
         "type": "sd_image",
         "build_enabled": True,
     },
+    "t23n_helper_sd": {
+        "name": "WifCam Helper · камера-ассистент T23N · SD",
+        "repository": "https://github.com/musikfed/wifcam_helper.git",
+        "source_dir": "wifcam_helper",
+        "type": "sd_image",
+        "build_enabled": True,
+    },
     "irila_preflight": {
         "name": "Irila Baikal · проверка исходников",
         "repository": "https://github.com/musikfed/Irila_baikal_v1.0.git",

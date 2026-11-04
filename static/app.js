@@ -4,7 +4,8 @@
 const $ = (id) => document.getElementById(id);
 const active = new Set(["queued", "running", "stopping"]);
 const labels = {queued:"В очереди",running:"Собирается",stopping:"Останавливается",success:"Готово",failed:"Ошибка",stopped:"Остановлено",interrupted:"Прервано"};
-let selected = null, selectedIrila = null, offset = 0, loading = false, overview = null, refreshedLog = false;
+let selected = null, selectedIrila = null, selectedHelper = null, offset = 0, loading = false, overview = null, refreshedLog = false;
+let helperOffset=0, helperLogInitial=true, helperLogLoading=false, helperLogFinalized=false, helperLogFull=false;
 let logInitial = true, logFinalized = false, logFullRequested = false;
 let updateState = null, checkingUpdate = false, lastAutoCheck = 0;
 let updateHadActive = false, updateAutoReloaded = false;
@@ -45,6 +46,7 @@ function setTab() {
   $text("pageName",names[current]);document.title="PegineLab · "+names[current];
   if(current==="builds")refreshLog();
   if(current==="irila") refreshIrilaLog();
+  if(current==="helper") refreshHelperBuildLog();
 }
 // Each project now has ONE working screen. No separate global image tab.
 function setWificamMode(_mode){ /* legacy #artifacts routes to #builds */ }
@@ -59,20 +61,13 @@ function setProjectSubtab(project,target){
     if(area)area.hidden=!selected;
   }
 }
-function updateHelperBranchCompatibility(){
-  const supported=$("sourceBranch").value==="mymarrchWFcam";
-  $("helperPreset").disabled=!supported;
-  if(!supported)$("helperPreset").checked=false;
-  $text("helperBranchNote",supported
-    ?"Helper-профиль доступен для mymarrchWFcam."
-    :"Для этой ветки Helper-профиль не утверждён; сборка идёт без него.");
-}
+// Helper firmware is now a separate build profile, never a WIFICAM checkbox.
 function renderRegisteredProjects(projects){
   const nav=$("registeredProjectNav"),panels=$("registeredProjectPanels"),summary=$("registryProjectList");
   const cards=$("registeredProjectCards");
   nav.replaceChildren();panels.replaceChildren();summary.replaceChildren();cards.replaceChildren();
   const builders=projects.filter(p=>p.mode!=="observe"&&p.build_mode!=="observe");
-  $text("projectCount",String(2+builders.length).padStart(2,"0"));
+  $text("projectCount",String(3+builders.length).padStart(2,"0"));
   for(const p of projects){
     const tab="project-"+p.slug;
     const observing=p.mode==="observe"||p.build_mode==="observe";
@@ -239,15 +234,16 @@ function statusPill(status) {
 }
 function jobItem(job,compact=false) {
   const item=element("button",compact?"recent-job":"job-row");
-  if(job.id===(job.profile==="irila_preflight"?selectedIrila:selected))item.classList.add("selected");
+  if(job.id===(job.profile==="irila_preflight"?selectedIrila:job.profile==="t23n_helper_sd"?selectedHelper:selected))item.classList.add("selected");
   const left=element("div","job-main");
-  left.append(element("strong","",job.profile==="t23n_sd"?"WIFICAM · T23N SD":job.profile==="irila_preflight"?"IRILA · аудит источников":"Неизвестный профиль"));
+  left.append(element("strong","",job.profile==="t23n_sd"?"WIFICAM · T23N SD":job.profile==="t23n_helper_sd"?"WifCam Helper · T23N SD":job.profile==="irila_preflight"?"IRILA · аудит источников":"Неизвестный профиль"));
   left.append(element("small","",date(job.created_at)+" · "+job.id.slice(0,8)));
   if(job.repo_ref)left.append(element("small","",job.repo_ref+" · "+(job.source_sha?job.source_sha.slice(0,12):"Git fetch pending")));
+  if(job.profile==="t23n_helper_sd"&&job.base_source_sha)left.append(element("small","","База WIFICAM · "+job.base_source_sha.slice(0,12)));
   if(job.elapsed_seconds!==null && job.elapsed_seconds!==undefined)
     left.append(element("small","", "Время "+clockDuration(job.elapsed_seconds)));
   item.append(left,statusPill(job.status));
-  item.addEventListener("click",()=>job.profile==="irila_preflight"?selectIrila(job.id):select(job.id));
+  item.addEventListener("click",()=>job.profile==="irila_preflight"?selectIrila(job.id):job.profile==="t23n_helper_sd"?selectHelper(job.id):select(job.id));
   return item;
 }
 function select(id) {
@@ -314,7 +310,115 @@ async function stopIrila(){
   catch(e){toast("Не удалось остановить Irila: "+e.message)}
 }
 
+function selectHelper(id){
+  if(selectedHelper!==id){
+    selectedHelper=id;helperOffset=0;helperLogInitial=true;
+    helperLogFinalized=false;helperLogFull=false;
+    $("helperBuildLog").textContent="";$text("helperLogBytes","0 Б");
+  }
+  location.hash="helper";setTab();renderJobs();void refreshHelperBuildLog();
+}
+function renderHelperBuildState(job){
+  const record=(overview?.artifact_records||[]).find(a=>a.job_id===job?.id);
+  $("helperStopBuild").disabled=!job||!active.has(job.status);
+  $("helperFullLog").disabled=!job||active.has(job.status);
+  $("helperValidateImage").disabled=!record?.available;
+  $("helperDownloadImage").disabled=!record?.available;
+  $("helperDeleteImage").disabled=!record?.available;
+  $text("helperLogState",job?(labels[job.status]||job.status):"Выбери задачу");
+  $text("helperLogTitle",job?"Helper SD · "+job.id.slice(0,8):"Журнал прошивки Helper");
+  $text("helperBuildStarted","Начало: "+date(job?.started_at));
+  $text("helperBuildFinished","Конец: "+date(job?.finished_at));
+  $text("helperBuildElapsed","Длительность: "+clockDuration(job?.elapsed_seconds));
+  const percent=job?.progress_percent;
+  $("helperProgressFill").classList.toggle("indeterminate",percent==null);
+  $("helperProgressFill").style.width=percent==null?"35%":percent+"%";
+  if(percent==null)$("helperProgressTrack").removeAttribute("aria-valuenow");
+  else $("helperProgressTrack").setAttribute("aria-valuenow",String(percent));
+  $text("helperProgressText",job?.status==="success"?"Компиляция закончилась · фактическую пригодность IMG проверь":
+    job?.status==="failed"?"Сборка завершилась с ошибкой · смотри журнал":
+    job?.status==="running"?"Компиляция идёт · фактический процент неизвестен":
+    job?.status==="queued"?"Ожидание очереди systemd":"Нет активной сборки Helper");
+  const report=$("helperPreflightReport");
+  if(record?.validation?.verified){
+    report.hidden=false;
+    $text("helperPreflightStatus","✓ Проверена структура Helper SD");
+    $text("helperPreflightDetails","SHA256 "+record.validation.sha256+
+      " · MSPL LBA34 / FAT16-uImage / ext4 / Helper-маркер · железо не проверено");
+  }else if(job?.status!=="success"||!record?.available){
+    report.hidden=true;
+  }
+}
+async function refreshHelperBuildLog(){
+  if(!selectedHelper||helperLogLoading||helperLogFinalized)return;
+  helperLogLoading=true;
+  const initial=helperLogInitial&&!helperLogFull;
+  const source=selectedHelper;
+  try{
+    const result=await api("/api/jobs/"+source+"/log?"+
+      (initial?"tail=1":"offset="+helperOffset));
+    if(source!==selectedHelper)return;
+    const out=$("helperBuildLog");
+    if(initial){
+      out.textContent=result.archive?
+        "АРХИВ ПРОШЛОЙ СБОРКИ · никакая компиляция не запущена\\n"+
+        (result.truncated?"Последние 64 КиБ. Полный журнал — отдельной кнопкой.\\n":""):
+        "СБОРКА ВЫПОЛНЯЕТСЯ · новые записи появляются ниже\\n";
+    }else if(helperOffset===0&&helperLogFull)out.textContent="";
+    if(result.text){
+      const bottom=out.scrollHeight-out.scrollTop-out.clientHeight<100;
+      out.textContent+=result.text;
+      if(out.textContent.length>350000)out.textContent=out.textContent.slice(-250000);
+      if(bottom)out.scrollTop=out.scrollHeight;
+    }
+    helperOffset=result.offset;helperLogInitial=false;
+    $text("helperLogBytes",size(helperOffset));
+    if(!active.has(result.status)&&!result.more){
+      helperLogFinalized=true;helperLogFull=false;
+    }
+    if(result.more)setTimeout(()=>{helperLogLoading=false;refreshHelperBuildLog();},100);
+  }catch(e){$text("helperLogState","Ошибка журнала: "+e.message);}
+  finally{helperLogLoading=false;}
+}
+async function startHelperFirmware(){
+  if(!confirm("Создать отдельную Helper SD-прошивку T23N? Источники: wifcam_helper/main +"+
+    " WIFICAM/mymarrchWFcam, оба по Git SHA. Камера не прошивается автоматически."))return;
+  try{
+    const r=await api("/api/jobs",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({profile:"t23n_helper_sd",branch:"main"})});
+    selectedHelper=r.job_id;helperOffset=0;helperLogInitial=true;
+    helperLogFinalized=false;helperLogFull=false;
+    $("helperBuildLog").textContent="Поставлено в очередь сборок Helper.\\n";
+    location.hash="helper";setTab();await refresh();
+    toast("Запущена реальная сборка WifCam Helper в своём дереве.");
+  }catch(e){toast("Сборка Helper не запущена: "+e.message);}
+}
+async function stopHelperFirmware(){
+  if(!selectedHelper||!confirm("Остановить именно сборку WifCam Helper?"))return;
+  try{await api("/api/jobs/"+selectedHelper+"/stop",{method:"POST"});
+      await refresh();toast("Запрос остановки Helper передан systemd");}
+  catch(e){toast("Ошибка остановки Helper: "+e.message);}
+}
+async function validateHelperSelected(){
+  if(!selectedHelper)return;
+  $("helperValidateImage").disabled=true;
+  $("helperPreflightReport").hidden=false;
+  $text("helperPreflightStatus","Проверка SHA256, структуры SD и Helper внутри ext4...");
+  try{
+    const result=await api("/api/jobs/"+selectedHelper+"/validate",{method:"POST"});
+    $text("helperPreflightStatus",result.verified&&result.helper_overlay_verified?
+          "✓ Проверен образ Helper":"Ошибка проверки");
+    $text("helperPreflightDetails","SHA256 "+result.sha256+" · Helper rootfs "+
+          (result.helper_overlay_verified?"есть":"не найден")+" · физическое железо ещё не проверено");
+    toast("Helper SD проверен структурно. Микрофон, динамик и зрение надо проверить на камере.");
+  }catch(e){
+    $text("helperPreflightStatus","✕ Образ Helper не прошёл проверку");
+    $text("helperPreflightDetails",e.message);toast("Проверка Helper: "+e.message);
+  }finally{await refresh();}
+}
 const jobKind = (job) => job?.profile==="t23n_sd" ? "WIFICAM T23N · прошивка SD" :
+  job?.profile==="t23n_helper_sd" ? "WifCam Helper · прошивка T23N" :
   job?.profile==="irila_preflight" ? "Irila Baikal · проверка исходников" : "Неизвестный профиль";
 function renderActiveJob(jobs) {
   // The server persists actual state in SQLite; never assume T23N is active.
@@ -356,6 +460,7 @@ function renderJobs() {
   const jobs=overview.jobs||[];
   const cameraJobs=jobs.filter(j=>j.profile==="t23n_sd");
   const irilaJobs=jobs.filter(j=>j.profile==="irila_preflight");
+  const helperJobs=jobs.filter(j=>j.profile==="t23n_helper_sd");
   $text("jobsNumber",jobs.length);
   $text("buildCount",cameraJobs.length);
   $text("navBuildCount",cameraJobs.length);
@@ -363,6 +468,7 @@ function renderJobs() {
   $text("currentStatus",running?jobKind(running)+" · "+(labels[running.status]||running.status):"Нет активных задач");
   renderActiveJob(jobs);
   $("newBuild").disabled=!!running || !!(updateState && ["queued","running"].includes(updateState.phase) && ["apply","rollback"].includes(updateState.action));
+  $("helperCreateFirmware").disabled=$("newBuild").disabled;
   const recent=$("recentJobs");recent.replaceChildren();
   const list=$("jobsList");list.replaceChildren();
   if(!jobs.length)recent.append(element("p","empty","История пока пуста"));
@@ -372,6 +478,15 @@ function renderJobs() {
   if(!irilaJobs.length)irilaList.append(element("p","empty","Пока нет аудитов Irila"));
   for(const job of irilaJobs)irilaList.append(jobItem(job));
   if(!selectedIrila && irilaJobs.length)selectedIrila=irilaJobs[0].id;
+  const helperList=$("helperJobsList");helperList.replaceChildren();
+  $text("helperBuildCount",helperJobs.length);
+  if(!helperJobs.length)helperList.append(element("p","empty","Пока нет сборок WifCam Helper"));
+  for(const job of helperJobs)helperList.append(jobItem(job));
+  if(!selectedHelper && helperJobs.length){
+    selectedHelper=helperJobs[0].id;
+    helperOffset=0;helperLogInitial=true;helperLogFinalized=false;
+  }
+  renderHelperBuildState(helperJobs.find(j=>j.id===selectedHelper)||null);
   const irilaCurrent=irilaJobs.find(j=>j.id===selectedIrila);
   $("irilaCheck").disabled=!!running || !!(updateState&&["queued","running"].includes(updateState.phase));
   $("irilaStop").disabled=!irilaCurrent||!active.has(irilaCurrent.status);
@@ -382,6 +497,10 @@ function renderJobs() {
   if(cameraJobs.length){
     recent.append(element("div","lane-history-heading camera","WIFICAM T23N · SD-прошивки"));
     for(const job of cameraJobs.slice(0,2))recent.append(jobItem(job,true));
+  }
+  if(helperJobs.length){
+    recent.append(element("div","lane-history-heading camera","WIFCAM HELPER · SD-прошивки"));
+    for(const job of helperJobs.slice(0,2))recent.append(jobItem(job,true));
   }
   if(irilaJobs.length){
     recent.append(element("div","lane-history-heading irila","IRILA BAIKAL · отдельные аудиты"));
@@ -407,6 +526,7 @@ function renderOverview(data) {
   overview=data;renderJobs();
   $text("wificamBuildRoot",data.paths.wificam_build);
   $text("irilaBuildRoot",data.paths.irila_build);
+  $text("helperBuildRoot",data.paths.helper_build);
   $text("helperSourcePath",data.paths.helper);
   if(Array.isArray(data.allowed_branches)){
     const selector=$("sourceBranch");
@@ -422,7 +542,7 @@ function renderOverview(data) {
       selector.value=data.allowed_branches.includes(selectedBranch)?selectedBranch:data.allowed_branches[0];
       selector.dataset.branches=signature;
     }
-    updateHelperBranchCompatibility();
+    // WIFICAM base branch selection is separate from Helper firmware.
   }
   const projects=data.registered_projects||[];
   const currentIds=projects.map(p=>p.slug+":"+(p.mode||"build")+":"+p.branch).join(",");
@@ -440,14 +560,14 @@ function renderOverview(data) {
   $text("pathThingino",data.paths.thingino);
 }
 function renderFactoryArtifacts(data){
-  const camera=$("artifactList"),irila=$("irilaArtifactList");
-  camera.replaceChildren();irila.replaceChildren();
+  const camera=$("artifactList"),irila=$("irilaArtifactList"),helper=$("helperArtifactList");
+  camera.replaceChildren();irila.replaceChildren();helper.replaceChildren();
   const records=data.artifact_records||[];
   for(const record of records){
-    const list=record.profile==="t23n_sd"?camera:irila;
+    const list=record.profile==="t23n_sd"?camera:record.profile==="t23n_helper_sd"?helper:irila;
     const item=element("div","artifact factory-output-row");
     const info=element("div","artifact-info");
-    const name=record.profile==="t23n_sd"?"SD-образ":"Аудит источников";
+    const name=record.profile==="t23n_sd"?"WIFICAM SD":record.profile==="t23n_helper_sd"?"Helper SD (камера-ассистент)":"Аудит источников";
     info.append(element("strong","",name+" · "+record.job_id.slice(0,8)));
     const state=record.deleted?"Удалён с сервера":
        record.available?"Файл готов · "+size(record.bytes):
@@ -455,11 +575,12 @@ function renderFactoryArtifacts(data){
        labels[record.status]||record.status;
     info.append(element("small","",state+" · "+date(record.created_at)));
     if(record.source_sha)info.append(element("code","","SHA "+record.source_sha.slice(0,12)));
+    if(record.base_source_sha)info.append(element("code","","WIFICAM база · "+record.base_source_sha.slice(0,12)));
     if(record.details)info.append(element("small","factory-error",record.details.slice(0,160)));
     const actions=element("div","artifact-actions");
     const log=element("button","secondary","Журнал");
     log.type="button";log.addEventListener("click",()=>record.profile==="t23n_sd"
-      ?select(record.job_id):selectIrila(record.job_id));
+      ?select(record.job_id):record.profile==="t23n_helper_sd"?selectHelper(record.job_id):selectIrila(record.job_id));
     actions.append(log);
     if(record.partial&&!record.available){
       info.append(element("small","factory-error","Остаток неудачной сборки: "+size(record.cleanup_bytes)+
@@ -473,10 +594,11 @@ function renderFactoryArtifacts(data){
       check.type="button";
       check.addEventListener("click",()=>record.profile==="t23n_sd"
         ?(select(record.job_id),validateSelected())
+        :record.profile==="t23n_helper_sd"?(selectHelper(record.job_id),validateHelperSelected())
         :(selectIrila(record.job_id),showIrilaReport()));
       actions.append(check);
       const download=element("button","secondary","↓ Скачать");
-      download.type="button";download.addEventListener("click",()=>record.profile==="t23n_sd"
+      download.type="button";download.addEventListener("click",()=>record.profile==="t23n_sd"||record.profile==="t23n_helper_sd"
         ?downloadImage(record.job_id):(selectIrila(record.job_id),downloadIrilaReport()));
       actions.append(download);
       const remove=element("button","danger","🗑 Удалить");
@@ -487,6 +609,7 @@ function renderFactoryArtifacts(data){
   }
   if(!records.some(a=>a.profile==="t23n_sd"))camera.append(element("p","empty","Сборок SD пока нет"));
   if(!records.some(a=>a.profile==="irila_preflight"))irila.append(element("p","empty","Пока нет локальных аудитов"));
+  if(!records.some(a=>a.profile==="t23n_helper_sd"))helper.append(element("p","empty","Прошивки Helper пока не собирались"));
   const baseline=(data.images||[]).find(x=>String(x.label||"").startsWith("Эталон 0.1_test"));
   if(baseline){
     const locked=element("div","artifact factory-output-row");
@@ -498,7 +621,7 @@ function renderFactoryArtifacts(data){
   }
 }
 async function deleteLocalArtifact(record){
-  const kind=record.profile==="t23n_sd"?"SD-образ":"отчёт аудита";
+  const kind=record.profile==="irila_preflight"?"отчёт аудита":"SD-образ";
   if(!confirm("Удалить только "+kind+" задания "+record.job_id.slice(0,8)+
      " с Huananzhi? История, журнал, исходники Git и остальные образы сохранятся."))return;
   const phrase="УДАЛИТЬ "+record.job_id.slice(0,8);
@@ -636,6 +759,7 @@ async function refresh() {
   finally{loading=false;}
   if(location.hash==="#builds")refreshLog();
   if(location.hash==="#irila")refreshIrilaLog();
+  if(location.hash==="#helper")refreshHelperBuildLog();
 }
 async function refreshLog() {
   // A browser refresh must NOT replay an archived 9-MB log as if it were
@@ -693,7 +817,8 @@ async function downloadImage(jobId){
       throw new Error(message);
     }
     const blob=await response.blob();
-    const name="WIFICAM_T23N_"+jobId.slice(0,8)+".img";
+    const job=overview?.jobs?.find(j=>j.id===jobId);
+    const name=(job?.profile==="t23n_helper_sd"?"WifCam_Helper_T23N_":"WIFICAM_T23N_")+jobId.slice(0,8)+".img";
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url; a.download=name; a.style.display="none";
@@ -882,7 +1007,7 @@ async function panelServiceAction(action) {
 }
 async function start() {
   const branch=$("sourceBranch").value;
-  const helper_preset=$("helperPreset").checked;
+  const helper_preset=false; // Distinct Helper SD flavor lives in its own project.
   if(!confirm("Получить "+branch+" напрямую с GitHub и собрать из точного коммита?" +(helper_preset?" С утверждённым профилем WifCam Helper.":"") +" Новый образ останется на сервере, камера не прошивается."))return;
   try {
     const r=await api("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile:"t23n_sd",branch,helper_preset})});
@@ -898,13 +1023,31 @@ async function init() {
   $("clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   setTab();window.addEventListener("hashchange",setTab);
   $("newBuild").addEventListener("click",start);
-  $("sourceBranch").addEventListener("change",updateHelperBranchCompatibility);
+  $("helperCreateFirmware").addEventListener("click",startHelperFirmware);
+  $("helperStopBuild").addEventListener("click",stopHelperFirmware);
+  $("helperValidateImage").addEventListener("click",validateHelperSelected);
+  $("helperDownloadImage").addEventListener("click",()=>selectedHelper&&downloadImage(selectedHelper));
+  $("helperDeleteImage").addEventListener("click",()=>{
+    const rec=(overview?.artifact_records||[]).find(a=>a.job_id===selectedHelper);
+    if(rec?.available)void deleteLocalArtifact(rec);
+  });
+  $("helperClearLog").addEventListener("click",()=>{
+    helperOffset=0;helperLogInitial=true;helperLogFinalized=false;helperLogFull=false;
+    $("helperBuildLog").textContent="";refreshHelperBuildLog();
+  });
+  $("helperFullLog").addEventListener("click",()=>{
+    if(!selectedHelper)return;
+    helperLogFull=true;helperLogInitial=false;helperLogFinalized=false;helperOffset=0;
+    $("helperBuildLog").textContent="Загрузка архива по запросу пользователя...\\n";
+    refreshHelperBuildLog();
+  });
+  // The WIFICAM branch selector does not control Helper firmware.
   // WIFICAM build, image inventory and log are on the same page.
   for(const button of document.querySelectorAll("[data-project-subtab]")){
     button.addEventListener("click",()=>setProjectSubtab(
       button.dataset.projectSubtab,button.dataset.target));
   }
-  setProjectSubtab("helper","helperStatus");
+  // WifCam Helper has one firmware workbench; diagnostics are a collapsed detail.
   $("registryMode").addEventListener("change",()=>{
     $("registryModeHint").textContent=$("registryMode").value==="build"
       ?"Обязателен peginelab.project.json в корне ветки GitHub; пока нет утверждённого адаптера — компиляция недоступна."
@@ -921,6 +1064,7 @@ async function init() {
       ? overview.active_job : overview?.jobs?.find(j=>active.has(j.status));
     if(!current)return;
     if(current.profile==="t23n_sd")select(current.id);
+    else if(current.profile==="t23n_helper_sd")selectHelper(current.id);
     else if(current.profile==="irila_preflight")selectIrila(current.id);
     else toast("Для этого профиля ещё нет отдельного журнала");
   });
@@ -968,7 +1112,7 @@ async function init() {
   await refreshUpdate(true);
   await refreshPanelService();
   await refreshHelper();
-  setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();if(location.hash==="#irila")refreshIrilaLog();},2500);
+  setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();if(location.hash==="#irila")refreshIrilaLog();if(location.hash==="#helper")refreshHelperBuildLog();},2500);
   setInterval(()=>refreshUpdate(true),15000);
   setInterval(refreshPanelService,15000);
   setInterval(()=>{if(location.hash==="#helper")refreshHelper()},15000);

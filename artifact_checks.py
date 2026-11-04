@@ -39,12 +39,12 @@ UIMAGE_MAGIC = bytes.fromhex("27051956") # legacy U-Boot uImage header, big endi
 
 def artifact_path(job: dict, root: Path = ROOT) -> Path:
     """Select only a per-job image; never use a path supplied by a browser."""
-    if job.get("profile") != "t23n_sd" or job.get("status") != "success":
+    if job.get("profile") not in ("t23n_sd", "t23n_helper_sd") or job.get("status") != "success":
         raise ValueError("Only completed T23N SD builds can be checked")
     job_id = job.get("id", "")
     if not isinstance(job_id, str) or not JOB_ID.fullmatch(job_id):
         raise ValueError("Invalid build ID")
-    work = workspace_for(job_id, root)
+    work = workspace_for(job_id, root, profile=job['profile'])
     # PUBLISH=0 only produces per-job out/ candidates. Thingino/ is a
     # Git-tracked 0.1_test recovery baseline, NOT a new factory artifact.
     for relative in (
@@ -176,15 +176,48 @@ def validate_t23n(path: Path) -> dict:
     }
 
 
-def report_path(job_id: str, data: Path = DATA) -> Path:
+def validate_helper_t23n(path: Path) -> dict:
+    """Full SD structure + Helper overlay identity inside actual ext4 bytes.
+
+    The presence of marker files does not establish microphone/speaker function.
+    """
+    result=validate_t23n(path)
+    required={b"PEGINELAB_HELPER_FIRMWARE_V1",b"peginelab.camera-head.v1",
+              b"helper-capabilities"}
+    found=set()
+    with path.open("rb") as stream:
+        root=result["partitions"][1]
+        stream.seek(root["start_lba"]*SECTOR)
+        remaining=root["sectors"]*SECTOR
+        previous=b""
+        while remaining>0 and found!=required:
+            chunk=stream.read(min(1024*1024,remaining))
+            if not chunk:
+                break
+            remaining-=len(chunk)
+            window=previous+chunk
+            found.update(token for token in required if token in window)
+            previous=window[-128:]
+    _must(found==required,"Helper firmware overlay marker/CGI missing from ext4 image")
+    result["profile"]="t23n_helper_sd"
+    result["helper_overlay_verified"]=True
+    result["scope"]="SD structure and Helper rootfs markers only; audio/video hardware NOT verified"
+    return result
+
+
+def report_path(job_id: str, data: Path = DATA, *, profile: str = "t23n_sd") -> Path:
     if not JOB_ID.fullmatch(job_id):
         raise ValueError("Invalid job ID")
-    return data / "projects" / "wificam_T23N" / "validation" / (job_id + ".json")
+    if profile not in ("t23n_sd","t23n_helper_sd"):
+        raise ValueError("No SD validation profile")
+    folder="wificam_T23N" if profile=="t23n_sd" else "wifcam_helper"
+    return data / "projects" / folder / "validation" / (job_id + ".json")
 
 
-def save_report(job_id: str, result: dict, image: Path, data: Path = DATA) -> None:
+def save_report(job_id: str, result: dict, image: Path, data: Path = DATA, *,
+                profile: str = "t23n_sd") -> None:
     """Store metadata only, never a Wi-Fi secret or full image in the API."""
-    path = report_path(job_id, data)
+    path = report_path(job_id, data, profile=profile)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     stat = image.stat()
     result = dict(result, image_bytes=stat.st_size, image_mtime_ns=stat.st_mtime_ns)
@@ -200,7 +233,7 @@ def save_report(job_id: str, result: dict, image: Path, data: Path = DATA) -> No
 
 
 def saved_report(job: dict, root: Path = ROOT, data: Path = DATA) -> dict | None:
-    path = report_path(job["id"], data)
+    path = report_path(job["id"], data, profile=job.get("profile","t23n_sd"))
     if not path.is_file():
         return None
     try:

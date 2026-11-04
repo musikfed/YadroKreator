@@ -10,7 +10,7 @@ YadroKreator — общий **диспетчер** и веб-интерфейс.
 |---|---|---|---|
 | WIFICAM T23N | `musikfed/wificam_T23N` | Реальная MIPS Thingino/Buildroot сборка | Отдельный SD IMG, SHA256 и проверка MBR/FAT16/ext4 |
 | Irila Baikal | `musikfed/Irila_baikal_v1.0` | Только проверка SHA-закреплённых исходников | Отдельный JSON-аудит (можно скачать с вкладки Irila) |
-| WifCam Helper | `musikfed/wifcam_helper` | Тесты камеры в отдельной панели и разрешённый профиль для WIFICAM | Независимый тестовый JSON, опция `WIFICAM_WEBRTC=0|1` |
+| WifCam Helper | `musikfed/wifcam_helper` + закреплённый WIFICAM base | **Отдельная настоящая T23N/Buildroot SD-прошивка** с собственной камерной rootfs-надстройкой | Отдельный SD IMG, двойной Git SHA, структурная проверка SD + маркера Helper и аппаратные испытания |
 | Система | `musikfed/YadroKreator` | Обновление панели, перезапуск, остановка | Свой журнал обновления |
 
 Полный Irila x86-64 Secure Boot IMG сейчас создаётся в [собственном GitHub Actions Irila](https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml). Кнопка аудита **не** запускает `sudo`, `losetup`, `mkfs` и не компилирует ядро. Для этого потребуется отдельный изолированный привилегированный сборщик с проверенными файловыми loop-устройствами, а не общая команда камеры.
@@ -23,7 +23,7 @@ YadroKreator — общий **диспетчер** и веб-интерфейс.
 │   ├── YadroKreator/             # исходники самой веб-фабрики
 │   ├── wificam_T23N/             # оригинальный проект камеры и эталон Thingino/
 │   ├── Irila_baikal_v1.0/       # оригинальный проект Irila
-│   └── wifcam_helper/           # независимый стенд
+│   └── wifcam_helper/           # исходники отдельной SD-надстройки + Python испытательный стенд
 ├── build/
 │   ├── projects/
 │   │   ├── wificam_T23N/
@@ -31,6 +31,7 @@ YadroKreator — общий **диспетчер** и веб-интерфейс.
 │   │   │   ├── tmp/
 │   │   │   ├── cache/ccache/
 │   │   │   └── jobs/<job-id>/wificam_T23N/out/{candidate-sd,private-sd}/
+│   │   ├── wifcam_helper/             # отдельный git-cache, tmp, jobs/UUID/wificam_T23N + wifcam_helper
 │   │   └── Irila_baikal_v1.0/
 │   │       ├── git-cache/Irila_baikal_v1.0.git/
 │   │       ├── tmp/
@@ -57,7 +58,7 @@ YadroKreator — общий **диспетчер** и веб-интерфейс.
 
 В SQLite активным считается только одно задание в статусе `queued`, `running`, `stopping`. Создание блокируется через `BEGIN IMMEDIATE`. Worker дополнительно захватывает `flock` `build/locks/factory-build.lock`. 32 потока и 48 ГБ памяти не являются основанием для безопасного параллельного запуска двух тяжёлых сборок.
 
-Глобальная блокировка распространяется на **задачи YadroKreator**, но не на посторонние ручные `make` или другие CI runner. При полной остановке фабрики учтены и `peginelab-t23n-*`, и `peginelab-irila-*` user systemd units. Общий Linux/SSH/другие Docker-службы не останавливаются.
+Глобальная блокировка распространяется на **задачи YadroKreator**, но не на посторонние ручные `make` или другие CI runner. При полной остановке фабрики учтены и `peginelab-t23n-*`, и `peginelab-irila-*`, и `peginelab-helper-sd-*` user systemd units. Общий Linux/SSH/другие Docker-службы не останавливаются.
 
 ## Удаление старых результатов после перехода на новую структуру
 

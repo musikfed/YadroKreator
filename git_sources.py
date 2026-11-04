@@ -31,23 +31,26 @@ def validate_branch(value: object, *, root: Path = ROOT) -> str:
     return value
 
 
-def workspace_for(job_id: str, root: Path = ROOT) -> Path:
+def workspace_for(job_id: str, root: Path = ROOT, *, profile: str = "t23n_sd") -> Path:
     if not JOB_ID.fullmatch(job_id):
         raise ValueError("Invalid job ID")
-    return job_root(job_id, "t23n_sd", root=root) / "wificam_T23N"
+    if profile not in ("t23n_sd", "t23n_helper_sd"):
+        raise ValueError("Unsupported camera firmware profile")
+    return job_root(job_id, profile, root=root) / "wificam_T23N"
 
 
 def checkout_source(branch: str, job_id: str, log, *,
                     root: Path = ROOT, project: Path = PROJECT,
-                    repo_url: str = REPO_URL, on_process=None) -> tuple[Path, str]:
+                    repo_url: str = REPO_URL, on_process=None,
+                    profile: str = "t23n_sd") -> tuple[Path, str]:
     """Fetch allowed Git branch and pin a detached, isolated checkout to SHA.
 
     repo_url/root/project overrides exist only for offline tests. Never pass
     client input into those arguments from the API.
     """
     validate_branch(branch, root=root)
-    work = workspace_for(job_id, root)
-    cache_dir = project_cache_root("t23n_sd", root=root)
+    work = workspace_for(job_id, root, profile=profile)
+    cache_dir = project_cache_root(profile, root=root)
     cache = cache_dir / "wificam_T23N.git"
     cache_dir.mkdir(parents=True, exist_ok=True)
     work.parent.mkdir(parents=True, exist_ok=True)
