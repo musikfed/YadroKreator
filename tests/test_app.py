@@ -245,6 +245,84 @@ class DashboardTests(unittest.TestCase):
                 headers={"X-PegineLab-Action":"1"}, json={"confirm":"STOP"})
         self.assertEqual(r.status_code, 409)
 
+    def test_local_artifact_deletion_is_scoped_and_never_forgets_build(self):
+        import app as dashboard
+        import core
+        job_id="9"*32
+        db=core.connect()
+        try:
+            db.execute("INSERT INTO jobs "
+                "(id,profile,status,created_at,unit,log_path,repo_ref,source_sha) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (job_id,"t23n_sd","success",core.now(),"unit-delete",
+                 "log-test","main","a"*40))
+            db.commit()
+        finally:
+            db.close()
+        route="/api/jobs/"+job_id+"/artifacts/delete"
+        try:
+            self.assertEqual(self.client.post(route).status_code,403)
+            bad=self.client.post(route,headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"WRONG"})
+            self.assertEqual(bad.status_code,400)
+            with patch.object(dashboard,"purge_local_artifact",
+                              return_value=(42,"sd_image")) as purge:
+                result=self.client.post(route,headers={"X-PegineLab-Action":"1"},
+                    json={"confirm":"DELETE-LOCAL-ARTIFACT:"+job_id})
+                self.assertEqual(result.status_code,200)
+                purge.assert_called_once()
+            self.assertEqual(self.client.get("/api/overview").status_code,200)
+            db=core.connect()
+            try:
+                self.assertIsNotNone(db.execute(
+                    "SELECT id FROM jobs WHERE id=?",(job_id,)).fetchone())
+                event=db.execute("SELECT action,bytes FROM artifact_events WHERE job_id=?",
+                                (job_id,)).fetchone()
+                self.assertEqual(event["action"],"delete_local")
+                self.assertEqual(event["bytes"],42)
+            finally:
+                db.close()
+        finally:
+            db=core.connect()
+            try:
+                db.execute("DELETE FROM artifact_events WHERE job_id=?",(job_id,))
+                db.execute("DELETE FROM jobs WHERE id=?",(job_id,))
+                db.commit()
+            finally: db.close()
+
+    def test_github_actions_artifact_delete_requires_exact_id_and_confirmation(self):
+        import app as dashboard
+        url="/api/projects/irila/github-artifacts/123/delete"
+        self.assertEqual(self.client.post(url).status_code,403)
+        with patch.object(dashboard,"delete_github_artifact") as delete:
+            denied=self.client.post(url,headers={"X-PegineLab-Action":"1"},
+                                    json={"confirm":"DELETE-GITHUB-ACTIONS:builds:123"})
+            self.assertEqual(denied.status_code,400)
+            delete.assert_not_called()
+            accepted=self.client.post(url,headers={"X-PegineLab-Action":"1"},
+                                    json={"confirm":"DELETE-GITHUB-ACTIONS:irila:123"})
+            self.assertEqual(accepted.status_code,200)
+            delete.assert_called_once_with("irila","123")
+        with patch.object(dashboard,"delete_github_artifact") as delete:
+            self.assertEqual(self.client.post(
+                "/api/projects/irila/github-artifacts/../../123/delete",
+                headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"DELETE-GITHUB-ACTIONS:irila:123"}).status_code,404)
+            delete.assert_not_called()
+
+    def test_irila_github_build_uses_only_allowlisted_workflow(self):
+        import app as dashboard
+        with patch.object(dashboard,"dispatch_irila") as dispatch:
+            bad=self.client.post("/api/projects/irila/github-build",
+                headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"WRONG"})
+            self.assertEqual(bad.status_code,400)
+            good=self.client.post("/api/projects/irila/github-build",
+                headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"RUN-IRILA-GITHUB-BUILD"})
+            self.assertEqual(good.status_code,200)
+            dispatch.assert_called_once_with()
+
     def test_candidate_image_appears_separately_from_baseline(self):
         image = Path(self.tmp.name) / "projects/wificam_T23N/out/candidate-sd/thingino-t23-sd.bin"
         image.parent.mkdir(parents=True, exist_ok=True)
