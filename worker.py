@@ -103,6 +103,19 @@ def main(job_id: str) -> int:
                     cwd=source, env=env, stdout=log, stderr=subprocess.STDOUT,
                 )
                 code = proc.wait()
+                if code == 0:
+                    # Fresh detached worktrees contain the Git-tracked 0.1_test
+                    # baseline. A successful job MUST output its own raw SD
+                    # candidate and checksum; never accept the old baseline.
+                    candidates = (
+                        source / "out/private-sd/thingino-t23-sd.bin",
+                        source / "out/candidate-sd/thingino-t23-sd.bin",
+                    )
+                    if not any(path.is_file() and
+                               path.with_name(path.name + ".sha256").is_file()
+                               for path in candidates):
+                        log.write(b"BUILD ERROR: no new per-job SD candidate and SHA256 sidecar.\n")
+                        code = 1
         except Exception as exc:
             log.write(("BUILD ERROR: " + str(exc) + "\n").encode())
         status = "stopped" if stopped else ("success" if code == 0 else "failed")
