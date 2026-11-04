@@ -21,6 +21,7 @@ from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
 from helper_service import status as helper_status, lifecycle as helper_lifecycle
 from artifact_catalog import classify as classify_artifact, purge_file as purge_local_artifact
+from github_artifacts import list_artifacts as list_github_artifacts, delete_artifact as delete_github_artifact, dispatch_irila
 from project_profiles import (PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace,
                               job_root, project_build_root, project_log_path)
 
@@ -578,6 +579,53 @@ def download_sd_image(job_id):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-PegineLab-Preflight"] = "passed"
     return response
+
+
+@app.get("/api/projects/<project>/github-artifacts")
+def project_github_artifacts(project):
+    if not allow_private_export(request):
+        return jsonify(error="GitHub inventory requires trusted LAN/VPN"), 403
+    if project not in ("builds", "irila"):
+        return jsonify(error="Unknown GitHub Actions project"), 404
+    try:
+        records=list_github_artifacts(project)
+    except (ValueError, OSError) as exc:
+        return jsonify(error=str(exc)), 503
+    return jsonify(artifacts=records,
+                   deletion_enabled=os.environ.get("PEGINELAB_GITHUB_ARTIFACT_DELETE")=="1")
+
+
+@app.post("/api/projects/<project>/github-artifacts/<artifact_id>/delete")
+def project_github_artifact_delete(project, artifact_id):
+    if not allow_private_export(request):
+        return jsonify(error="GitHub deletion requires trusted LAN/VPN"), 403
+    if project not in ("builds", "irila") or not re.fullmatch("[1-9][0-9]{0,18}",artifact_id):
+        return jsonify(error="Invalid project or artifact"), 404
+    data=request.get_json(silent=True)
+    if not isinstance(data,dict) or data.get("confirm")!="DELETE-GITHUB-ACTIONS:"+project+":"+artifact_id or set(data)!={"confirm"}:
+        return jsonify(error="Exact GitHub Actions artifact confirmation required"), 400
+    try:
+        delete_github_artifact(project,artifact_id)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 409
+    return jsonify(ok=True,project=project,artifact_id=artifact_id,
+                   scope="GitHub Actions artifact only; source repository untouched")
+
+
+@app.post("/api/projects/irila/github-build")
+def irila_github_build():
+    if not allow_private_export(request):
+        return jsonify(error="Trusted LAN/VPN required"), 403
+    data=request.get_json(silent=True)
+    if not isinstance(data,dict) or data!={"confirm":"RUN-IRILA-GITHUB-BUILD"}:
+        return jsonify(error="Explicit GitHub build confirmation required"), 400
+    if update_view().get("phase") in ("queued", "running"):
+        return jsonify(error="Factory update is running"), 409
+    try:
+        dispatch_irila()
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 503
+    return jsonify(ok=True,scope="Requested separate Irila GitHub Actions workflow, build result not yet known")
 
 
 @app.post("/api/jobs/<job_id>/artifacts/delete")
