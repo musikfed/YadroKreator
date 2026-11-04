@@ -55,7 +55,7 @@ class DashboardTests(unittest.TestCase):
                     another=self.client.post(route,
                         headers={"X-PegineLab-Action":"1"},
                         json={"kind":"project","slug":"new-linux","title":"Linux ядро",
-                              "repository":"musikfed/linux_kernel","branch":"main",
+                              "repository":"musikfed/linux_kernel","branch":"main","mode":"observe",
                               "confirm":"REGISTER-PROJECT"})
                     self.assertEqual(another.status_code,200)
                 view=self.client.get("/api/overview")
@@ -81,7 +81,7 @@ class DashboardTests(unittest.TestCase):
                         denied=self.client.post("/api/projects/register",
                             headers={"X-PegineLab-Action":"1"},
                             json={"kind":"project","slug":"new-linux","title":"Linux",
-                                  "repository":repo,"branch":"main",
+                                  "repository":repo,"branch":"main","mode":"observe",
                                   "confirm":"REGISTER-PROJECT"})
                         self.assertEqual(denied.status_code,422)
                 self.assertFalse((Path(temp)/"registered-projects.json").exists())
