@@ -15,6 +15,7 @@ from pathlib import Path
 
 from core import ROOT, PROJECT
 from project_profiles import job_root, project_cache_root
+from project_registry import allowed_branches
 
 REPO_URL = "https://github.com/musikfed/wificam_T23N.git"
 BRANCHES = ("mymarrchWFcam", "main")
@@ -22,8 +23,10 @@ JOB_ID = re.compile(r"[0-9a-f]{32}\Z")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 
 
-def validate_branch(value: object) -> str:
-    if not isinstance(value, str) or value not in BRANCHES:
+def validate_branch(value: object, *, root: Path = ROOT) -> str:
+    # Existing allowlisted branches remain, and explicitly registered branches
+    # are persisted outside Git. Never accept a raw arbitrary ref from POST.
+    if not isinstance(value, str) or value not in allowed_branches(root / "factory-state"):
         raise ValueError("Unsupported WIFICAM Git branch")
     return value
 
@@ -42,7 +45,7 @@ def checkout_source(branch: str, job_id: str, log, *,
     repo_url/root/project overrides exist only for offline tests. Never pass
     client input into those arguments from the API.
     """
-    validate_branch(branch)
+    validate_branch(branch, root=root)
     work = workspace_for(job_id, root)
     cache_dir = project_cache_root("t23n_sd", root=root)
     cache = cache_dir / "wificam_T23N.git"
