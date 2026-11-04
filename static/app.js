@@ -406,13 +406,18 @@ function renderOverview(data) {
   $text("helperSourcePath",data.paths.helper);
   if(Array.isArray(data.allowed_branches)){
     const selector=$("sourceBranch");
-    const selectedBranch=selector.value||"mymarrchWFcam";
-    selector.replaceChildren();
-    for(const name of data.allowed_branches){
-      const option=element("option","",name);
-      option.value=name;selector.append(option);
+    const signature=JSON.stringify(data.allowed_branches);
+    // Overview refreshes every 2.5 s; do not reset an open dropdown.
+    if(selector.dataset.branches!==signature){
+      const selectedBranch=selector.value||"mymarrchWFcam";
+      selector.replaceChildren();
+      for(const name of data.allowed_branches){
+        const option=element("option","",name);
+        option.value=name;selector.append(option);
+      }
+      selector.value=data.allowed_branches.includes(selectedBranch)?selectedBranch:data.allowed_branches[0];
+      selector.dataset.branches=signature;
     }
-    selector.value=data.allowed_branches.includes(selectedBranch)?selectedBranch:data.allowed_branches[0];
     updateHelperBranchCompatibility();
   }
   const projects=data.registered_projects||[];
