@@ -11,7 +11,8 @@ class GithubArtifactTests(unittest.TestCase):
             dispatch_irila()
             self.assertEqual(gh.call_args.args[0],
                 ["workflow","run","build-installed-full-secureboot-img.yml",
-                 "--repo","musikfed/Irila_baikal_v1.0","--ref","main"])
+                 "--repo","musikfed/Irila_baikal_v1.0","--ref","main",
+                 "-f","profile=full","-f","max_mib=12288"])
 
     def test_no_unknown_project_or_id(self):
         with patch("github_artifacts.gh") as gh:
