@@ -20,6 +20,7 @@ from artifact_checks import artifact_path, validate_t23n, save_report, saved_rep
 from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
 from helper_service import status as helper_status, lifecycle as helper_lifecycle
+from artifact_catalog import classify as classify_artifact, purge_file as purge_local_artifact
 from project_profiles import (PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace,
                               job_root, project_build_root, project_log_path)
 
@@ -316,6 +317,16 @@ def overview():
         # Validation is read from saved metadata, not re-hashing 85 MiB
         # every 2.5 seconds when the dashboard refreshes.
         j["validation"] = saved_report(j, ROOT, DATA) if j["profile"] == "t23n_sd" and j["status"] == "success" else None
+    # A unified artifact ledger includes failed builds as failed entries, not
+    # pretend IMG files. Keep tombstones when a user deletes an output.
+    db = connect()
+    try:
+        gone = {r["job_id"] for r in db.execute(
+            "SELECT DISTINCT job_id FROM artifact_events WHERE action='delete_local'")}
+    finally:
+        db.close()
+    artifact_rows = [classify_artifact(j, j["id"] in gone, root=ROOT, data=DATA)
+                     for j in jobs if j["profile"] in ("t23n_sd", "irila_preflight")]
     active_job = next((job for job in jobs if job["status"] in ACTIVE), None)
     meminfo = {}
     try:
@@ -370,6 +381,7 @@ def overview():
         ))
     return jsonify(
         jobs=jobs, active_job=active_job, images=images,
+        artifact_records=artifact_rows,
          allowed_branches=list(allowed_branches(DATA)),
          registered_projects=load_registry(DATA)["projects"],
         profiles={name: dict(info) for name, info in PROFILES.items()},
@@ -566,6 +578,40 @@ def download_sd_image(job_id):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-PegineLab-Preflight"] = "passed"
     return response
+
+
+@app.post("/api/jobs/<job_id>/artifacts/delete")
+def delete_job_artifact(job_id):
+    """Delete exactly one project's output; preserve SQLite jobs and logs."""
+    if not allow_private_export(request):
+        return jsonify(error="Artifact cleanup requires trusted LAN/VPN"), 403
+    if update_view().get("phase") in ("queued", "running"):
+        return jsonify(error="Factory update is running"), 409
+    job = safe_job(job_id)
+    if job is None:
+        return jsonify(error="Job not found"), 404
+    data=request.get_json(silent=True)
+    if (not isinstance(data,dict) or
+            set(data)!={"confirm"} or
+            data.get("confirm")!="DELETE-LOCAL-ARTIFACT:"+job_id):
+        return jsonify(error="Exact artifact deletion confirmation required"), 400
+    # Only outputs of terminal jobs; never the baseline, log, source or worktree.
+    try:
+        bytes_removed,kind=purge_local_artifact(job,root=ROOT,data=DATA)
+    except FileNotFoundError as exc:
+        return jsonify(error=str(exc)), 404
+    except (ValueError,OSError) as exc:
+        return jsonify(error=str(exc)), 409
+    db=connect()
+    try:
+        db.execute("INSERT INTO artifact_events "
+                   "(job_id,profile,kind,action,bytes,created_at) VALUES (?,?,?,?,?,?)",
+                   (job_id,job["profile"],kind,"delete_local",bytes_removed,now()))
+        db.commit()
+    finally:
+        db.close()
+    return jsonify(ok=True,job_id=job_id,bytes_freed=bytes_removed,
+                   message="Output deleted. Job history and build logs retained.")
 
 
 @app.post("/api/jobs/<job_id>/stop")
