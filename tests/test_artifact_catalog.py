@@ -86,10 +86,13 @@ class ArtifactLedgerTests(unittest.TestCase):
             image.write_bytes(b"partial-failed-bytes")
             record=classify(job,root=root)
             self.assertFalse(record["available"])
+            self.assertTrue(record["partial"])
+            self.assertEqual(record["cleanup_bytes"],len(b"partial-failed-bytes"))
             self.assertEqual(record["status"],"failed")
-            with self.assertRaises(FileNotFoundError):
-                purge_file(job,root=root)
-            self.assertTrue(image.is_file())
+            freed,kind=purge_file(job,root=root)
+            self.assertEqual(kind,"sd_image")
+            self.assertEqual(freed,len(b"partial-failed-bytes"))
+            self.assertFalse(image.exists())
 
 if __name__=="__main__":
     unittest.main()
