@@ -11,6 +11,7 @@ from pathlib import Path
 from core import ROOT, PROJECT, THINGINO, LOGS, get_job, record_status, record_source_sha, now
 from git_sources import checkout_source
 from helper_profiles import job_env
+from helper_firmware import checkout_helper, stage_helper_overlay, BASE_BRANCH
 from irila_sources import checkout_irila
 from irila_preflight import audit as audit_irila
 from project_profiles import project_build_root, project_log_path
@@ -18,7 +19,7 @@ from project_profiles import project_build_root, project_log_path
 
 def main(job_id: str) -> int:
     job = get_job(job_id)
-    if not job or job["profile"] not in ("t23n_sd", "irila_preflight"):
+    if not job or job["profile"] not in ("t23n_sd", "t23n_helper_sd", "irila_preflight"):
         return 2
     log_path = project_log_path(job_id, job["profile"], root=ROOT, data=LOGS.parent)
     log_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -82,18 +83,36 @@ def main(job_id: str) -> int:
                 log.write((report["message"] + "\n").encode())
                 log.write(b"No sudo, loop, mkfs, USB IMG or kernel build executed.\n")
                 code = 0
-            elif job["profile"] == "t23n_sd":
+            elif job["profile"] in ("t23n_sd", "t23n_helper_sd"):
                 if not (THINGINO / ".git").is_dir():
                     raise RuntimeError("Thingino checkout not found on ext4")
-                source, sha = checkout_source(job["repo_ref"], job_id, log, on_process=current_process)
-                record_source_sha(job_id, sha)
+                if job["profile"] == "t23n_helper_sd":
+                    # Distinct firmware: Helper main and WIFICAM base each
+                    # get a pinned SHA and separate files, no helper host service.
+                    helper_source, helper_sha = checkout_helper(
+                        job_id, log, on_process=current_process)
+                    if stopped:
+                        raise RuntimeError("Helper source checkout stopped")
+                    source, sha = checkout_source(
+                        BASE_BRANCH, job_id, log, on_process=current_process,
+                        profile="t23n_helper_sd")
+                    if stopped:
+                        raise RuntimeError("Camera base checkout stopped")
+                    pins = stage_helper_overlay(
+                        helper_source, source, job_id, helper_sha, sha, root=ROOT)
+                    record_source_sha(job_id, helper_sha)
+                    log.write(f"Camera-head rootfs overlay: {pins.name}, Helper {helper_sha}, WIFICAM {sha}\n".encode())
+                else:
+                    source, sha = checkout_source(
+                        job["repo_ref"], job_id, log, on_process=current_process)
+                    record_source_sha(job_id, sha)
                 if stopped:
                     raise RuntimeError("Build stopped during source fetch")
                 if not (source / "scripts/build_thingino_wificam_image.sh").is_file():
                     raise RuntimeError("WIFICAM build script missing in pinned Git revision")
-                log.write(f"WIFICAM source = {job['repo_ref']} @ {sha}\n".encode())
+                log.write(f"WIFICAM base = {BASE_BRANCH if job['profile']=='t23n_helper_sd' else job['repo_ref']} @ {sha}\n".encode())
                 log.write(b"PUBLISH=0: candidate stays local; no Git push or SD flashing.\n")
-                extra = job_env(job_id, root=ROOT, branch=job["repo_ref"])
+                extra = job_env(job_id, root=ROOT, branch=job["repo_ref"]) if job["profile"] == "t23n_sd" else {}
                 if extra:
                     env.update(extra)
                     log.write(b"WifCam Helper preset WIFICAM_WEBRTC=" +
