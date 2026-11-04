@@ -1,6 +1,7 @@
 """API smoke tests for VPN/LAN dashboard without web authentication."""
 import os
 from pathlib import Path
+from unittest.mock import patch
 import sys
 import tempfile
 import unittest
