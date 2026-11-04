@@ -132,3 +132,31 @@ html{scroll-behavior:smooth}
   .active-job-body button{width:100%}
   .active-job-facts{flex-direction:column}
 }
+
+
+/* Project-local navigation: firmware images belong to the WIFICAM lane. */
+.project-subnav{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 19px;padding:6px;
+  background:#121d2d;border:1px solid #304258;border-radius:12px}
+.project-tab{appearance:none;background:transparent;color:#a4bbd4;border:1px solid transparent;
+  border-radius:9px;padding:10px 17px;font-weight:650;font-size:13px;cursor:pointer}
+.project-tab:hover{border-color:#395a6c;color:#e7f5ff}
+.project-tab.active{background:#1b3c40;border-color:#40c6b7;color:#bdfcf1}
+.project-subpanel[hidden],.project-detail[hidden]{display:none!important}
+.registered-project-nav{display:flex;flex-direction:column;gap:2px}
+.registered-project-nav .nav{overflow-wrap:anywhere}
+.registry-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px;margin:17px 0}
+.registry-form{display:flex;flex-direction:column;gap:9px;border:1px solid #324359;
+  border-radius:10px;padding:16px;background:#121b2a}
+.registry-form h4{font-size:14px;margin:0 0 8px}
+.registry-form label{font-size:12px;color:#a9c6e1}
+.registry-form input{width:100%;padding:11px 12px;background:#0f1927;
+  border:1px solid #38506d;border-radius:7px;color:#eaf5ff;font:inherit}
+.registry-form button{margin-top:9px;white-space:normal}
+.registered-project-item{display:flex;gap:12px;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;padding:12px 5px;border-top:1px solid #2b3c51}
+.project-detail{padding:22px;margin-bottom:18px}
+.project-detail h3{margin:0 0 12px}
+.project-detail .small-link{display:block;margin-bottom:10px;overflow-wrap:anywhere}
+.panel[data-panel^="project-"]{--lane-accent:#9fc7ff}
+.panel[data-panel^="project-"] .page-heading{border-left:5px solid #9fc7ff}
+@media(max-width:800px){.registered-project-nav .nav{font-size:11px;padding:12px 4px}.project-subnav{padding:4px}.project-tab{padding:9px 10px}}
