@@ -127,6 +127,43 @@ async function stopIrila(){
   catch(e){toast("Не удалось остановить Irila: "+e.message)}
 }
 
+const jobKind = (job) => job?.profile==="t23n_sd" ? "WIFICAM T23N · прошивка SD" :
+  job?.profile==="irila_preflight" ? "Irila Baikal · проверка исходников" : "Неизвестный профиль";
+function renderActiveJob(jobs) {
+  // The server persists actual state in SQLite; never assume T23N is active.
+  const running = (overview?.active_job && active.has(overview.active_job.status)
+    ? overview.active_job : jobs.find(j=>active.has(j.status)));
+  const pill=$("activeJobState");
+  const open=$("activeJobOpen");
+  const last=jobs.find(j=>!active.has(j.status));
+  $text("lastJobSummary",last?
+    "Последняя операция: "+jobKind(last)+" · "+(labels[last.status]||last.status)+
+      " · "+date(last.finished_at||last.created_at) :
+    "История очищена или запусков пока не было.");
+  if(!running) {
+    pill.className="tag neutral";
+    pill.textContent="СВОБОДНО";
+    $text("activeJobName","Нет активных заданий");
+    $text("activeJobDescription","Очередь свободна. Выбери нужный проект ниже; сборка не запускается автоматически.");
+    $text("activeJobBranch","Проект: —");
+    $text("activeJobRuntime","Время: —");
+    $text("activeJobSource","Git SHA: —");
+    open.disabled=true;
+    return;
+  }
+  pill.className="state state-"+running.status;
+  pill.textContent=labels[running.status]||running.status;
+  $text("activeJobName",jobKind(running));
+  $text("activeJobDescription",running.status==="queued"?
+    "Задание передано systemd и ожидает запуска. Никаких других сборок сейчас не допускается.":
+    running.status==="stopping"?
+    "Получена команда остановки. Ждём подтверждения завершения процесса.":
+    "Задание выполняется в собственном дереве проекта. Подробные этапы — в его журнале.");
+  $text("activeJobBranch","Ветка: "+(running.repo_ref||"—")+" · ID "+running.id.slice(0,8));
+  $text("activeJobRuntime","Время: "+clockDuration(running.elapsed_seconds));
+  $text("activeJobSource","Git SHA: "+(running.source_sha?running.source_sha.slice(0,12):"ещё не получен"));
+  open.disabled=false;
+}
 function renderJobs() {
   if(!overview)return;
   const jobs=overview.jobs||[];
@@ -135,9 +172,10 @@ function renderJobs() {
   $text("jobsNumber",jobs.length);
   $text("buildCount",cameraJobs.length);
   $text("navBuildCount",cameraJobs.length);
-  const running=jobs.find(j=>active.has(j.status));
-  $text("currentStatus",running?"● "+labels[running.status]:"Нет активных задач");
-  ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).disabled=!!running || !!(updateState && ["queued","running"].includes(updateState.phase) && ["apply","rollback"].includes(updateState.action)));
+  const running=(overview.active_job && active.has(overview.active_job.status))?overview.active_job:jobs.find(j=>active.has(j.status));
+  $text("currentStatus",running?jobKind(running)+" · "+(labels[running.status]||running.status):"Нет активных задач");
+  renderActiveJob(jobs);
+  $("newBuild").disabled=!!running || !!(updateState && ["queued","running"].includes(updateState.phase) && ["apply","rollback"].includes(updateState.action));
   const recent=$("recentJobs");recent.replaceChildren();
   const list=$("jobsList");list.replaceChildren();
   if(!jobs.length)recent.append(element("p","empty","История пока пуста"));
@@ -547,7 +585,15 @@ async function stop() {
 async function init() {
   $("clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   setTab();window.addEventListener("hashchange",setTab);
-  ["heroBuild","newBuild","profileBuild"].forEach(id=>$(id).addEventListener("click",start));
+  $("newBuild").addEventListener("click",start);
+  $("activeJobOpen").addEventListener("click",()=>{
+    const current=overview?.active_job && active.has(overview.active_job.status)
+      ? overview.active_job : overview?.jobs?.find(j=>active.has(j.status));
+    if(!current)return;
+    if(current.profile==="t23n_sd")select(current.id);
+    else if(current.profile==="irila_preflight")selectIrila(current.id);
+    else toast("Для этого профиля ещё нет отдельного журнала");
+  });
   $("stopBuild").addEventListener("click",stop);
   $("irilaCheck").addEventListener("click",runIrilaAudit);
   $("irilaStop").addEventListener("click",stopIrila);
