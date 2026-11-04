@@ -67,6 +67,32 @@ except Exception:
 print("Factory SQLite backup:",target)
 PY
 fi
+# Back up optional project/branch registrations alongside the factory SQLite.
+# Never alter registered sources or delete the originals.
+python3 - "$ROOT/factory-state/registered-projects.json" "$ROOT/factory-state/backups" <<'PY'
+import json,os,sys,uuid
+from datetime import datetime,timezone
+from pathlib import Path
+source=Path(sys.argv[1])
+directory=Path(sys.argv[2])
+if source.is_symlink(): raise SystemExit("Refusing symlinked project registry")
+if source.is_file():
+    record=json.loads(source.read_text(encoding="utf-8"))
+    if record.get("schema")!="peginelab.factory.project-registry.v1":
+        raise SystemExit("Unexpected project registry schema, refusing rebuild")
+    if directory.is_symlink(): raise SystemExit("Unsafe backup directory")
+    directory.mkdir(parents=True,mode=0o700,exist_ok=True)
+    target=directory/("registered-projects-"+datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")+"-"+uuid.uuid4().hex[:8]+".json")
+    fd=os.open(target,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    try:
+        with os.fdopen(fd,"w",encoding="utf-8") as out:
+            json.dump(record,out,ensure_ascii=False,indent=2)
+            out.write("\n")
+        print("Registered GitHub sources backed up:",target)
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
+PY
 echo "1/4 GitHub fast-forward via existing safe updater"
 bash deploy.sh --apply
 echo "2/4 Verify dependencies and full test suite"
