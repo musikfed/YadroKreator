@@ -212,6 +212,8 @@ def add_project(slug: str, title: str, repository: str, branch: str, *,
     """
     slug = validate_slug(slug)
     repo = validate_repo(repository)
+    if repo in {"wificam_T23N", "Irila_baikal_v1.0", "wifcam_helper"}:
+        raise ValueError("This repository already has a built-in YadroKreator tab; use its own section")
     branch = validate_ref(branch)
     title = title.strip() if isinstance(title, str) else ""
     if not 2 <= len(title) <= 70 or any(ord(char) < 32 for char in title):
