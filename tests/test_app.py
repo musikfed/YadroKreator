@@ -25,6 +25,31 @@ class DashboardTests(unittest.TestCase):
     def setUp(self):
         self.client = self.web.test_client()
 
+    def test_helper_status_is_read_only_and_lifecycle_requires_confirmation(self):
+        from unittest.mock import patch
+        import app as dashboard
+        fake={
+            "source_present":True,"service_installed":True,
+            "service_state":"active","service_unit":"peginelab-wifcam-helper.service",
+            "report_count":3,"independent_from_firmware":True
+        }
+        with patch.object(dashboard,"helper_status",return_value=fake):
+            data=self.client.get("/api/helper/status")
+            self.assertEqual(data.status_code,200)
+            self.assertEqual(data.json["report_count"],3)
+            post="/api/helper/service/stop"
+            self.assertEqual(self.client.post(post).status_code,403)
+            self.assertEqual(self.client.post(post,headers={"X-PegineLab-Action":"1"},
+                              json={"confirm":"FACTORY-STOP"}).status_code,400)
+            with patch.object(dashboard,"helper_lifecycle",return_value=True) as life, \
+                 patch.object(dashboard,"update_view",return_value={"phase":"success"}):
+                result=self.client.post(post,headers={"X-PegineLab-Action":"1"},
+                                        json={"confirm":"HELPER-STOP"})
+                self.assertEqual(result.status_code,200)
+                life.assert_called_once_with("stop")
+        self.assertEqual(self.client.post("/api/helper/service/prune",
+                         headers={"X-PegineLab-Action":"1"}).status_code,404)
+
     def test_overview_without_login(self):
         overview = self.client.get("/api/overview")
         self.assertEqual(overview.status_code, 200)
