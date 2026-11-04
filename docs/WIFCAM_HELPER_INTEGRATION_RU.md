@@ -1,50 +1,62 @@
-# YadroKreator ↔ WifCam Helper: контракт локальной сборки
+# WifCam Helper — отдельная SD-прошивка головы ассистента
 
-## Где находятся проекты
+## Что это
 
-На Huananzhi X79 / Ubuntu 24.04:
+WifCam Helper — третий самостоятельный сборочный профиль YadroKreator (`t23n_helper_sd`), **а не переключатель для обычной WIFICAM** и не только Python-сервис. Конечное устройство: Ingenic T23N, SC2336, микрофон и динамик камеры. 64 МБ RAM недостаточно для полноразмерной локальной LLM, поэтому RTSP/audio-транспорт остаётся на камере, а CV/STT/LLM/TTS/память должны работать на CORE Huananzhi. Реальную двустороннюю связь проверяем отдельно, не выдаём наличие CGI за готового собеседника.
+
+## GitHub-источники и сборка
+
+1. YadroKreator получает `musikfed/wifcam_helper/main` в отдельный SHA-закреплённый Git worktree.
+2. В том же **изолированном job** получает одобренную базу `musikfed/wificam_T23N/mymarrchWFcam` с другим Git SHA. Обе версии фиксирует `source-pins.json` и журнал.
+3. Копирует только четыре строго разрешённых файла `firmware/overlay` Helper в `rootfs` базы WIFICAM (проверяет тип, symlink и размер файлов). Ни один Python-модуль Helper на камеру не переносится; никакие произвольные shell-сценарии из Helper на сборочном сервере не исполняются.
+4. Выполняет существующий Thingino/Buildroot SD pipeline с `PUBLISH=0`, проверяет новый `out/candidate-sd/thingino-t23-sd.bin` с `.sha256`. Если изображения нет или сборка упала — выдаётся **ошибка**, а не эталон.
+5. В той же вкладке можно проверить SD: SHA256, MBR, MSPL LBA34, FAT16 /uImage, ext4 и реальное присутствие отличительного `PEGINELAB_HELPER_FIRMWARE_V1`, CGI и идентификатора интерфейса Helper в корневом ext4. При скачивании контроль повторяется; SD не прошивается автоматически.
+
+## Структура
+
 ```text
 /1tbdisk/PegineLab/
-  projects/
-    YadroKreator/       <- фабрика, Flask, systemd user job, SQLite
-    wificam_T23N/       <- исходники прошивки/ядра и эталон SD
-    wifcam_helper/      <- отдельные тесты RTSP/микрофона/динамика
-  build/thingino-firmware/ <- закреплённый upstream Thingino/Buildroot
-  build/projects/wificam_T23N/jobs/<job_id>/wificam_T23N/  <- SHA-закреплённый исходник и образ
+  projects/YadroKreator/                # сборщик и веб-интерфейс
+  projects/wifcam_helper/               # Git прошивочной надстройки и Python-стенда
+  projects/wificam_T23N/                # базовый проект + защищённый 0.1_test
+  build/thingino-firmware/              # закреплённый Thingino
+  build/projects/wifcam_helper/
+    git-cache/{wifcam_helper.git,wificam_T23N.git}
+    jobs/<UUID>/
+      wifcam_helper/firmware/overlay/    # Helper исходник, отдельный SHA
+      wificam_T23N/rootfs/              # отдельная сборка базы + overlay
+      wificam_T23N/out/candidate-sd/    # новый SD IMG, НЕ baseline
+      source-pins.json                  # SHA Helper + WIFICAM
+  factory-state/projects/wifcam_helper/
+    logs/<UUID>.log
+    validation/<UUID>.json
 ```
-Видео/аудио испытания выполняет Helper на CORE по локальному RTSP/SSH. Он **не** изменяет ядро, GPIO и конфигурацию камеры. Программы `ffmpeg`, `ffprobe`, `ssh` работают на CORE; динамик T23N вызывает локальный `rac` через проверенный `play`.
 
-## Передача профиля в фабрику
+Диспетчер не смешивает артефакты и журнал Helper с WIFICAM. Одна общая SQLite отслеживает задания и блокирует одновременные тяжёлые сборки. Удаление конкретного образа по кнопке не удаляет SQLite, Git, лог или защищённый `Thingino/thingino-t23-sd.bin`.
 
-Стенд хранит только разрешённый пресет `projects/wifcam_helper/profiles/t23n_lean.json`:
-`schema=peginelab.wifcam-helper.build-preset.v1`, камера `galayou_g2_t23n_sc2336_atbm6012bx`, ветка `mymarrchWFcam`, `build_env.WIFICAM_WEBRTC=0|1`.
-Никаких произвольных опций Makefile, shell, адресов Git, паролей Wi-Fi, внешних команд и `PUBLISH=1` нет.
+## Реальные возможности надстройки на камере
 
-Во вкладке «Сборки» ставьте галочку **«Использовать утверждённый профиль WifCam Helper»** только когда нужен этот пресет. API принимает `helper_preset: true`; по умолчанию false. Фабрика читает локальный профиль, проверяет allowlist и сохраняет отдельный неизменяемый снимок `build/projects/wificam_T23N/jobs/<job_id>/helper-preset.json` с правами 0600. Worker повторно проверяет снимок и передаёт *только* разрешённый WIFICAM_WEBRTC в закреплённую сборку WIFICAM. Никакого прямого импорта Python-кода Helper.
+- `/etc/wifcam-helper-release` — отличимый маркер прошивки.
+- `/etc/init.d/S92wifcam-helper` — лёгкая отметка старта без автоматической записи микрофона.
+- `/usr/bin/wifcam-helper-probe` — фактическое наличие аудио/видео команд `rad`, `rac`, `rvd`.
+- `/cgi-bin/helper-capabilities` — JSON интерфейс для CORE через действующий WIFICAM CGI/httpd и его авторизацию.
 
-**Ядро:** остаётся закреплённая Thingino/Buildroot-конфигурация профиля T23N из WIFICAM. Нельзя считать, что Helper генерирует и устанавливает собственные .config автоматически. Видеопрофиль кодека/битрейта сначала фиксируется по измерениям и физическим тестам; любые изменения kernel config должны проходить отдельный reviewed commit в wificam_T23N.
+**Не реализовано автоматически:** распознавание объектов в беседе, визуальная память, речевая маршрутизация с Ollama, управление VRAM и ответы голосом. Это интеграционный этап CORE ↔ камера после проверки аппаратных трактов. Никакие показатели FPS/слышимости/качества без измерений не обещаются.
 
-## Запуск на Ubuntu CORE
+## Испытания после Rufus
+
+Скачать прошивку в YadroKreator, записать весь диск с LBA0 на SD через Rufus/Etcher. Не писать MSPL отдельно по seek=34 — он уже внутри IMG. После включения проверить последовательность: SD boot → SSH/Wi-Fi → RTSP → `/cgi-bin/helper-capabilities` → слышимый звук из динамика → фактический аудиосигнал микрофона → SC2336/день/ночь/PTZ → передачу на CORE.
+
+Python-стенд испытаний Helper остался на Huananzhi в том же Git-репозитории, собственная база `~/.local/state/wifcam-helper/history.sqlite3`, локальная веб-панель `127.0.0.1:8765`. Управление стендом находится в раскрывающемся блоке **«Аппаратный испытательный стенд»** внутри сборочной страницы Helper; отдельного пункта меню «Инструменты и сервисы» нет.
+
+## Обновление фабрики из GitHub
+
+После зелёного CI, мержа и при отсутствии текущих сборок (не через веб-обновлятор):
 
 ```bash
-cd /1tbdisk/PegineLab/projects
-git clone https://github.com/musikfed/wifcam_helper.git
-cd wifcam_helper
-bash scripts/verify-host.sh
-uv run --no-project python3 -m wifcam_helper web
-# Только 127.0.0.1:8765, удалённо — SSH-туннель
+cd /1tbdisk/PegineLab/projects/YadroKreator
+bash scripts/rebuild-from-git.sh --check
+bash scripts/rebuild-from-git.sh --apply --clean-cache
 ```
 
-Python 3.12.3 и uv 0.12.0 подходят для стандартного стенда, установка ML-пакетов необязательна. GPU RTX 3060 может использоваться позже для локального YOLO/Whisper/TTS, но стенд не включает/выключает питание GPU и не запускает Ollama. Для классификации только доверенная локальная модель с явно включённым согласием.
-
-`~/crt-cert/fullchain.pem` и `~/crt-cert/privkey.pem` не трогать: сертификаты — вне проектов; HTTPS можно настроить в отдельном reverse proxy с нормальными правами. Никогда не коммитить privkey.
-
-## Критерии готовности
-
-Github CI Helper/Factory проверяет код, но **не** устройство. После физического холодного запуска образа нужно подтвердить SD, RTSP CH0, доступность микрофонной дорожки, слышимый сигнал штатного динамика, PTZ, Wi-Fi/SSH, CGI :8090 и раздельное включение режима LLM. Измерения задержки «от объектива до экрана» делать аппаратным методом, а не на основании RTT и FPS декодирования.
-
-## Защита от подмены кандидата эталоном 0.1_test
-
-Успешное задание YadroKreator при `PUBLISH=0` должно создать **новый** `out/candidate-sd/thingino-t23-sd.bin` либо `out/private-sd/thingino-t23-sd.bin` (при локальном Wi-Fi профиле) и файл `.sha256` рядом. Если этих файлов нет, задание не считается успешно подготовившим прошивку. Эталон `Thingino/thingino-t23-sd.bin` внутри Git checkout не считается результатом сборки и никогда не выдаётся кнопкой скачивания кандидата.
-
-Перед записью реальной microSD выполнить «Проверить образ перед записью SD»: SHA256, MBR, MSPL LBA34, FAT16 BOOT/uImage LBA2048 и ext4 ROOTFS LBA34816. После загрузки отдельно проверить реальную камеру: SD boot, Wi-Fi/SSH, Web UI :8090 и CGI, RTSP/video, микрофон, динамик, PTZ, ночной режим. WifCam Helper проверяет аудио/видео с CORE, не выполняет прошивку. Rufus/Etcher должны писать **полный raw-образ на microSD с LBA0**, а не создавать установочную USB для ПК. Сохранить исходную рабочую карту для отката.
+Сценарий резервирует SQLite и реестр, обновляет только YadroKreator, переустанавливает зависимости/проверяет тесты, удаляет только проектный Python/pip-кэш и перезапускает `peginelab-factory.service`. Для Helper-сборки нет необходимости сначала делать `git pull` в локальном каталоге Helper — worker забирает актуальный `main` сам и фиксирует SHA. Другие проекты, Docker, ACHEWIW, Ollama и восстановительный SD-эталон не трогаются.
