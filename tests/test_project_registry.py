@@ -52,6 +52,11 @@ class ProjectRegistryTests(unittest.TestCase):
             add_branch("feature/kernel-3",data=data,verify=check)
             self.assertEqual(allowed_branches(data),
                              ("mymarrchWFcam","main","feature/kernel-3"))
+            from git_sources import validate_branch
+            self.assertEqual(validate_branch("feature/kernel-3", root=Path(tmp)),
+                             "feature/kernel-3")
+            with self.assertRaises(ValueError):
+                validate_branch("feature/not-registered", root=Path(tmp))
             self.assertEqual(seen[0],("wificam_T23N","feature/unknown"))
             self.assertEqual((data/"registered-projects.json").stat().st_mode & 0o777,0o600)
 
