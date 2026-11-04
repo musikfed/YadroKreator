@@ -216,3 +216,48 @@ html{scroll-behavior:smooth}
   }
   .project-tab{flex:1 1 140px}
 }
+
+
+/* One-screen firmware workbench: job history + artifact ledger | live log. */
+.factory-heading-actions{display:flex;align-items:center;gap:10px;justify-content:end;flex-wrap:wrap}
+.factory-heading-actions a{display:inline-flex;align-items:center;justify-content:center}
+.factory-workspace-hint{margin:14px 0 20px;color:#9acabd;border-bottom:1px solid #283949;
+  padding:8px 4px 14px;font-size:12px;letter-spacing:.15px}
+.factory-build-grid{grid-template-columns:minmax(300px,40%) minmax(0,1fr);
+  gap:18px;align-items:start}
+.factory-list-column{display:flex;flex-direction:column;gap:18px;min-width:0}
+.factory-list-column>.surface{min-width:0}
+.factory-artifacts{padding:18px}
+.factory-artifacts .surface-head{margin-bottom:12px}
+.factory-output-row{display:flex;flex-direction:column;gap:12px;min-width:0}
+.factory-output-row .artifact-info{max-width:100%;overflow-wrap:anywhere}
+.factory-output-row .artifact-actions{display:flex;flex-direction:row;flex-wrap:wrap;
+  margin:0;align-items:center;justify-content:flex-start}
+.factory-output-row .artifact-actions button{padding:7px 11px;font-size:11px}
+.factory-output-row .artifact-info .factory-error{color:#e9a3a9;white-space:pre-wrap}
+.factory-output-row .artifact-info .factory-protected{color:#79cab3}
+.factory-gh-output{border-top:1px solid var(--border);padding:13px 0;display:flex;
+  flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.factory-gh-output strong{display:block;width:100%;overflow-wrap:anywhere}
+.factory-gh-output small,.factory-gh-output code{color:#8fa4b9;min-width:0;overflow-wrap:anywhere}
+.factory-gh-output small{display:block;width:100%}
+.factory-gh-output a,.factory-gh-output button{font-size:11px;padding:8px 10px}
+.factory-github-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #35455b;
+  padding-top:15px;margin-top:16px}
+.factory-github-bar a{color:#8cd8e6;font-size:12px;text-decoration:underline}
+.factory-artifacts .artifact-list:empty{min-height:24px}
+.factory-guide{margin:20px 0;border:1px solid var(--border);border-radius:12px;padding:13px 18px}
+.factory-guide>summary{cursor:pointer;color:var(--mint);font-weight:650}
+.factory-guide .surface{margin-top:16px}
+.factory-build-grid .preflight-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.factory-build-grid .preflight-controls small{flex:1 1 100%;color:#91a6bd}
+#irilaHistory .factory-artifacts,#wificamBuildControls .factory-artifacts{margin:0}
+@media(max-width:1100px){
+  .factory-build-grid{grid-template-columns:1fr}
+  .factory-list-column{display:grid;grid-template-columns:1fr 1fr;align-items:start}
+}
+@media(max-width:780px){
+  .factory-list-column{display:flex}
+  .factory-heading-actions{justify-content:flex-start}
+  .factory-build-grid{grid-template-columns:minmax(0,1fr)}
+}
