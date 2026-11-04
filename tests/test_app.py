@@ -61,7 +61,7 @@ class DashboardTests(unittest.TestCase):
                 view=self.client.get("/api/overview")
                 self.assertIn("feature/new",view.json["allowed_branches"])
                 self.assertEqual(view.json["registered_projects"][0]["build_mode"],
-                                 "pending_adapter")
+                                 "observe")
                 denied=self.client.post("/api/jobs",json={"profile":"new-linux"},
                                         headers={"X-PegineLab-Action":"1"})
                 self.assertEqual(denied.status_code,400)
