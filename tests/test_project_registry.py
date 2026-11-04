@@ -66,7 +66,7 @@ class ProjectRegistryTests(unittest.TestCase):
             add_project("kernel-new","Kernel New","musikfed/linux_kernel",
                         "develop",data=data,verify=lambda *_:True)
             project=load(data)["projects"][0]
-            self.assertEqual(project["build_mode"],"pending_adapter")
+            self.assertEqual(project["build_mode"],"observe")
             self.assertEqual(project["repository"],"musikfed/linux_kernel")
             self.assertEqual(project["branch"],"develop")
             self.assertNotIn("develop",allowed_branches(data))
