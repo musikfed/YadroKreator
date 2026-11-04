@@ -65,6 +65,17 @@ function setWificamMode(mode){
     button.setAttribute("aria-selected",String(selected));
   }
 }
+function setProjectSubtab(project,target){
+  const buttons=[...document.querySelectorAll('[data-project-subtab="'+project+'"]')];
+  if(!buttons.some(btn=>btn.dataset.target===target))return;
+  for(const btn of buttons){
+    const selected=btn.dataset.target===target;
+    btn.classList.toggle("active",selected);
+    btn.setAttribute("aria-selected",String(selected));
+    const area=$(btn.dataset.target);
+    if(area)area.hidden=!selected;
+  }
+}
 function updateHelperBranchCompatibility(){
   const supported=$("sourceBranch").value==="mymarrchWFcam";
   $("helperPreset").disabled=!supported;
@@ -284,6 +295,7 @@ function select(id) {
 }
 function selectIrila(id) {
   selectedIrila=id;
+  setProjectSubtab("irila","irilaHistory");
   location.hash="irila";
   setTab();
   renderJobs();
@@ -822,6 +834,17 @@ async function init() {
     button.addEventListener("click",()=>setWificamMode(button.dataset.wificamMode));
   }
   setWificamMode("build");
+  for(const button of document.querySelectorAll("[data-project-subtab]")){
+    button.addEventListener("click",()=>setProjectSubtab(
+      button.dataset.projectSubtab,button.dataset.target));
+  }
+  setProjectSubtab("irila","irilaSource");
+  setProjectSubtab("helper","helperStatus");
+  $("registryMode").addEventListener("change",()=>{
+    $("registryModeHint").textContent=$("registryMode").value==="build"
+      ?"Обязателен peginelab.project.json в корне ветки GitHub; пока нет утверждённого адаптера — компиляция недоступна."
+      :"Только вручную выбранный репозиторий. Ни сборка, ни опрос метрик не включаются автоматически.";
+  });
   $("registerWificamBranch").addEventListener("submit",event=>{
     event.preventDefault();void registerGitHub("branch");
   });
