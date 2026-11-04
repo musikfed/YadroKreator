@@ -56,8 +56,18 @@ function setWificamMode(mode){
     button.setAttribute("aria-selected",String(selected));
   }
 }
+function updateHelperBranchCompatibility(){
+  const supported=$("sourceBranch").value==="mymarrchWFcam";
+  $("helperPreset").disabled=!supported;
+  if(!supported)$("helperPreset").checked=false;
+  $text("helperBranchNote",supported
+    ?"Helper-профиль доступен для mymarrchWFcam."
+    :"Для этой ветки Helper-профиль не утверждён; сборка идёт без него.");
+}
 function renderRegisteredProjects(projects){
   const nav=$("registeredProjectNav"),panels=$("registeredProjectPanels"),summary=$("registryProjectList");
+  const cards=$("registeredProjectCards");cards.replaceChildren();
+  $text("projectCount",String(3+projects.length).padStart(2,"0"));
   const previous=[...document.querySelectorAll('.panel[data-panel^="project-"]')]
     .find(p=>p.dataset.panel===location.hash.slice(1));
   nav.replaceChildren();
@@ -65,6 +75,14 @@ function renderRegisteredProjects(projects){
   summary.replaceChildren();
   for(const p of projects){
     const tab="project-"+p.slug;
+    const card=element("div","profile");
+    const icon=element("div","profile-icon","◈");
+    const info=element("div","profile-text");
+    info.append(element("strong","",p.title),element("small","",p.repository+" · "+p.branch));
+    info.append(element("span","tag neutral","АДАПТЕР НЕ ПОДКЛЮЧЁН"));
+    const cardLink=element("a","round-btn","↗");cardLink.href="#"+tab;
+    cardLink.title="Открыть "+p.title;
+    card.append(icon,info,cardLink);cards.append(card);
     const link=element("a","nav","▧  "+p.title);
     link.href="#"+tab;link.dataset.tab=tab;nav.append(link);
     const project=element("section","panel");
@@ -386,6 +404,7 @@ function renderOverview(data) {
       option.value=name;selector.append(option);
     }
     selector.value=data.allowed_branches.includes(selectedBranch)?selectedBranch:data.allowed_branches[0];
+    updateHelperBranchCompatibility();
   }
   const projects=data.registered_projects||[];
   const currentIds=[...(overview.registered_projects||[])].map(p=>p.slug).join(",");
@@ -760,6 +779,7 @@ async function init() {
   $("clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   setTab();window.addEventListener("hashchange",setTab);
   $("newBuild").addEventListener("click",start);
+  $("sourceBranch").addEventListener("change",updateHelperBranchCompatibility);
   for(const button of document.querySelectorAll("[data-wificam-mode]")){
     button.addEventListener("click",()=>setWificamMode(button.dataset.wificamMode));
   }
