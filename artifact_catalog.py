@@ -1,12 +1,12 @@
 """Per-job artifacts and explicit local deletion; never mutate Git/other projects."""
 from __future__ import annotations
-import hashlib
 import json
 import re
 from pathlib import Path
 from core import ROOT, DATA
 from project_profiles import job_root
 from artifact_checks import artifact_path, saved_report
+from git_sources import workspace_for
 
 JOB_ID = re.compile(r"[0-9a-f]{32}\Z")
 TERMINAL = {"success", "failed", "stopped", "interrupted"}
@@ -28,7 +28,15 @@ def expected_path(job: dict, *, root: Path=ROOT) -> Path | None:
                 return artifact_path(job, root)
             except (FileNotFoundError, ValueError, OSError):
                 return None
-        # Don't promote partial or failed build outputs to downloadable images.
+        # Failed/cancelled builds may leave a large partial disk image. Offer
+        # explicit CLEANUP ONLY, never validation/download/promotion.
+        if job.get("status") in TERMINAL:
+            work=workspace_for(job["id"],root)
+            for relative in ("out/private-sd/thingino-t23-sd.bin",
+                             "out/candidate-sd/thingino-t23-sd.bin"):
+                candidate=work/relative
+                if safe_owned(candidate,job,root=root) and candidate.is_file():
+                    return candidate
         return None
     raise ValueError("Unsupported profile")
 
@@ -62,6 +70,12 @@ def classify(job: dict, deleted=False, *, root: Path=ROOT, data: Path=DATA) -> d
                 created_at=job.get("created_at"),available=False,deleted=deleted,
                 bytes=0,name="",validation=None)
     if job["status"] != "success":
+        if job["status"] in TERMINAL:
+            # Partial results: show size and explicit cleanup, but NEVER a
+            # valid image, nor a button to download or verify.
+            partial=expected_path(job,root=root)
+            if partial is not None and safe_owned(partial,job,root=root) and partial.is_file():
+                result.update(partial=True,cleanup_bytes=partial.stat().st_size,name=partial.name)
         return result
     path=expected_path(job,root=root)
     if path is None or not safe_owned(path,job,root=root) or not path.is_file():
