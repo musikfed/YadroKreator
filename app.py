@@ -47,9 +47,19 @@ def gate():
         if request.headers.get("X-PegineLab-Action") != "1":
             return jsonify(error="Request header required"), 403
 
+def _asset_version() -> str:
+    """Content hash changes URL on every factory UI rebuild; no stale JS/CSS."""
+    import hashlib
+    digest=hashlib.sha256()
+    for name in ("app.css","app.js"):
+        file=Path(__file__).parent / "static" / name
+        digest.update(file.read_bytes())
+    return digest.hexdigest()[:12]
+
+
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", asset_version=_asset_version())
 
 def unit_active(unit: str) -> bool:
     try:
