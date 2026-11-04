@@ -118,17 +118,14 @@ function renderRegisteredProjects(projects){
     header.append(eyebrow,title,description);heading.append(header);project.append(heading);
     const tabs=element("div","project-subnav");
     tabs.setAttribute("role","tablist");tabs.setAttribute("aria-label","Разделы "+p.title);
+    // Only expose actual capabilities. Never render fake Jobs/Reports tabs.
     const items=observe?[
       ["source","Исходники и GitHub"],
-      ["build","Наблюдение"],
-      ["images","Отчёты"],
-      ["logs","События"],
-      ["settings","Конфигурация"],
+      ["settings","Подключение"],
     ]:[
       ["source","Исходники и GitHub"],
-      ["build","Сборки и очередь"],
-      ["images","Образы проекта"],
-      ["logs","Журналы"],
+      ["build","Контракт сборки"],
+      ["images","Заявленные результаты"],
       ["settings","Конфигурация"],
     ];
     const sections=new Map();
