@@ -67,6 +67,7 @@ def classify(job: dict, deleted=False, *, root: Path=ROOT, data: Path=DATA) -> d
                 status=job["status"],exit_code=job.get("exit_code"),
                 details=(job.get("details") or "")[:300],
                 source_sha=job.get("source_sha") or "",
+                base_source_sha=job.get("base_source_sha") or "",
                 created_at=job.get("created_at"),available=False,deleted=deleted,
                 bytes=0,name="",validation=None)
     if job["status"] != "success":
