@@ -27,11 +27,12 @@ stop_unit() {
 worker_units() {
     local output
     output="$(systemctl --user list-units --all --type=service --no-legend --no-pager --plain \
-      'peginelab-t23n-*.service' 'peginelab-irila-*.service' 'peginelab-factory-update-*.service' \
+      'peginelab-t23n-*.service' 'peginelab-helper-sd-*.service' 'peginelab-irila-*.service' 'peginelab-factory-update-*.service' \
       'peginelab-panel-*.service')" || return 1
     printf '%s\n' "$output" | awk '{
       for (i=1;i<=NF;i++) {
         if ($i ~ /^peginelab-t23n-[0-9a-f]+\.service$/ ||
+            $i ~ /^peginelab-helper-sd-[0-9a-f]+\.service$/ ||
             $i ~ /^peginelab-irila-[0-9a-f]+\.service$/ ||
             $i ~ /^peginelab-factory-update-[0-9a-f]+\.service$/ ||
             $i ~ /^peginelab-panel-(stop|restart)-[0-9a-f]+\.service$/) {
