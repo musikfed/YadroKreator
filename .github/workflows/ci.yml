@@ -22,7 +22,7 @@ jobs:
       - name: SQLite and Flask API tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Python syntax
-        run: python -m compileall -q app.py core.py worker.py git_sources.py update_manager.py artifact_checks.py build_metrics.py download_access.py export_policy.py helper_profiles.py helper_service.py project_profiles.py irila_sources.py irila_preflight.py scripts/cleanup_legacy_builds.py scripts/sync_core_projects.py scripts/prune_merged_branches.py tests
+        run: python -m compileall -q app.py core.py worker.py git_sources.py update_manager.py artifact_checks.py build_metrics.py download_access.py export_policy.py helper_profiles.py helper_service.py project_profiles.py project_registry.py project_contract.py artifact_catalog.py github_artifacts.py scripts/validate-project-contract.py irila_sources.py irila_preflight.py scripts/cleanup_legacy_builds.py scripts/sync_core_projects.py scripts/prune_merged_branches.py tests
       - name: Browser JavaScript syntax
         run: node --check static/app.js
       - name: Validate SVG graphics

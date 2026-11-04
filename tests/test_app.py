@@ -1,6 +1,7 @@
 """API smoke tests for VPN/LAN dashboard without web authentication."""
 import os
 from pathlib import Path
+from unittest.mock import patch
 import sys
 import tempfile
 import unittest
@@ -24,6 +25,66 @@ class DashboardTests(unittest.TestCase):
 
     def setUp(self):
         self.client = self.web.test_client()
+
+    def test_register_wificam_branch_and_independent_project(self):
+        from unittest.mock import patch
+        from project_registry import add_branch, add_project
+        import app as dashboard
+        with tempfile.TemporaryDirectory() as temp:
+            data=Path(temp)
+            with patch.object(dashboard,"DATA",data), \
+                 patch.object(dashboard,"register_branch",
+                     side_effect=lambda branch,data: add_branch(branch,data=data,verify=lambda *_:True)), \
+                 patch.object(dashboard,"register_project",
+                     side_effect=lambda slug,title,repository,branch,mode,data:
+                         add_project(slug,title,repository,branch,mode=mode,data=data,verify=lambda *_:True)):
+                route="/api/projects/register"
+                self.assertEqual(self.client.post(route,json={"kind":"branch",
+                    "branch":"feature/new", "confirm":"REGISTER-BRANCH"}).status_code,403)
+                self.assertEqual(self.client.post(route,
+                    headers={"X-PegineLab-Action":"1"},
+                    json={"kind":"branch","branch":"feature/new",
+                          "confirm":"WRONG"}).status_code,400)
+                with patch.object(dashboard,"update_view",return_value={"phase":"success"}):
+                    first=self.client.post(route,
+                        headers={"X-PegineLab-Action":"1"},
+                        json={"kind":"branch","branch":"feature/new",
+                              "confirm":"REGISTER-BRANCH"})
+                    self.assertEqual(first.status_code,200)
+                    self.assertIn("feature/new",first.json["registry"]["branches"])
+                    another=self.client.post(route,
+                        headers={"X-PegineLab-Action":"1"},
+                        json={"kind":"project","slug":"new-linux","title":"Linux ядро",
+                              "repository":"musikfed/linux_kernel","branch":"main","mode":"observe",
+                              "confirm":"REGISTER-PROJECT"})
+                    self.assertEqual(another.status_code,200)
+                view=self.client.get("/api/overview")
+                self.assertIn("feature/new",view.json["allowed_branches"])
+                self.assertEqual(view.json["registered_projects"][0]["build_mode"],
+                                 "observe")
+                denied=self.client.post("/api/jobs",json={"profile":"new-linux"},
+                                        headers={"X-PegineLab-Action":"1"})
+                self.assertEqual(denied.status_code,400)
+                with patch.object(dashboard,"git_ref_sha",return_value="e"*40) as sha:
+                    result=self.client.get("/api/projects/new-linux/git-ref")
+                    self.assertEqual(result.status_code,200)
+                    self.assertEqual(result.json["sha"],"e"*40)
+                    sha.assert_called_once_with("linux_kernel","main")
+
+    def test_dynamic_registry_rejects_external_github_and_does_not_run_code(self):
+        import app as dashboard
+        with tempfile.TemporaryDirectory() as temp:
+            with patch.object(dashboard,"DATA",Path(temp)), \
+                 patch.object(dashboard,"update_view",return_value={"phase":"success"}):
+                for repo in ("evil/repo","https://evil.example/kernel","musikfed/../oops"):
+                    with self.subTest(repo=repo):
+                        denied=self.client.post("/api/projects/register",
+                            headers={"X-PegineLab-Action":"1"},
+                            json={"kind":"project","slug":"new-linux","title":"Linux",
+                                  "repository":repo,"branch":"main","mode":"observe",
+                                  "confirm":"REGISTER-PROJECT"})
+                        self.assertEqual(denied.status_code,422)
+                self.assertFalse((Path(temp)/"registered-projects.json").exists())
 
     def test_helper_status_is_read_only_and_lifecycle_requires_confirmation(self):
         from unittest.mock import patch
@@ -183,6 +244,84 @@ class DashboardTests(unittest.TestCase):
             r=self.client.post("/api/panel/service/stop",
                 headers={"X-PegineLab-Action":"1"}, json={"confirm":"STOP"})
         self.assertEqual(r.status_code, 409)
+
+    def test_local_artifact_deletion_is_scoped_and_never_forgets_build(self):
+        import app as dashboard
+        import core
+        job_id="9"*32
+        db=core.connect()
+        try:
+            db.execute("INSERT INTO jobs "
+                "(id,profile,status,created_at,unit,log_path,repo_ref,source_sha) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (job_id,"t23n_sd","success",core.now(),"unit-delete",
+                 "log-test","main","a"*40))
+            db.commit()
+        finally:
+            db.close()
+        route="/api/jobs/"+job_id+"/artifacts/delete"
+        try:
+            self.assertEqual(self.client.post(route).status_code,403)
+            bad=self.client.post(route,headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"WRONG"})
+            self.assertEqual(bad.status_code,400)
+            with patch.object(dashboard,"purge_local_artifact",
+                              return_value=(42,"sd_image")) as purge:
+                result=self.client.post(route,headers={"X-PegineLab-Action":"1"},
+                    json={"confirm":"DELETE-LOCAL-ARTIFACT:"+job_id})
+                self.assertEqual(result.status_code,200)
+                purge.assert_called_once()
+            self.assertEqual(self.client.get("/api/overview").status_code,200)
+            db=core.connect()
+            try:
+                self.assertIsNotNone(db.execute(
+                    "SELECT id FROM jobs WHERE id=?",(job_id,)).fetchone())
+                event=db.execute("SELECT action,bytes FROM artifact_events WHERE job_id=?",
+                                (job_id,)).fetchone()
+                self.assertEqual(event["action"],"delete_local")
+                self.assertEqual(event["bytes"],42)
+            finally:
+                db.close()
+        finally:
+            db=core.connect()
+            try:
+                db.execute("DELETE FROM artifact_events WHERE job_id=?",(job_id,))
+                db.execute("DELETE FROM jobs WHERE id=?",(job_id,))
+                db.commit()
+            finally: db.close()
+
+    def test_github_actions_artifact_delete_requires_exact_id_and_confirmation(self):
+        import app as dashboard
+        url="/api/projects/irila/github-artifacts/123/delete"
+        self.assertEqual(self.client.post(url).status_code,403)
+        with patch.object(dashboard,"delete_github_artifact") as delete:
+            denied=self.client.post(url,headers={"X-PegineLab-Action":"1"},
+                                    json={"confirm":"DELETE-GITHUB-ACTIONS:builds:123"})
+            self.assertEqual(denied.status_code,400)
+            delete.assert_not_called()
+            accepted=self.client.post(url,headers={"X-PegineLab-Action":"1"},
+                                    json={"confirm":"DELETE-GITHUB-ACTIONS:irila:123"})
+            self.assertEqual(accepted.status_code,200)
+            delete.assert_called_once_with("irila","123")
+        with patch.object(dashboard,"delete_github_artifact") as delete:
+            self.assertEqual(self.client.post(
+                "/api/projects/irila/github-artifacts/../../123/delete",
+                headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"DELETE-GITHUB-ACTIONS:irila:123"}).status_code,404)
+            delete.assert_not_called()
+
+    def test_irila_github_build_uses_only_allowlisted_workflow(self):
+        import app as dashboard
+        with patch.object(dashboard,"dispatch_irila") as dispatch:
+            bad=self.client.post("/api/projects/irila/github-build",
+                headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"WRONG"})
+            self.assertEqual(bad.status_code,400)
+            good=self.client.post("/api/projects/irila/github-build",
+                headers={"X-PegineLab-Action":"1"},
+                json={"confirm":"RUN-IRILA-GITHUB-BUILD"})
+            self.assertEqual(good.status_code,200)
+            dispatch.assert_called_once_with()
 
     def test_candidate_image_appears_separately_from_baseline(self):
         image = Path(self.tmp.name) / "projects/wificam_T23N/out/candidate-sd/thingino-t23-sd.bin"

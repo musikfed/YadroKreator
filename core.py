@@ -46,6 +46,16 @@ def connect() -> sqlite3.Connection:
         db.execute("ALTER TABLE jobs ADD COLUMN repo_ref TEXT NOT NULL DEFAULT 'mymarrchWFcam'")
     if "source_sha" not in columns:
         db.execute("ALTER TABLE jobs ADD COLUMN source_sha TEXT NOT NULL DEFAULT ''")
+    db.execute("""CREATE TABLE IF NOT EXISTS artifact_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id TEXT NOT NULL,
+        profile TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        action TEXT NOT NULL,
+        bytes INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(job_id) REFERENCES jobs(id)
+    )""")
     db.commit()
     return db
 

@@ -132,3 +132,132 @@ html{scroll-behavior:smooth}
   .active-job-body button{width:100%}
   .active-job-facts{flex-direction:column}
 }
+
+
+/* Project-local navigation: firmware images belong to the WIFICAM lane. */
+.project-subnav{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 19px;padding:6px;
+  background:#121d2d;border:1px solid #304258;border-radius:12px}
+.project-tab{appearance:none;background:transparent;color:#a4bbd4;border:1px solid transparent;
+  border-radius:9px;padding:10px 17px;font-weight:650;font-size:13px;cursor:pointer}
+.project-tab:hover{border-color:#395a6c;color:#e7f5ff}
+.project-tab.active{background:#1b3c40;border-color:#40c6b7;color:#bdfcf1}
+.project-subpanel[hidden],.project-detail[hidden]{display:none!important}
+.registered-project-nav{display:flex;flex-direction:column;gap:2px}
+.registered-project-nav .nav{overflow-wrap:anywhere}
+.registry-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:16px;margin:17px 0}
+.registry-form{display:flex;flex-direction:column;gap:9px;border:1px solid #324359;
+  border-radius:10px;padding:16px;background:#121b2a}
+.registry-form h4{font-size:14px;margin:0 0 8px}
+.registry-form label{font-size:12px;color:#a9c6e1}
+.registry-form input{width:100%;padding:11px 12px;background:#0f1927;
+  border:1px solid #38506d;border-radius:7px;color:#eaf5ff;font:inherit}
+.registry-form button{margin-top:9px;white-space:normal}
+.registered-project-item{display:flex;gap:12px;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;padding:12px 5px;border-top:1px solid #2b3c51}
+.project-detail{padding:22px;margin-bottom:18px}
+.project-detail h3{margin:0 0 12px}
+.project-detail .small-link{display:block;margin-bottom:10px;overflow-wrap:anywhere}
+.panel[data-panel^="project-"]{--lane-accent:#9fc7ff}
+.panel[data-panel^="project-"] .page-heading{border-left:5px solid #9fc7ff}
+@media(max-width:800px){.registered-project-nav .nav{font-size:11px;padding:12px 4px}.project-subnav{padding:4px}.project-tab{padding:9px 10px}}
+
+#newBuild[hidden]{display:none!important}
+
+
+/* UNIFIED PEGiNELAB WORKSPACE: identical project header, bar and subtabs.
+   Different source/operations remain distinct; visual language is shared. */
+:root{
+  --factory-radius:14px;
+  --factory-spacing:20px;
+  --factory-accent:#60e2c2;
+  --factory-outline:#304258;
+  --factory-project-bg:linear-gradient(110deg,#192438,#101824);
+}
+.panel[data-panel="builds"],.panel[data-panel="irila"],.panel[data-panel="helper"],
+.panel[data-panel^="project-"]{--lane-accent:var(--factory-accent)}
+.panel[data-panel="builds"] .page-heading,.panel[data-panel="irila"] .page-heading,
+.panel[data-panel="helper"] .page-heading,.panel[data-panel^="project-"] .page-heading{
+  padding:22px 26px;min-height:155px;
+  background:var(--factory-project-bg);border:1px solid var(--factory-outline);
+  border-left:5px solid var(--factory-accent);border-radius:var(--factory-radius);
+  display:flex;gap:20px;align-items:center;justify-content:space-between;
+}
+.panel[data-panel="builds"] .page-heading h1,.panel[data-panel="irila"] .page-heading h1,
+.panel[data-panel="helper"] .page-heading h1,.panel[data-panel^="project-"] .page-heading h1{
+  font-size:clamp(25px,2.4vw,35px);letter-spacing:-.8px;line-height:1.2;
+  margin:10px 0 10px;
+}
+.panel[data-panel="builds"] .page-heading p,.panel[data-panel="irila"] .page-heading p,
+.panel[data-panel="helper"] .page-heading p,.panel[data-panel^="project-"] .page-heading p{
+  font-size:13px;line-height:1.65;max-width:900px;color:#a7bad2;margin:0
+}
+.panel[data-panel="irila"] .page-heading small,.panel[data-panel="helper"] .page-heading small,
+.panel[data-panel^="project-"] .page-heading small{color:var(--factory-accent)}
+.nav[data-tab="irila"].active,.nav[data-tab="helper"].active,
+.registered-project-nav .nav.active{box-shadow:inset 3px 0 var(--factory-accent);
+  background:#1c2c41;color:#eaf7f6}
+.panel[data-panel="irila"] .lane-bar,.panel[data-panel="helper"] .lane-bar,
+.panel[data-panel="builds"] .lane-bar{margin:0 0 20px;border-radius:10px;padding:13px 18px}
+.panel[data-panel="irila"] .surface,.panel[data-panel="helper"] .surface,
+.panel[data-panel="builds"] .surface,.panel[data-panel^="project-"] .surface{
+  border-radius:var(--factory-radius)
+}
+.project-subnav{margin:17px 0 19px;display:flex;flex-wrap:wrap;gap:10px;padding:7px}
+.project-tab{border-radius:9px;min-height:38px}
+.registry-form select.source-select{width:100%;max-width:none;padding:11px 12px;
+  background:#0f1927;border:1px solid #38506d;border-radius:7px;color:#eaf5ff}
+.project-subpanel[hidden]{display:none!important}
+#registeredProjectCards:empty,#registeredProjectNav:empty{display:none}
+#addGithubProjectLink{display:block;margin-top:14px;text-align:center}
+@media(max-width:840px){
+  .panel[data-panel="builds"] .page-heading,.panel[data-panel="irila"] .page-heading,
+  .panel[data-panel="helper"] .page-heading,.panel[data-panel^="project-"] .page-heading{
+    align-items:flex-start;flex-direction:column;padding:17px 19px
+  }
+  .project-tab{flex:1 1 140px}
+}
+
+
+/* One-screen firmware workbench: job history + artifact ledger | live log. */
+.factory-heading-actions{display:flex;align-items:center;gap:10px;justify-content:end;flex-wrap:wrap}
+.factory-heading-actions a{display:inline-flex;align-items:center;justify-content:center}
+.factory-workspace-hint{margin:14px 0 20px;color:#9acabd;border-bottom:1px solid #283949;
+  padding:8px 4px 14px;font-size:12px;letter-spacing:.15px}
+.factory-build-grid{grid-template-columns:minmax(300px,40%) minmax(0,1fr);
+  gap:18px;align-items:start}
+.factory-list-column{display:flex;flex-direction:column;gap:18px;min-width:0}
+.factory-list-column>.surface{min-width:0}
+.factory-artifacts{padding:18px}
+.factory-artifacts .surface-head{margin-bottom:12px}
+.factory-output-row{display:flex;flex-direction:column;gap:12px;min-width:0}
+.factory-output-row .artifact-info{max-width:100%;overflow-wrap:anywhere}
+.factory-output-row .artifact-actions{display:flex;flex-direction:row;flex-wrap:wrap;
+  margin:0;align-items:center;justify-content:flex-start}
+.factory-output-row .artifact-actions button{padding:7px 11px;font-size:11px}
+.factory-output-row .artifact-info .factory-error{color:#e9a3a9;white-space:pre-wrap}
+.factory-output-row .artifact-info .factory-protected{color:#79cab3}
+.factory-gh-output{border-top:1px solid var(--border);padding:13px 0;display:flex;
+  flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.factory-gh-output strong{display:block;width:100%;overflow-wrap:anywhere}
+.factory-gh-output small,.factory-gh-output code{color:#8fa4b9;min-width:0;overflow-wrap:anywhere}
+.factory-gh-output small{display:block;width:100%}
+.factory-gh-output a,.factory-gh-output button{font-size:11px;padding:8px 10px}
+.factory-github-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #35455b;
+  padding-top:15px;margin-top:16px}
+.factory-github-bar a{color:#8cd8e6;font-size:12px;text-decoration:underline}
+.factory-artifacts .artifact-list:empty{min-height:24px}
+.factory-guide{margin:20px 0;border:1px solid var(--border);border-radius:12px;padding:13px 18px}
+.factory-guide>summary{cursor:pointer;color:var(--mint);font-weight:650}
+.factory-guide .surface{margin-top:16px}
+.factory-build-grid .preflight-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.factory-build-grid .preflight-controls small{flex:1 1 100%;color:#91a6bd}
+#irilaHistory .factory-artifacts,#wificamBuildControls .factory-artifacts{margin:0}
+@media(max-width:1100px){
+  .factory-build-grid{grid-template-columns:1fr}
+  .factory-list-column{display:grid;grid-template-columns:1fr 1fr;align-items:start}
+}
+@media(max-width:780px){
+  .factory-list-column{display:flex}
+  .factory-heading-actions{justify-content:flex-start}
+  .factory-build-grid{grid-template-columns:minmax(0,1fr)}
+}

@@ -34,14 +34,166 @@ async function api(path, options={}) {
 }
 function setTab() {
   const tab=(location.hash||"#overview").slice(1);
-  const valid=["overview","builds","irila","helper","artifacts","system"];
-  const current=valid.includes(tab)?tab:"overview";
-  const names={overview:"Обзор",builds:"WIFICAM T23N",irila:"Irila Baikal",helper:"WifCam Helper",artifacts:"Образы WIFICAM",system:"Система"};
+  const valid=["overview","builds","irila","helper","system"];
+  const configured=(overview?.registered_projects||[]).find(p=>tab==="project-"+p.slug);
+  // Old #artifacts bookmarks open WIFICAM's own Images tab, not Overview.
+  const current=tab==="artifacts"?"builds":(valid.includes(tab)||configured?tab:"overview");
+  const names={overview:"Обзор",builds:"WIFICAM T23N",irila:"Irila Baikal",helper:"WifCam Helper",system:"Система"};
+  if(configured)names[current]=configured.title;
   document.querySelectorAll("[data-panel]").forEach(el=>el.hidden=el.dataset.panel!==current);
   document.querySelectorAll("[data-tab]").forEach(el=>el.classList.toggle("active",el.dataset.tab===current));
   $text("pageName",names[current]);document.title="PegineLab · "+names[current];
-  if(current==="builds") refreshLog();
+  if(current==="builds")refreshLog();
   if(current==="irila") refreshIrilaLog();
+}
+// Each project now has ONE working screen. No separate global image tab.
+function setWificamMode(_mode){ /* legacy #artifacts routes to #builds */ }
+function setProjectSubtab(project,target){
+  const buttons=[...document.querySelectorAll('[data-project-subtab="'+project+'"]')];
+  if(!buttons.some(btn=>btn.dataset.target===target))return;
+  for(const btn of buttons){
+    const selected=btn.dataset.target===target;
+    btn.classList.toggle("active",selected);
+    btn.setAttribute("aria-selected",String(selected));
+    const area=$(btn.dataset.target);
+    if(area)area.hidden=!selected;
+  }
+}
+function updateHelperBranchCompatibility(){
+  const supported=$("sourceBranch").value==="mymarrchWFcam";
+  $("helperPreset").disabled=!supported;
+  if(!supported)$("helperPreset").checked=false;
+  $text("helperBranchNote",supported
+    ?"Helper-профиль доступен для mymarrchWFcam."
+    :"Для этой ветки Helper-профиль не утверждён; сборка идёт без него.");
+}
+function renderRegisteredProjects(projects){
+  const nav=$("registeredProjectNav"),panels=$("registeredProjectPanels"),summary=$("registryProjectList");
+  const cards=$("registeredProjectCards");
+  nav.replaceChildren();panels.replaceChildren();summary.replaceChildren();cards.replaceChildren();
+  const builders=projects.filter(p=>p.mode!=="observe"&&p.build_mode!=="observe");
+  $text("projectCount",String(2+builders.length).padStart(2,"0"));
+  for(const p of projects){
+    const tab="project-"+p.slug;
+    const observing=p.mode==="observe"||p.build_mode==="observe";
+    const state=observing?"ТОЛЬКО НАБЛЮДЕНИЕ":"КОНТРАКТ ПРОВЕРЕН · АДАПТЕР ОЖИДАЕТ";
+    if(!observing){
+      const link=element("a","nav","▧  "+p.title);
+      link.href="#"+tab;link.dataset.tab=tab;nav.append(link);
+      const card=element("div","profile");
+      const icon=element("div","profile-icon","◈");
+      const info=element("div","profile-text");
+      info.append(element("strong","",p.title),
+                  element("small","",p.repository+" · "+p.branch),
+                  element("span","tag neutral",state));
+      const jump=element("a","round-btn","↗");jump.href="#"+tab;
+      card.append(icon,info,jump);cards.append(card);
+    }
+    const row=element("div","registered-project-item");
+    const jump=element("a","small-link",p.title+" · "+p.repository+" / "+p.branch);
+    jump.href="#"+tab;row.append(jump,element("span","tag neutral",state));summary.append(row);
+    const project=element("section","panel");
+    project.dataset.panel=tab;project.hidden=true;
+    const heading=element("div","page-heading");
+    const header=element("div");
+    header.append(element("small","","GITHUB PROJECT / "+(observing?"OBSERVATION":"BUILD CANDIDATE")),
+                  element("h1","",p.title),
+                  element("p","",observing
+                    ?"Наблюдаемый проект. Он не относится к фабрике ядер и не получает фиктивные кнопки компиляции."
+                    :"Только утверждённый адаптер сможет выполнять сборку ядра/образа. Сейчас доступны реальные Git-исходники и проверенный контракт."));
+    heading.append(header);
+    const toolbar=element("div","factory-heading-actions");
+    const source=element("a","secondary","↗ Исходники");
+    source.href="https://github.com/"+p.repository+"/tree/"+p.branch;
+    source.rel="noopener noreferrer";source.target="_blank";toolbar.append(source);
+    if(!observing){
+      for(const action of ["▶ Создать","✓ Проверить","↓ Скачать"]){
+        const button=element("button","secondary",action);button.type="button";button.disabled=true;
+        button.title="Нужен прошедший CI и ревью адаптер в YadroKreator. Фиктивный запуск запрещён.";
+        toolbar.append(button);
+      }
+    }
+    heading.append(toolbar);project.append(heading);
+    const hint=element("div","factory-workspace-hint",observing
+       ?"Git-статус доступен по запросу; телеметрия требует отдельного драйвера мониторинга."
+       :"Один проект · Git SHA → адаптер → создание образа → проверка → скачивание. Адаптер пока не подключён.");
+    project.append(hint);
+    const sourcePanel=element("div","surface project-detail");
+    sourcePanel.append(element("h3","","Источник и зафиксированный контракт"));
+    const text=element("p","muted","Источник: "+p.repository+" · ветка: "+p.branch);
+    sourcePanel.append(text);
+    const sha=element("p","muted","Git SHA: проверь выбранную ветку.");
+    const btn=element("button","secondary","↻ Проверить исходники GitHub");btn.type="button";
+    btn.addEventListener("click",async()=>{
+      btn.disabled=true;
+      try{
+        const state=await api("/api/projects/"+encodeURIComponent(p.slug)+"/git-ref");
+        sha.textContent="Git SHA: "+state.sha+" · ветка: "+state.branch;
+      }catch(error){sha.textContent="Проверка Git не удалась: "+error.message;}
+      finally{btn.disabled=false;}
+    });
+    sourcePanel.append(sha,btn);
+    if(p.contract?.adapter){
+      sourcePanel.append(element("p","muted","Контракт: "+p.contract.adapter+" · Git "+
+                       (p.contract.source_sha||"").slice(0,12)));
+    }
+    project.append(sourcePanel);
+    if(!observing){
+      const grid=element("div","build-layout factory-build-grid");
+      const left=element("div","factory-list-column");
+      const catalog=element("div","surface factory-artifacts");
+      catalog.append(element("h3","","Образы и результаты проекта"));
+      const outputs=p.contract?.outputs||[];
+      if(outputs.length){
+        for(const output of outputs)
+          catalog.append(element("p","muted","Ожидается: "+output.type+" · "+output.path));
+      }
+      catalog.append(element("p","muted","Локальных файлов пока нет: адаптер не подключён. Наличие GitHub Actions-артефактов не означает, что этот конвейер уже утверждён."));
+      const ghbar=element("div","factory-github-bar");
+      const ghbutton=element("button","secondary","↻ Проверить GitHub Actions");
+      ghbutton.type="button";ghbutton.addEventListener("click",()=>refreshGitHubArtifacts(p.slug));
+      const ghlink=element("a","small-link","↗ GitHub Actions");
+      ghlink.href="https://github.com/"+p.repository+"/actions";
+      ghlink.target="_blank";ghlink.rel="noopener noreferrer";
+      ghbar.append(ghbutton,ghlink);catalog.append(ghbar);
+      const ghitems=element("div","artifact-list");ghitems.id="ghArtifacts_"+p.slug;
+      catalog.append(ghitems);
+      left.append(catalog);
+      const log=element("div","surface log-surface");
+      log.append(element("h3","","Журнал сборки"));
+      const pre=element("pre","terminal","Заданий нет. Для нового семейства ядра требуется проверенный адаптер и изолированный конвейер.");
+      log.append(pre);grid.append(left,log);project.append(grid);
+    }
+    panels.append(project);
+  }
+  if(!projects.length)summary.append(element("p","muted","Новых проектов пока не подключено."));
+  if(projects.some(p=>location.hash==="#project-"+p.slug))setTab();
+}
+async function registerGitHub(kind){
+  const branch=kind==="branch"?$("registryBranch").value.trim():$("registryProjectBranch").value.trim();
+  const data=kind==="branch"
+    ?{kind,branch,confirm:"REGISTER-BRANCH"}
+    :{kind,slug:$("registrySlug").value.trim(),title:$("registryTitle").value.trim(),
+       repository:$("registryRepo").value.trim(),branch,
+       mode:$("registryMode").value,confirm:"REGISTER-PROJECT"};
+  const message=kind==="branch"
+    ?"Добавить ветку "+branch+" к настоящей сборке WIFICAM?"
+    :"Подключить "+data.title+" в режиме «"+(data.mode==="observe"?"Наблюдение":"Кандидат на сборку")+
+      "»? Неподтверждённые скрипты и Docker-команды не запускаются.";
+  if(!confirm(message))return;
+  $text("registryMessage","Проверяем существование ветки в GitHub…");
+  try{
+    await api("/api/projects/register",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});
+    await refresh();
+    $text("registryMessage",kind==="branch"
+      ?"Ветка зарегистрирована. Перейди в WIFICAM → Сборки и журнал и выбери её."
+      :data.mode==="observe"?"Наблюдаемый проект подключён вручную, сборка отключена."
+       :"Контракт проверен. Для исполнения потребуется проверенный адаптер сборки.");
+    if(kind==="project")location.hash="project-"+data.slug;
+    else location.hash="builds";
+    setTab();
+  }catch(error){$text("registryMessage","Не удалось зарегистрировать: "+error.message);}
 }
 let helperBusy=false;
 async function refreshHelper() {
@@ -106,6 +258,7 @@ function select(id) {
 }
 function selectIrila(id) {
   selectedIrila=id;
+  setProjectSubtab("irila","irilaHistory");
   location.hash="irila";
   setTab();
   renderJobs();
@@ -223,7 +376,9 @@ function renderJobs() {
   $("irilaCheck").disabled=!!running || !!(updateState&&["queued","running"].includes(updateState.phase));
   $("irilaStop").disabled=!irilaCurrent||!active.has(irilaCurrent.status);
   $("irilaReport").disabled=!irilaCurrent||irilaCurrent.status!=="success";
-  $("irilaExport").disabled=!irilaCurrent||irilaCurrent.status!=="success";
+  const irilaArtifact=(overview.artifact_records||[]).find(a=>a.job_id===irilaCurrent?.id);
+  $("irilaExport").disabled=!irilaArtifact?.available;
+  $("irilaDeleteArtifact").disabled=!irilaArtifact?.available;
   if(cameraJobs.length){
     recent.append(element("div","lane-history-heading camera","WIFICAM T23N · SD-прошивки"));
     for(const job of cameraJobs.slice(0,2))recent.append(jobItem(job,true));
@@ -241,7 +396,10 @@ function renderJobs() {
   $text("logState",selectedJob?(labels[selectedJob.status]||selectedJob.status):"Выберите задачу");
   $text("logTitle",selectedJob?"Журнал · "+selectedJob.id.slice(0,8):"Консоль сборки");
   renderBuildTimeline(selectedJob);
-  $("validateBuild").disabled=!selectedJob || selectedJob.status!=="success";
+  const cameraArtifact=(overview.artifact_records||[]).find(a=>a.job_id===selectedJob?.id);
+  $("validateBuild").disabled=!cameraArtifact?.available;
+  $("downloadSelected").disabled=!cameraArtifact?.available;
+  $("deleteSelectedArtifact").disabled=!cameraArtifact?.available;
   renderSavedValidation(selectedJob);
   if(panelServiceState)renderPanelService(panelServiceState);
 }
@@ -251,46 +409,166 @@ function renderOverview(data) {
   $text("irilaBuildRoot",data.paths.irila_build);
   $text("helperSourcePath",data.paths.helper);
   if(Array.isArray(data.allowed_branches)){
-    for(const option of $("sourceBranch").options)option.disabled=!data.allowed_branches.includes(option.value);
+    const selector=$("sourceBranch");
+    const signature=JSON.stringify(data.allowed_branches);
+    // Overview refreshes every 2.5 s; do not reset an open dropdown.
+    if(selector.dataset.branches!==signature){
+      const selectedBranch=selector.value||"mymarrchWFcam";
+      selector.replaceChildren();
+      for(const name of data.allowed_branches){
+        const option=element("option","",name);
+        option.value=name;selector.append(option);
+      }
+      selector.value=data.allowed_branches.includes(selectedBranch)?selectedBranch:data.allowed_branches[0];
+      selector.dataset.branches=signature;
+    }
+    updateHelperBranchCompatibility();
+  }
+  const projects=data.registered_projects||[];
+  const currentIds=projects.map(p=>p.slug+":"+(p.mode||"build")+":"+p.branch).join(",");
+  if(window.registeredIds!==currentIds){
+    renderRegisteredProjects(projects);
+    window.registeredIds=currentIds;
   }
   const m=data.metrics;
   metric("load","loadBar","loadInfo",m.load_1.toFixed(2),m.load_1,m.cpus||32,"1 мин · "+m.cpus+" логических CPU");
   metric("memory","memBar","memInfo",size(m.memory_used),m.memory_used,m.memory_total,"из "+size(m.memory_total));
   metric("disk","diskBar","diskInfo",size(m.disk_total-m.disk_used),m.disk_used,m.disk_total,"Свободно · использовано "+Math.round(m.disk_used/m.disk_total*100)+"%");
-  const artifacts=$("artifactList");artifacts.replaceChildren();
-  if(!data.images.length)artifacts.append(element("p","empty","Пока нет артефактов"));
-  for(const image of data.images) {
-    const item=element("div","artifact");
-    const icon=element("div","artifact-icon","▣");
-    const info=element("div","artifact-info");
-    info.append(element("strong","",image.label));
-    info.append(element("small","",image.name+" · "+size(image.bytes)));
-    info.append(element("code","",image.location));
-    if(image.sha256)info.append(element("code","hash","SHA256  "+image.sha256));
-    if(image.job_id){
-      const actions=element("div","artifact-actions");
-      const checked=image.validation?.verified===true;
-      actions.append(element("small","",checked?"✓ Структура проверена":
-        "Проверка будет выполнена при скачивании (без пересборки)"));
-      const button=element("button","secondary","✓ Проверить SD");
-      button.addEventListener("click",()=>{select(image.job_id);validateSelected();});
-      actions.append(button);
-      const download=element("button","secondary","↓ Скачать образ .img");
-      // A successful job already contains a complete SD candidate. The
-      // server validates its real bytes automatically during download.
-      download.disabled=false;
-      download.title=checked?"Скачать проверенный образ с сервера":
-        "Скачать готовый образ; SHA256 и SD-разделы будут проверены автоматически";
-      download.addEventListener("click",()=>downloadImage(image.job_id));
-      actions.append(download);
-      // The opaque internal job UUID never needs to be typed by the user.
-      item.append(actions);
-    }
-    item.append(icon,info);artifacts.append(item);
-  }
+  renderFactoryArtifacts(data);
   $text("pathRoot",data.paths.root);
   $text("pathProject",data.paths.project);
   $text("pathThingino",data.paths.thingino);
+}
+function renderFactoryArtifacts(data){
+  const camera=$("artifactList"),irila=$("irilaArtifactList");
+  camera.replaceChildren();irila.replaceChildren();
+  const records=data.artifact_records||[];
+  for(const record of records){
+    const list=record.profile==="t23n_sd"?camera:irila;
+    const item=element("div","artifact factory-output-row");
+    const info=element("div","artifact-info");
+    const name=record.profile==="t23n_sd"?"SD-образ":"Аудит источников";
+    info.append(element("strong","",name+" · "+record.job_id.slice(0,8)));
+    const state=record.deleted?"Удалён с сервера":
+       record.available?"Файл готов · "+size(record.bytes):
+       record.status==="success"?"Сборка завершена, но файл отсутствует":
+       labels[record.status]||record.status;
+    info.append(element("small","",state+" · "+date(record.created_at)));
+    if(record.source_sha)info.append(element("code","","SHA "+record.source_sha.slice(0,12)));
+    if(record.details)info.append(element("small","factory-error",record.details.slice(0,160)));
+    const actions=element("div","artifact-actions");
+    const log=element("button","secondary","Журнал");
+    log.type="button";log.addEventListener("click",()=>record.profile==="t23n_sd"
+      ?select(record.job_id):selectIrila(record.job_id));
+    actions.append(log);
+    if(record.partial&&!record.available){
+      info.append(element("small","factory-error","Остаток неудачной сборки: "+size(record.cleanup_bytes)+
+        ". Не является образом, скачивание запрещено."));
+      const cleanup=element("button","danger","🗑 Очистить остаток");
+      cleanup.type="button";cleanup.addEventListener("click",()=>deleteLocalArtifact(record));
+      actions.append(cleanup);
+    }
+    if(record.available){
+      const check=element("button","secondary","✓ Проверить");
+      check.type="button";
+      check.addEventListener("click",()=>record.profile==="t23n_sd"
+        ?(select(record.job_id),validateSelected())
+        :(selectIrila(record.job_id),showIrilaReport()));
+      actions.append(check);
+      const download=element("button","secondary","↓ Скачать");
+      download.type="button";download.addEventListener("click",()=>record.profile==="t23n_sd"
+        ?downloadImage(record.job_id):(selectIrila(record.job_id),downloadIrilaReport()));
+      actions.append(download);
+      const remove=element("button","danger","🗑 Удалить");
+      remove.type="button";remove.addEventListener("click",()=>deleteLocalArtifact(record));
+      actions.append(remove);
+    }
+    item.append(info,actions);list.append(item);
+  }
+  if(!records.some(a=>a.profile==="t23n_sd"))camera.append(element("p","empty","Сборок SD пока нет"));
+  if(!records.some(a=>a.profile==="irila_preflight"))irila.append(element("p","empty","Пока нет локальных аудитов"));
+  const baseline=(data.images||[]).find(x=>String(x.label||"").startsWith("Эталон 0.1_test"));
+  if(baseline){
+    const locked=element("div","artifact factory-output-row");
+    const info=element("div","artifact-info");
+    info.append(element("strong","","Эталон восстановления 0.1_test · защищён"),
+      element("small","",baseline.name+" · "+size(baseline.bytes)),
+      element("small","factory-protected","Исторический проверенный SD boot; не результат новой сборки и не удаляется в фабрике."));
+    locked.append(info);camera.append(locked);
+  }
+}
+async function deleteLocalArtifact(record){
+  const kind=record.profile==="t23n_sd"?"SD-образ":"отчёт аудита";
+  if(!confirm("Удалить только "+kind+" задания "+record.job_id.slice(0,8)+
+     " с Huananzhi? История, журнал, исходники Git и остальные образы сохранятся."))return;
+  const phrase="УДАЛИТЬ "+record.job_id.slice(0,8);
+  if(prompt("Для подтверждения введи: "+phrase)!==phrase)return;
+  try{
+    const res=await api("/api/jobs/"+record.job_id+"/artifacts/delete",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({confirm:"DELETE-LOCAL-ARTIFACT:"+record.job_id})
+    });
+    toast("Файл удалён: освобождено "+size(res.bytes_freed)+". Журнал сохранён.");
+    await refresh();
+  }catch(error){toast("Не удалено: "+error.message);}
+}
+async function refreshGitHubArtifacts(project){
+  const id=project==="irila"?"irilaGithubArtifactList":
+           project==="builds"?"wificamGithubArtifactList":"ghArtifacts_"+project;
+  const container=$(id);container.replaceChildren(element("p","muted","Читаем GitHub Actions через gh на CORE…"));
+  try{
+    const res=await api("/api/projects/"+project+"/github-artifacts");
+    container.replaceChildren();
+    if(!res.artifacts.length)container.append(element("p","muted","GitHub Actions-артефактов пока нет."));
+    for(const artifact of res.artifacts){
+      const row=element("div","factory-gh-output");
+      row.append(element("strong","",artifact.name),
+                 element("small","",size(artifact.bytes)+" · "+date(artifact.created_at)+
+                   " · "+(artifact.expired?"Срок хранения истёк":"Сохранён в GitHub")));
+      if(artifact.sha)row.append(element("code","","Git "+artifact.sha.slice(0,12)));
+      const link=element("a","secondary","↗ Открыть и скачать в GitHub");
+      link.href=artifact.url;link.target="_blank";link.rel="noopener noreferrer";
+      row.append(link);
+      const check=element("a","secondary","✓ Проверка CI / журнал");
+      check.href=artifact.url;check.target="_blank";check.rel="noopener noreferrer";
+      row.append(check);
+      if(res.deletion_enabled&&!artifact.expired){
+        const remove=element("button","danger","🗑 Удалить из GitHub Actions");
+        remove.type="button";remove.addEventListener("click",()=>deleteGitHubArtifact(project,artifact));
+        row.append(remove);
+      }
+      container.append(row);
+    }
+  }catch(error){
+    container.replaceChildren(element("p","muted","Список GitHub недоступен: "+error.message+
+      " · Используй ссылку GitHub Actions. Для доступа нужен авторизованный gh CLI на CORE."));
+  }
+}
+async function deleteGitHubArtifact(project,artifact){
+  const promptValue="УДАЛИТЬ GH "+artifact.id;
+  if(!confirm("Удалить ТОЛЬКО Actions-артефакт #"+artifact.id+
+       " из проекта "+project+" на GitHub? Коммиты и исходники НЕ удаляются."))return;
+  if(prompt("Введи точно: "+promptValue)!==promptValue)return;
+  try{
+    await api("/api/projects/"+project+"/github-artifacts/"+artifact.id+"/delete",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({confirm:"DELETE-GITHUB-ACTIONS:"+project+":"+artifact.id})
+    });
+    toast("GitHub Actions-артефакт удалён; исходники и Git-история сохранены.");
+    await refreshGitHubArtifacts(project);
+  }catch(error){toast("GitHub не очищен: "+error.message);}
+}
+async function dispatchIrilaBuild(){
+  if(!confirm("Запустить утверждённый GitHub Actions workflow сборки Irila IMG из main? "+
+    "Сборка не выполняется на Huananzhi; для удалённого запуска нужен gh auth."))return;
+  try{
+    await api("/api/projects/irila/github-build",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({confirm:"RUN-IRILA-GITHUB-BUILD"})
+    });
+    toast("Отправлен запрос в GitHub Actions. Результат ещё неизвестен; следи за журналом workflow.");
+    await refreshGitHubArtifacts("irila");
+  }catch(error){toast("GitHub IMG не запущен: "+error.message);}
 }
 function renderBuildTimeline(job) {
   $text("buildStarted","Начало: "+date(job?.started_at));
@@ -620,6 +898,24 @@ async function init() {
   $("clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   setTab();window.addEventListener("hashchange",setTab);
   $("newBuild").addEventListener("click",start);
+  $("sourceBranch").addEventListener("change",updateHelperBranchCompatibility);
+  // WIFICAM build, image inventory and log are on the same page.
+  for(const button of document.querySelectorAll("[data-project-subtab]")){
+    button.addEventListener("click",()=>setProjectSubtab(
+      button.dataset.projectSubtab,button.dataset.target));
+  }
+  setProjectSubtab("helper","helperStatus");
+  $("registryMode").addEventListener("change",()=>{
+    $("registryModeHint").textContent=$("registryMode").value==="build"
+      ?"Обязателен peginelab.project.json в корне ветки GitHub; пока нет утверждённого адаптера — компиляция недоступна."
+      :"Только вручную выбранный репозиторий. Ни сборка, ни опрос метрик не включаются автоматически.";
+  });
+  $("registerWificamBranch").addEventListener("submit",event=>{
+    event.preventDefault();void registerGitHub("branch");
+  });
+  $("registerGithubProject").addEventListener("submit",event=>{
+    event.preventDefault();void registerGitHub("project");
+  });
   $("activeJobOpen").addEventListener("click",()=>{
     const current=overview?.active_job && active.has(overview.active_job.status)
       ? overview.active_job : overview?.jobs?.find(j=>active.has(j.status));
@@ -634,6 +930,18 @@ async function init() {
   $("irilaReport").addEventListener("click",showIrilaReport);
   $("irilaExport").addEventListener("click",downloadIrilaReport);
   $("validateBuild").addEventListener("click",validateSelected);
+  $("downloadSelected").addEventListener("click",()=>selected&&downloadImage(selected));
+  $("deleteSelectedArtifact").addEventListener("click",()=>{
+    const rec=(overview?.artifact_records||[]).find(a=>a.job_id===selected);
+    if(rec?.available)void deleteLocalArtifact(rec);
+  });
+  $("irilaDeleteArtifact").addEventListener("click",()=>{
+    const rec=(overview?.artifact_records||[]).find(a=>a.job_id===selectedIrila);
+    if(rec?.available)void deleteLocalArtifact(rec);
+  });
+  $("irilaGithubBuild").addEventListener("click",dispatchIrilaBuild);
+  $("irilaGithubRefresh").addEventListener("click",()=>refreshGitHubArtifacts("irila"));
+  $("wificamGithubRefresh").addEventListener("click",()=>refreshGitHubArtifacts("builds"));
   $("checkUpdate").addEventListener("click",()=>updateAction("check"));
   $("applyUpdate").addEventListener("click",()=>updateAction("apply"));
   $("rollbackUpdate").addEventListener("click",()=>updateAction("rollback"));

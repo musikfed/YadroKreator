@@ -10,12 +10,18 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request, send_file
 from core import ROOT, DATA, LOGS, PROJECT, THINGINO, ACTIVE, connect, get_job, now, record_status
 from git_sources import BRANCHES, workspace_for, validate_branch
+from project_registry import (
+    load as load_registry, allowed_branches, add_project as register_project,
+    add_branch as register_branch, git_ref_sha, validate_slug,
+)
 from update_manager import view as update_view, start as start_update, finish as finish_update
 from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
 from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
 from helper_service import status as helper_status, lifecycle as helper_lifecycle
+from artifact_catalog import classify as classify_artifact, purge_file as purge_local_artifact
+from github_artifacts import list_artifacts as list_github_artifacts, delete_artifact as delete_github_artifact, dispatch_irila
 from project_profiles import (PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace,
                               job_root, project_build_root, project_log_path)
 
@@ -243,6 +249,53 @@ def helper_service_action(action):
     return jsonify(ok=True, action=action, helper=helper_status())
 
 
+@app.get("/api/projects/<slug>/git-ref")
+def registered_project_git_ref(slug):
+    try:
+        slug = validate_slug(slug)
+        project = next((p for p in load_registry(DATA)["projects"]
+                        if p["slug"] == slug), None)
+        if project is None:
+            return jsonify(error="Project not found"), 404
+        repo = project["repository"].split("/", 1)[1]
+        sha = git_ref_sha(repo, project["branch"])
+        if sha is None:
+            return jsonify(error="GitHub source ref unavailable"), 503
+        return jsonify(repository=project["repository"],
+                       branch=project["branch"], sha=sha, build_mode=project["build_mode"])
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+
+
+@app.post("/api/projects/register")
+def add_github_project():
+    """Trusted-network registration only, not execution of external build scripts."""
+    if not allow_private_export(request):
+        return jsonify(error="Project changes require trusted LAN/VPN"), 403
+    if update_view().get("phase") in ("queued", "running"):
+        return jsonify(error="Factory source update is in progress"), 409
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="JSON object required"), 400
+    try:
+        kind = data.get("kind")
+        if kind == "branch" and data.get("confirm") == "REGISTER-BRANCH":
+            if set(data) != {"kind", "branch", "confirm"}:
+                return jsonify(error="Unknown branch registration field"), 400
+            result = register_branch(data["branch"], data=DATA)
+        elif kind == "project" and data.get("confirm") == "REGISTER-PROJECT":
+            if set(data) != {"kind", "slug", "title", "repository", "branch", "mode", "confirm"}:
+                return jsonify(error="Project registration requires mode and approved fields"), 400
+            result = register_project(data["slug"], data["title"],
+                                      data["repository"], data["branch"],
+                                      mode=data["mode"], data=DATA)
+        else:
+            return jsonify(error="Explicit project/branch confirmation required"), 400
+    except (ValueError, KeyError, OSError) as exc:
+        return jsonify(error=str(exc)), 422
+    return jsonify(ok=True, registry=result)
+
+
 @app.get("/api/overview")
 def overview():
     reconcile()
@@ -265,6 +318,16 @@ def overview():
         # Validation is read from saved metadata, not re-hashing 85 MiB
         # every 2.5 seconds when the dashboard refreshes.
         j["validation"] = saved_report(j, ROOT, DATA) if j["profile"] == "t23n_sd" and j["status"] == "success" else None
+    # A unified artifact ledger includes failed builds as failed entries, not
+    # pretend IMG files. Keep tombstones when a user deletes an output.
+    db = connect()
+    try:
+        gone = {r["job_id"] for r in db.execute(
+            "SELECT DISTINCT job_id FROM artifact_events WHERE action='delete_local'")}
+    finally:
+        db.close()
+    artifact_rows = [classify_artifact(j, j["id"] in gone, root=ROOT, data=DATA)
+                     for j in jobs if j["profile"] in ("t23n_sd", "irila_preflight")]
     active_job = next((job for job in jobs if job["status"] in ACTIVE), None)
     meminfo = {}
     try:
@@ -318,7 +381,10 @@ def overview():
             validation=job["validation"],
         ))
     return jsonify(
-        jobs=jobs, active_job=active_job, images=images, allowed_branches=list(BRANCHES),
+        jobs=jobs, active_job=active_job, images=images,
+        artifact_records=artifact_rows,
+         allowed_branches=list(allowed_branches(DATA)),
+         registered_projects=load_registry(DATA)["projects"],
         profiles={name: dict(info) for name, info in PROFILES.items()},
         irila_image_workflow=IRILA_IMAGE_WORKFLOW,
         metrics=dict(load_1=round(os.getloadavg()[0], 2),
@@ -346,7 +412,7 @@ def start_job():
         repo_ref = "main"
     else:
         try:
-            repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"))
+            repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"), root=ROOT)
         except ValueError:
             return jsonify(error="Unsupported WIFICAM branch"), 400
     # Opt-in only: read one allowlisted preset from the sibling helper project.
@@ -513,6 +579,95 @@ def download_sd_image(job_id):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-PegineLab-Preflight"] = "passed"
     return response
+
+
+@app.get("/api/projects/<project>/github-artifacts")
+def project_github_artifacts(project):
+    if not allow_private_export(request):
+        return jsonify(error="GitHub inventory requires trusted LAN/VPN"), 403
+    if project not in ("builds", "irila") and not any(
+        p["slug"]==project and p.get("mode")=="build"
+        for p in load_registry(DATA)["projects"]
+    ):
+        return jsonify(error="Unknown GitHub Actions project"), 404
+    try:
+        records=list_github_artifacts(project)
+    except (ValueError, OSError) as exc:
+        return jsonify(error=str(exc)), 503
+    return jsonify(artifacts=records,
+                   deletion_enabled=os.environ.get("PEGINELAB_GITHUB_ARTIFACT_DELETE")=="1")
+
+
+@app.post("/api/projects/<project>/github-artifacts/<artifact_id>/delete")
+def project_github_artifact_delete(project, artifact_id):
+    if not allow_private_export(request):
+        return jsonify(error="GitHub deletion requires trusted LAN/VPN"), 403
+    if not re.fullmatch("[1-9][0-9]{0,18}",artifact_id):
+        return jsonify(error="Invalid artifact ID"), 404
+    if project not in ("builds", "irila") and not any(
+        p["slug"]==project and p.get("mode")=="build"
+        for p in load_registry(DATA)["projects"]
+    ):
+        return jsonify(error="Unknown build project"), 404
+    data=request.get_json(silent=True)
+    if not isinstance(data,dict) or data.get("confirm")!="DELETE-GITHUB-ACTIONS:"+project+":"+artifact_id or set(data)!={"confirm"}:
+        return jsonify(error="Exact GitHub Actions artifact confirmation required"), 400
+    try:
+        delete_github_artifact(project,artifact_id)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 409
+    return jsonify(ok=True,project=project,artifact_id=artifact_id,
+                   scope="GitHub Actions artifact only; source repository untouched")
+
+
+@app.post("/api/projects/irila/github-build")
+def irila_github_build():
+    if not allow_private_export(request):
+        return jsonify(error="Trusted LAN/VPN required"), 403
+    data=request.get_json(silent=True)
+    if not isinstance(data,dict) or data!={"confirm":"RUN-IRILA-GITHUB-BUILD"}:
+        return jsonify(error="Explicit GitHub build confirmation required"), 400
+    if update_view().get("phase") in ("queued", "running"):
+        return jsonify(error="Factory update is running"), 409
+    try:
+        dispatch_irila()
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 503
+    return jsonify(ok=True,scope="Requested separate Irila GitHub Actions workflow, build result not yet known")
+
+
+@app.post("/api/jobs/<job_id>/artifacts/delete")
+def delete_job_artifact(job_id):
+    """Delete exactly one project's output; preserve SQLite jobs and logs."""
+    if not allow_private_export(request):
+        return jsonify(error="Artifact cleanup requires trusted LAN/VPN"), 403
+    if update_view().get("phase") in ("queued", "running"):
+        return jsonify(error="Factory update is running"), 409
+    job = safe_job(job_id)
+    if job is None:
+        return jsonify(error="Job not found"), 404
+    data=request.get_json(silent=True)
+    if (not isinstance(data,dict) or
+            set(data)!={"confirm"} or
+            data.get("confirm")!="DELETE-LOCAL-ARTIFACT:"+job_id):
+        return jsonify(error="Exact artifact deletion confirmation required"), 400
+    # Only outputs of terminal jobs; never the baseline, log, source or worktree.
+    try:
+        bytes_removed,kind=purge_local_artifact(job,root=ROOT,data=DATA)
+    except FileNotFoundError as exc:
+        return jsonify(error=str(exc)), 404
+    except (ValueError,OSError) as exc:
+        return jsonify(error=str(exc)), 409
+    db=connect()
+    try:
+        db.execute("INSERT INTO artifact_events "
+                   "(job_id,profile,kind,action,bytes,created_at) VALUES (?,?,?,?,?,?)",
+                   (job_id,job["profile"],kind,"delete_local",bytes_removed,now()))
+        db.commit()
+    finally:
+        db.close()
+    return jsonify(ok=True,job_id=job_id,bytes_freed=bytes_removed,
+                   message="Output deleted. Job history and build logs retained.")
 
 
 @app.post("/api/jobs/<job_id>/stop")

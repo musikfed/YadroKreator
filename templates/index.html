@@ -17,8 +17,9 @@
       <a class="nav active" href="#overview" data-tab="overview"><span>◈</span> Обзор</a>
       <a class="nav" href="#builds" data-tab="builds"><span>▣</span> WIFICAM T23N <i id="navBuildCount">0</i></a>
       <a class="nav" href="#irila" data-tab="irila"><span>◈</span> Irila Baikal</a>
+      <div id="registeredProjectNav" class="registered-project-nav" aria-label="Подключённые проекты сборки"></div>
+      <div class="sidebar-label factory-tools-label">ИНСТРУМЕНТЫ И СЕРВИСЫ</div>
       <a class="nav" href="#helper" data-tab="helper"><span>⚙</span> WifCam Helper</a>
-      <a class="nav" href="#artifacts" data-tab="artifacts"><span>▣</span> Образы T23N</a>
       <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
     </nav>
     <div class="sidebar-bottom">
@@ -67,17 +68,20 @@
           <div class="metric"><div class="metric-top"><span>СБОРКИ</span><b>⌘</b></div><div class="metric-value" id="jobsNumber">0</div><div class="metric-footer" id="currentStatus">Нет активных задач</div></div>
         </div>
         <div class="dashboard-bottom"><div class="surface" id="buildLines">
-            <div class="surface-head"><div><small>ПРОФИЛИ СБОРКИ</small><h3>Независимые направления</h3></div><span class="count">03</span></div>
+            <div class="surface-head"><div><small>ПРОЕКТЫ И ИСХОДНИКИ</small><h3>Независимые направления</h3></div><span class="count" id="projectCount">02</span></div>
             <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · MIPS · отдельная сборка SD-прошивки</small><span class="tag">СБОРКА SD</span></div><a class="round-btn" href="#builds" title="Перейти к WIFICAM">↗</a></div>
             <div class="profile"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Irila Baikal</strong><small>Ubuntu x86-64 · аудит Git-исходников; сборка IMG в собственном CI</small><span class="tag neutral">АУДИТ / CI</span></div><a class="round-btn" href="#irila" title="Перейти к Irila">↗</a></div>
-            <div class="profile"><div class="profile-icon">⚙</div><div class="profile-text"><strong>WifCam Helper</strong><small>Отдельный стенд RTSP и аудио · не компилятор ядра</small><span class="tag neutral">ТЕСТИРОВАНИЕ</span></div><a class="round-btn" href="#helper" title="Перейти к WifCam Helper">↗</a></div>
+             <div id="registeredProjectCards"></div>
+             <a class="secondary" href="#system" id="addGithubProjectLink">+ Подключить GitHub-проект или ветку</a>
           </div><div class="surface">
             <div class="surface-head"><div><small>ПОСЛЕДНИЕ СОБЫТИЯ</small><h3>История запусков по проектам</h3></div><a class="small-link" href="#activity">Текущая задача ↗</a></div>
             <div id="recentJobs" class="recent-list"><p class="empty">История пока пуста</p></div>
           </div></div>
       </section>
       <section data-panel="builds" class="panel" hidden>
-        <div class="page-heading"><div><small>ЛИНИЯ 01 / WIFICAM T23N · MIPS</small><h1>Сборка SD-прошивки камеры</h1><p>Thingino/Buildroot · Ingenic T23N · собственные журналы и IMG. Irila и Helper здесь не собираются.</p></div><button id="newBuild" class="primary">▶ Собрать WIFICAM</button></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 01 / WIFICAM T23N · MIPS</small><h1 id="wificamHeading">WIFICAM T23N · SD-прошивка</h1><p id="wificamDescription">Thingino/Buildroot · Ingenic T23N · результат каждой сборки привязан к Git SHA. Проверка образа не проверяет камеру физически.</p></div><div class="factory-heading-actions"><a class="secondary" href="https://github.com/musikfed/wificam_T23N" target="_blank" rel="noopener noreferrer">↗ Исходники GitHub</a><button id="newBuild" class="primary">▶ Создать образ</button></div></div>
+        <div class="factory-workspace-hint">Один проект · Git-источники → Создать → Проверить → Скачать · архивы и журналы остаются здесь</div>
+        <div id="wificamBuildControls" class="project-subpanel">
         <div class="lane-bar"><span>▣ Дерево WIFICAM</span><code id="wificamBuildRoot">—</code><span>Только MIPS · FAT16/ext4 · SD</span></div>
         <div class="surface" style="margin-bottom:20px;padding:18px">
           <div class="surface-head"><div><small>GITHUB → HUANANZHI → BUILD</small><h3>Исходники из GitHub без копирования</h3></div></div>
@@ -91,10 +95,11 @@
             <input id="helperPreset" type="checkbox" style="width:18px;height:18px">
             <span>Использовать утверждённый профиль WifCam Helper (опционально)</span>
           </label>
-          <p class="muted">Профиль из соседнего проекта <code>projects/wifcam_helper/profiles/t23n_lean.json</code> фиксируется отдельно для этой сборки. Разрешён только <code>WIFICAM_WEBRTC=0|1</code>. Оценки тестового стенда не изменяют ядро автоматически.</p>
+          <p class="muted"><span id="helperBranchNote">Helper-профиль поддерживает только ветку mymarrchWFcam.</span> Профиль из соседнего проекта <code>projects/wifcam_helper/profiles/t23n_lean.json</code> фиксируется отдельно для этой сборки. Разрешён только <code>WIFICAM_WEBRTC=0|1</code>. Оценки тестового стенда не изменяют ядро автоматически.</p>
           <p class="muted">Источник: github.com/musikfed/wificam_T23N · загрузка по Git непосредственно на сервере · PUBLISH=0</p>
         </div>
-        <div class="build-layout"><div class="surface"><div class="surface-head"><div><small>SQLITE HISTORY</small><h3>Очередь и история</h3></div><span class="count" id="buildCount">0</span></div><div id="jobsList" class="jobs-list"><p class="empty">Сборок пока нет</p></div></div>
+        <div class="build-layout factory-build-grid"><div class="factory-list-column"><div class="surface"><div class="surface-head"><div><small>SQLITE HISTORY</small><h3>Очередь и история</h3></div><span class="count" id="buildCount">0</span></div><div id="jobsList" class="jobs-list"><p class="empty">Сборок пока нет</p></div></div>
+          <div class="surface factory-artifacts"><div class="surface-head"><div><small>ARTIFACTS / STATUS</small><h3>Образы и результаты сборок</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет образов</p></div><div class="factory-github-bar"><button type="button" id="wificamGithubRefresh" class="secondary">↻ GitHub Actions</button><a href="https://github.com/musikfed/wificam_T23N/actions" target="_blank" rel="noopener noreferrer">↗ Открыть GitHub</a></div><div id="wificamGithubArtifactList" class="artifact-list"></div></div></div>
           <div class="surface log-surface"><div class="surface-head"><div><small>LIVE BUILD OUTPUT</small><h3 id="logTitle">Консоль сборки</h3></div><button id="stopBuild" class="danger" disabled>■ Остановить</button></div>
             <div class="build-timeline" id="buildTimeline">
               <div class="timeline-times"><span id="buildStarted">Старт: —</span><span id="buildFinished">Конец: —</span><span id="buildElapsed">Время: —</span></div>
@@ -102,7 +107,7 @@
               <p class="muted" id="buildProgressText">Для первой сборки точный прогноз недоступен</p>
             </div>
             <div class="preflight-controls">
-              <button id="validateBuild" class="primary" disabled type="button">✓ Проверить образ перед записью SD</button>
+              <button id="validateBuild" class="secondary" disabled type="button">✓ Проверить</button><button id="downloadSelected" class="primary" disabled type="button">↓ Скачать</button><button id="deleteSelectedArtifact" class="danger" disabled type="button">🗑 Удалить образ</button>
               <small>Проверка только структуры файла — не загрузки на реальной камере</small>
             </div>
             <div class="preflight-report" id="preflightReport" hidden>
@@ -114,9 +119,21 @@
 Здесь появится журнал компиляции.
 </pre><div class="terminal-footer"><span>LOGS / SQLITE / SYSTEMD</span><span id="logBytes">0 B</span></div>
           </div></div>
+        </div>
+        <details class="factory-guide"><summary>Как записать и проверить SD-образ</summary>        <div class="surface sd-export-guide">
+          <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
+          <p>После завершения сборки нажми <strong>«Скачать образ .img»</strong> на карточке нужного файла. <strong>Никакого одноразового кода, ID или терминала:</strong> панель сама выберет образ и сверит SHA256, MBR, MSPL LBA34, FAT16/uImage и ext4 перед передачей. <strong>Сборка ядра не повторяется.</strong> Кнопка «Проверить SD» остаётся для просмотра схемы.</p>
+          <p><strong>Доступ:</strong> скачивание приватных образов разрешено только клиентам доверенной локальной сети Huananzhi (по умолчанию <code>192.168.0.0/24</code> и loopback). Панель всё ещё без входа: любой, кто попал в разрешённую сеть, может скачать образ с персональными Wi-Fi настройками. Не открывай порт 62404 в интернет; для удалённого доступа используй защищённый VPN или SSH.</p>
+          <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
+          <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
+          <p><a href="https://github.com/musikfed/YadroKreator/blob/main/docs/SD_DOWNLOAD_RU.md" target="_blank" rel="noopener noreferrer">Подробная инструкция: скачать, записать, проверить и восстановить</a></p>
+        </div>
+</details>
       </section>
       <section data-panel="irila" class="panel" hidden>
-        <div class="page-heading"><div><small>ЛИНИЯ 02 / IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal — независимый проект</h1><p>Отдельный GitHub SHA, рабочая папка, systemd unit и журнал. Никаких драйверов T23N и SD-образов.</p></div></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 02 / IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal · IMG</h1><p>Ubuntu x86-64 · локальный аудит исходников и отдельная сборка IMG в утверждённом GitHub Actions.</p></div><div class="factory-heading-actions"><a class="secondary" target="_blank" rel="noopener noreferrer" href="https://github.com/musikfed/Irila_baikal_v1.0">↗ Исходники</a><button class="primary" type="button" id="irilaGithubBuild">▶ Создать IMG · GitHub</button></div></div>
+        <div class="factory-workspace-hint">Один проект · Создать IMG в GitHub → Проверить аудит → Скачать результат · журналы и артефакты справа</div>
+        <div id="irilaSource" class="project-subpanel">
         <div class="lane-bar"><span>◈ Дерево Irila</span><code id="irilaBuildRoot">—</code><span>Только x86-64 · Secure Boot · отдельный CI</span></div>
         <div class="surface" style="margin-bottom:20px;padding:20px">
           <h3>Исходники и проверка конвейера</h3>
@@ -124,18 +141,33 @@
           <button id="irilaCheck" class="primary" type="button">▶ Проверить исходники Irila</button>
           <p class="muted">Полная сборка Irila: Canonical/Microsoft Secure Boot, GPT/EFI/ext4 и привилегированные loop/mkfs. До отдельной настройки безопасного root-окружения запускается в своём <a href="https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml" target="_blank" rel="noopener noreferrer">GitHub Actions workflow</a>. Она не является сборкой кастомного ядра T23N.</p>
         </div>
-        <div class="build-layout">
-          <div class="surface"><div class="surface-head"><h3>История Irila</h3></div><div id="irilaJobs" class="jobs-list"></div></div>
+        </div>
+        <div id="irilaHistory" class="project-subpanel">
+        <div class="build-layout factory-build-grid">
+          <div class="factory-list-column"><div class="surface"><div class="surface-head"><h3>История аудитов Irila</h3></div><div id="irilaJobs" class="jobs-list"></div></div>
+          <div class="surface factory-artifacts"><div class="surface-head"><h3>Файлы и сборки Irila</h3></div><div id="irilaArtifactList" class="artifact-list"></div><div class="factory-github-bar"><button type="button" class="secondary" id="irilaGithubRefresh">↻ Список GitHub IMG</button><a target="_blank" rel="noopener noreferrer" href="https://github.com/musikfed/Irila_baikal_v1.0/actions">↗ GitHub Actions</a></div><div id="irilaGithubArtifactList" class="artifact-list"></div></div></div>
           <div class="surface log-surface"><div class="surface-head"><h3>Журнал и аудит Irila</h3><button class="danger" id="irilaStop" type="button" disabled>■ Остановить аудит</button></div>
             <pre id="irilaLog" class="terminal">Выберите проверку Irila.</pre>
             <button id="irilaReport" class="secondary" type="button" disabled>✓ Посмотреть отчёт проверки исходников</button>
-            <button id="irilaExport" class="secondary" type="button" disabled>↓ Скачать только отчёт Irila (.json)</button>
+            <button id="irilaExport" class="secondary" type="button" disabled>↓ Скачать проверенный отчёт .json</button><button id="irilaDeleteArtifact" class="danger" type="button" disabled>🗑 Удалить отчёт</button>
           </div>
+        </div>
         </div>
       </section>
       <section data-panel="helper" class="panel" hidden>
-        <div class="page-heading"><div><small>ЛИНИЯ 03 / WIFCAM HELPER · TEST BENCH</small><h1>Тестирование камеры</h1><p>Тесты микрофона, динамика, RTSP, изображения и безопасный профиль сборки.</p></div></div>
+        <div class="page-heading"><div><small>ЛИНИЯ 03 / WIFCAM HELPER · TEST BENCH</small><h1>WifCam Helper</h1><p>Наблюдение и диагностика камеры: микрофон, динамик, RTSP, видеопоток и результаты тестирования.</p></div></div>
+        <div class="project-subnav" role="tablist" aria-label="Разделы Helper">
+          <button type="button" class="project-tab active" data-project-subtab="helper" data-target="helperSource" role="tab" aria-selected="true">Исходники и назначение</button>
+          <button type="button" class="project-tab" data-project-subtab="helper" data-target="helperStatus" role="tab" aria-selected="false">Состояние и управление</button>
+        </div>
+        <div id="helperSource" class="project-subpanel">
         <div class="lane-bar"><span>⚙ Исходники стенда</span><code id="helperSourcePath">—</code><span>Только тесты и JSON-профили; не компилятор ядра</span></div>
+        <div class="surface project-detail"><div class="surface-head"><div><small>OBSERVATION LANE / STANDALONE</small><h3>Инженерный тестовый стенд</h3></div></div>
+          <p>Выполняет тесты камеры отдельно от прошивки. Репозиторий: <a class="small-link" href="https://github.com/musikfed/wifcam_helper" target="_blank" rel="noopener noreferrer">musikfed/wifcam_helper</a>.</p>
+          <p class="muted">Для тестирования на Huananzhi предусмотрен отдельный localhost:8765 и SSH-туннель на Acer. Сборку T23N выполняет только профиль WIFICAM.</p>
+        </div>
+        </div>
+        <div id="helperStatus" class="project-subpanel" hidden>
         <div class="surface" style="padding:20px">
           <h3>Отдельный проект, а не прошивка</h3>
           <p>Путь: <code>/1tbdisk/PegineLab/projects/wifcam_helper</code>. Инструменты диагностики запускаются отдельно на CORE и <strong>не передают произвольные команды ядру</strong>. Для T23N передаётся только утверждённый JSON с <code>WIFICAM_WEBRTC=0|1</code>.</p>
@@ -158,20 +190,9 @@
           </div>
           <p class="muted">Открытие отдельного стенда — через собственный localhost:8765 (на Acer — SSH -L 8765:127.0.0.1:8765 user@192.168.0.100). Это не переход в сборку WIFICAM. Обновления исходников и пересборку выполняем отдельным SSH-скриптом, не из панели.</p>
         </div>
-      </section>
-      <section data-panel="artifacts" class="panel" hidden>
-        <div class="page-heading"><div><small>BUILD OUTPUT</small><h1>Образы WIFICAM T23N</h1><p>Только SD-прошивки камеры, MBR/MSPL и ext4. Аудиты Irila остаются в разделе Irila, образы USB Secure Boot — в её отдельном GitHub Actions.</p></div></div>
-        <div class="surface"><div class="surface-head"><div><small>LOCAL STORAGE</small><h3>Файлы на сервере</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет артефактов</p></div></div>
-        <div class="surface sd-export-guide">
-          <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
-          <p>После завершения сборки нажми <strong>«Скачать образ .img»</strong> на карточке нужного файла. <strong>Никакого одноразового кода, ID или терминала:</strong> панель сама выберет образ и сверит SHA256, MBR, MSPL LBA34, FAT16/uImage и ext4 перед передачей. <strong>Сборка ядра не повторяется.</strong> Кнопка «Проверить SD» остаётся для просмотра схемы.</p>
-          <p><strong>Доступ:</strong> скачивание приватных образов разрешено только клиентам доверенной локальной сети Huananzhi (по умолчанию <code>192.168.0.0/24</code> и loopback). Панель всё ещё без входа: любой, кто попал в разрешённую сеть, может скачать образ с персональными Wi-Fi настройками. Не открывай порт 62404 в интернет; для удалённого доступа используй защищённый VPN или SSH.</p>
-          <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
-          <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
-          <p><a href="https://github.com/musikfed/YadroKreator/blob/main/docs/SD_DOWNLOAD_RU.md" target="_blank" rel="noopener noreferrer">Подробная инструкция: скачать, записать, проверить и восстановить</a></p>
         </div>
-        <div class="hint">⌁ Экспорт доступен одним нажатием из разрешённой LAN. Это не персональная авторизация: защити сеть и не публикуй приватные Wi-Fi-образы в GitHub. Скачивание не прошивает карту и не запускает сборку.</div>
       </section>
+      <div id="registeredProjectPanels"></div>
       <section data-panel="system" class="panel" hidden>
         <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
         <div class="surface panel-lifecycle">
@@ -185,6 +206,39 @@
             <button id="systemRefresh" class="secondary" type="button">◉ Проверить статус</button>
           </div>
           <p class="muted">Остановка во время сборки прервёт компиляцию. Восстановление с Linux: <code>cd /1tbdisk/PegineLab/projects/YadroKreator &amp;&amp; bash start.sh</code>. С Windows: <code>ssh user@192.168.0.100</code>, затем <code>bash start.sh</code>. Кнопка запуска в отключённой панели работать не может; не выключайте сайт ради обновления GitHub.</p>
+        </div>
+        <div class="surface" id="githubProjectRegistry">
+          <div class="surface-head"><div><small>GITHUB PROJECT SOURCES</small><h3>Подключение веток и независимых проектов</h3></div><span class="tag neutral">Только доверенный GitHub · musikfed</span></div>
+          <p class="muted">Добавление ветки к WIFICAM включает её в реальную SD-сборку с закреплением Git SHA. Новые проекты подключаются только вручную. Режим «Наблюдение» не компилирует ничего, а «Кандидат на сборку» требует peginelab.project.json в выбранной ветке и проверенного адаптера перед включением компиляции.</p>
+          <div class="registry-grid">
+            <form id="registerWificamBranch" class="registry-form">
+              <h4>Новая ветка WIFICAM T23N</h4>
+              <label for="registryBranch">Ветка musikfed/wificam_T23N</label>
+              <input id="registryBranch" name="branch" type="text" maxlength="101" placeholder="feature/new-kernel" required autocomplete="off">
+              <button type="submit" class="secondary">+ Проверить GitHub и добавить ветку</button>
+            </form>
+            <form id="registerGithubProject" class="registry-form">
+              <h4>Новый проект · своя вкладка</h4>
+              <label for="registryTitle">Название проекта</label>
+              <input id="registryTitle" name="title" maxlength="70" placeholder="Моё ядро Linux" required autocomplete="off">
+              <label for="registrySlug">Короткий ID для вкладки (латиница)</label>
+              <input id="registrySlug" name="slug" maxlength="32" placeholder="my-kernel" required autocomplete="off">
+              <label for="registryRepo">GitHub-репозиторий</label>
+              <input id="registryRepo" name="repository" maxlength="150" placeholder="musikfed/my-linux-kernel" required autocomplete="off">
+              <label for="registryProjectBranch">Ветка</label>
+              <input id="registryProjectBranch" name="branch" maxlength="101" value="main" required autocomplete="off">
+              <label for="registryMode">Роль проекта</label>
+              <select id="registryMode" class="source-select" name="mode">
+                <option value="observe" selected>Наблюдение — Git, состояние, документация</option>
+                <option value="build">Кандидат на сборку — контракт ядра/прошивки</option>
+              </select>
+              <p class="muted" id="registryModeHint">Наблюдение не запускает сборку и не предполагает, что любой GitHub-проект является ядром.</p>
+              <a class="small-link" href="https://github.com/musikfed/YadroKreator/blob/feature/project-lanes-github-registry-20261104/docs/PROJECT_CONTRACT_RU.md" target="_blank" rel="noopener noreferrer">Формат подготовки проекта · PegineLab Contract v1</a>
+              <button type="submit" class="secondary">+ Проверить GitHub и подключить проект</button>
+            </form>
+          </div>
+          <p id="registryMessage" class="muted" role="status" aria-live="polite">Настройки хранятся только в локальном factory-state/registered-projects.json. Задания и образы других проектов не изменяются.</p>
+          <div id="registryProjectList" class="registered-project-summary"></div>
         </div>
         <div class="surface update-surface">
           <div class="surface-head"><div><small>GITHUB RELEASE CONTROL</small><h3>Обновления и восстановление YadroKreator</h3></div><span id="updateStatus" class="tag neutral">Проверка...</span></div>
