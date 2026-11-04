@@ -88,7 +88,8 @@ function renderRegisteredProjects(projects){
     const icon=element("div","profile-icon","◈");
     const info=element("div","profile-text");
     info.append(element("strong","",p.title),element("small","",p.repository+" · "+p.branch));
-    info.append(element("span","tag neutral","АДАПТЕР НЕ ПОДКЛЮЧЁН"));
+    const observe=p.mode==="observe"||p.build_mode==="observe";
+    info.append(element("span","tag neutral",observe?"НАБЛЮДЕНИЕ · БЕЗ СБОРКИ":"КОНТРАКТ · АДАПТЕР ОЖИДАЕТ"));
     const cardLink=element("a","round-btn","↗");cardLink.href="#"+tab;
     cardLink.title="Открыть "+p.title;
     card.append(icon,info,cardLink);cards.append(card);
@@ -100,11 +101,19 @@ function renderRegisteredProjects(projects){
     const header=element("div");
     const eyebrow=element("small","","GITHUB PROJECT / ISOLATED WORKSPACE");
     const title=element("h1","",p.title);
-    const description=element("p","","Отдельный репозиторий и ветка. Адаптер компиляции ядра пока не утверждён.");
+    const description=element("p","",observe
+       ?"Проект подключён для наблюдения. Исходники и Git доступны; мониторинг и сборка требуют самостоятельной интеграции."
+       :"Проект заявил параметры сборки контрактом v1. До утверждения адаптера исполнение запрещено.");
     header.append(eyebrow,title,description);heading.append(header);project.append(heading);
     const tabs=element("div","project-subnav");
     tabs.setAttribute("role","tablist");tabs.setAttribute("aria-label","Разделы "+p.title);
-    const items=[
+    const items=observe?[
+      ["source","Исходники и GitHub"],
+      ["build","Наблюдение"],
+      ["images","Отчёты"],
+      ["logs","События"],
+      ["settings","Конфигурация"],
+    ]:[
       ["source","Исходники и GitHub"],
       ["build","Сборки и очередь"],
       ["images","Образы проекта"],
@@ -137,17 +146,29 @@ function renderRegisteredProjects(projects){
         });
         area.append(refresh);
       }else if(mode==="build"){
-        area.append(element("h3","","Профиль сборки ядра"));
-        area.append(element("p","muted","Конвейер не подключён. До утверждения toolchain, архитектуры, build-рецепта и проверки артефактов запуск произвольных команд из GitHub запрещён. WIFICAM собирается отдельно через профиль t23n_sd."));
+        area.append(element("h3","",observe?"Режим наблюдения":"Профиль сборки ядра"));
+        area.append(element("p","muted",observe
+           ?"Компиляция не предусмотрена. Реальные сигналы появятся после подключения проверенного источника метрик; фиктивные данные не создаются."
+           :"Конвейер ожидает утверждённый локальный адаптер/toolchain. Контракт описывает сборку, но не разрешает выполнение сценариев GitHub."));
+        if(p.contract?.adapter)area.append(element("p","muted","Заявленный адаптер: "+p.contract.adapter+
+          " · SHA контракта: "+p.contract.source_sha));
       }else if(mode==="images"){
-        area.append(element("h3","","Образы этого проекта"));
-        area.append(element("p","muted","Сейчас нет локальных артефактов для скачивания. Образы другого проекта сюда не попадают."));
+        area.append(element("h3","",observe?"Отчёты и файлы проекта":"Образы этого проекта"));
+        area.append(element("p","muted",observe
+          ?"Нет подключённого источника отчётов. Для наблюдения нужно настроить отдельный адаптер метрик."
+          :"Нет опубликованных артефактов этого проекта. Образы другого проекта сюда не попадают."));
+        for(const item of p.contract?.outputs||[]){
+          area.append(element("p","muted",item.type+" · ожидаемый путь: "+item.path));
+        }
       }else if(mode==="logs"){
         area.append(element("h3","","Журнал проекта"));
-        area.append(element("p","muted","Пока нет заданий. После подключения собственного адаптера сюда будут поступать логи его сборок."));
+        area.append(element("p","muted",observe
+          ?"События недоступны до подключения собственного адаптера наблюдения."
+          :"Пока нет заданий. После подключения собственного адаптера сюда будут поступать реальные логи сборок."));
       }else{
         area.append(element("h3","","Изолированная конфигурация"));
-        area.append(element("p","muted","Источник: "+p.repository+" · ветка: "+p.branch+" · режим: ожидание утверждённого адаптера"));
+        area.append(element("p","muted","Источник: "+p.repository+" · ветка: "+p.branch+" · режим: "+
+         (observe?"наблюдение":"ожидает утверждённого адаптера")));
         area.append(element("p","muted","Регистрация не запускает компилятор, не изменяет systemd, Docker и базу старых заданий."));
       }
       sections.set(mode,area);
@@ -167,7 +188,7 @@ function renderRegisteredProjects(projects){
     const row=element("div","registered-project-item");
     const jump=element("a","small-link",p.title+" · "+p.repository+" / "+p.branch);
     jump.href="#"+tab;
-    row.append(jump,element("span","tag neutral","АДАПТЕР ОЖИДАЕТ"));summary.append(row);
+    row.append(jump,element("span","tag neutral",observe?"НАБЛЮДЕНИЕ":"АДАПТЕР ОЖИДАЕТ"));summary.append(row);
   }
   if(!projects.length){
     summary.append(element("p","muted","Пока подключены только штатные проекты WIFICAM, Irila и Helper."));
@@ -179,10 +200,12 @@ async function registerGitHub(kind){
   const data=kind==="branch"
     ?{kind,branch,confirm:"REGISTER-BRANCH"}
     :{kind,slug:$("registrySlug").value.trim(),title:$("registryTitle").value.trim(),
-       repository:$("registryRepo").value.trim(),branch,confirm:"REGISTER-PROJECT"};
+       repository:$("registryRepo").value.trim(),branch,
+       mode:$("registryMode").value,confirm:"REGISTER-PROJECT"};
   const message=kind==="branch"
     ?"Добавить ветку "+branch+" к настоящей сборке WIFICAM?"
-    :"Создать отдельную вкладку проекта "+data.title+" без выполнения неподтверждённого кода из GitHub?";
+    :"Подключить "+data.title+" в режиме «"+(data.mode==="observe"?"Наблюдение":"Кандидат на сборку")+
+      "»? Неподтверждённые скрипты и Docker-команды не запускаются.";
   if(!confirm(message))return;
   $text("registryMessage","Проверяем существование ветки в GitHub…");
   try{
@@ -191,7 +214,8 @@ async function registerGitHub(kind){
     await refresh();
     $text("registryMessage",kind==="branch"
       ?"Ветка зарегистрирована. Перейди в WIFICAM → Сборки и журнал и выбери её."
-      :"Новая вкладка зарегистрирована; сборка ядра потребует отдельного адаптера.");
+      :data.mode==="observe"?"Наблюдаемый проект подключён вручную, сборка отключена."
+       :"Контракт проверен. Для исполнения потребуется проверенный адаптер сборки.");
     if(kind==="project")location.hash="project-"+data.slug;
     else location.hash="builds";
     setTab();
@@ -421,7 +445,7 @@ function renderOverview(data) {
     updateHelperBranchCompatibility();
   }
   const projects=data.registered_projects||[];
-  const currentIds=[...(overview.registered_projects||[])].map(p=>p.slug).join(",");
+  const currentIds=projects.map(p=>p.slug+":"+(p.mode||"build")+":"+p.branch).join(",");
   if(window.registeredIds!==currentIds){
     renderRegisteredProjects(projects);
     window.registeredIds=currentIds;
