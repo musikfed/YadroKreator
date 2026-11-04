@@ -31,9 +31,9 @@
    При гарантированно определённой съёмной SD через USB-кардридер используйте **только** проверенный скрипт из работы WIFICAM:
    \`\`\`bash
    # Пример аргументов; не запускать до проверки устройства и полного пути!
-   sudo sh /1tbdisk/PegineLab/build/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/scripts/write_thingino_wificam_sd.sh \
+   sudo sh /1tbdisk/PegineLab/build/projects/wificam_T23N/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/scripts/write_thingino_wificam_sd.sh \
      /dev/ПРОВЕРЕННАЯ_SD \
-     /1tbdisk/PegineLab/build/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/out/private-sd/thingino-t23-sd.bin
+     /1tbdisk/PegineLab/build/projects/wificam_T23N/jobs/ПОЛНЫЙ_ID_ЗАДАНИЯ/wificam_T23N/out/private-sd/thingino-t23-sd.bin
    \`\`\`
    Скрипт проверяет тип диска/USB/RM, сигнатуры, размер, запрашивает ручное подтверждение и **читает записанный образ обратно** для сверки SHA256. Не использовать скрипт для внутренних SSD, других SoC и обычных ISO.
 6. **Первый запуск:** отключить питание камеры → вставить SD → включить → проверить boot, SSH, Wi-Fi, Web UI \`:8090\`, видеопоток, CGI/API, PTZ, повторный старт. Эталон \`0.1_test\` не удалять.
