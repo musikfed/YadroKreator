@@ -28,7 +28,7 @@ class NoRedirect(HTTPRedirectHandler):
 def _path(value: object) -> str:
     if (not isinstance(value, str) or len(value) > 200 or
             not SAFE_PATH.fullmatch(value) or
-            any(segment in (".", "..") for segment in value.split("/"))):
+            any(segment.startswith(".") for segment in value.split("/"))):
         raise ValueError("Contract paths must be repository-relative and without traversal")
     return value
 
