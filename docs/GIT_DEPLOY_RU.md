@@ -44,17 +44,17 @@ bash bootstrap.sh
 /1tbdisk/PegineLab/
 ├── projects/YadroKreator/            # панель, отдельный Git main
 ├── projects/wificam_T23N/            # существующая старая копия — не меняем
-├── build/git-cache/wificam_T23N.git   # bare cache источников
-├── build/jobs/<job-id>/wificam_T23N/  # фиксированный Git SHA и кандидат SD
+├── build/projects/wificam_T23N/git-cache/wificam_T23N.git  # bare Git-кеш
+├── build/projects/wificam_T23N/jobs/<job-id>/wificam_T23N/ # SHA и SD-кандидат
 ├── build/thingino-firmware/          # pinned upstream, общий build cache
 └── factory-state/                    # SQLite WAL и build logs
 ```
 
-Новый образ ветки `mymarrchWFcam` помещается в *отдельный каталог задачи*;
-для этой старой ветки результат внутри worktree называется
-`Thingino/thingino-t23-sd.bin`. Ветка `main` пишет
-`out/candidate-sd/thingino-t23-sd.bin`. Это **новые, ещё не проверенные
-на камере образы**, а не замена `0.1_test`. При наличии серверного
+Новый образ ветки `mymarrchWFcam` помещается в *отдельный каталог задачи*:
+`out/candidate-sd/thingino-t23-sd.bin`, либо `out/private-sd/thingino-t23-sd.bin`
+при явном локальном Wi-Fi файле. Git-эталон `Thingino/thingino-t23-sd.bin`
+считается **только** `0.1_test` для восстановления, не новым результатом.
+Новый образ **не проверен на камере** до физической приёмки. При наличии серверного
 `projects/wificam_T23N/local/wifi.env` он переносится в worktree автоматически,
 с правами 0600: результат приватный, `PUBLISH=0` не отправляет его в GitHub.
 Панель не скачивает бинарные файлы по HTTP.
