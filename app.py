@@ -543,6 +543,8 @@ def job_layout(job_id):
     job = safe_job(job_id)
     if job is None:
         return jsonify(error="Job not found"), 404
+    if job["profile"] not in ("t23n_sd", "t23n_helper_sd"):
+        return jsonify(error="No SD image layout for this profile"), 409
     result = saved_report(job, ROOT, DATA) if job["status"] == "success" else None
     if not result or result.get("verified") is not True or result.get("profile") not in ("t23n_sd", "t23n_helper_sd"):
         return jsonify(error="Only validated WIFICAM SD images have a disk map"), 409
