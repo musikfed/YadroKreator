@@ -10,6 +10,10 @@ from pathlib import Path
 from flask import Flask, jsonify, render_template, request, send_file
 from core import ROOT, DATA, LOGS, PROJECT, THINGINO, ACTIVE, connect, get_job, now, record_status
 from git_sources import BRANCHES, workspace_for, validate_branch
+from project_registry import (
+    load as load_registry, allowed_branches, add_project as register_project,
+    add_branch as register_branch,
+)
 from update_manager import view as update_view, start as start_update, finish as finish_update
 from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
@@ -243,6 +247,34 @@ def helper_service_action(action):
     return jsonify(ok=True, action=action, helper=helper_status())
 
 
+@app.post("/api/projects/register")
+def add_github_project():
+    """Trusted-network registration only, not execution of external build scripts."""
+    if not allow_private_export(request):
+        return jsonify(error="Project changes require trusted LAN/VPN"), 403
+    if update_view().get("phase") in ("queued", "running"):
+        return jsonify(error="Factory source update is in progress"), 409
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="JSON object required"), 400
+    try:
+        kind = data.get("kind")
+        if kind == "branch" and data.get("confirm") == "REGISTER-BRANCH":
+            if set(data) != {"kind", "branch", "confirm"}:
+                return jsonify(error="Unknown branch registration field"), 400
+            result = register_branch(data["branch"], data=DATA)
+        elif kind == "project" and data.get("confirm") == "REGISTER-PROJECT":
+            if set(data) != {"kind", "slug", "title", "repository", "branch", "confirm"}:
+                return jsonify(error="Unknown project registration field"), 400
+            result = register_project(data["slug"], data["title"],
+                                      data["repository"], data["branch"], data=DATA)
+        else:
+            return jsonify(error="Explicit project/branch confirmation required"), 400
+    except (ValueError, KeyError, OSError) as exc:
+        return jsonify(error=str(exc)), 422
+    return jsonify(ok=True, registry=result)
+
+
 @app.get("/api/overview")
 def overview():
     reconcile()
@@ -318,7 +350,9 @@ def overview():
             validation=job["validation"],
         ))
     return jsonify(
-        jobs=jobs, active_job=active_job, images=images, allowed_branches=list(BRANCHES),
+        jobs=jobs, active_job=active_job, images=images,
+         allowed_branches=list(allowed_branches(DATA)),
+         registered_projects=load_registry(DATA)["projects"],
         profiles={name: dict(info) for name, info in PROFILES.items()},
         irila_image_workflow=IRILA_IMAGE_WORKFLOW,
         metrics=dict(load_1=round(os.getloadavg()[0], 2),
@@ -346,7 +380,7 @@ def start_job():
         repo_ref = "main"
     else:
         try:
-            repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"))
+            repo_ref = validate_branch(data.get("branch", "mymarrchWFcam"), root=ROOT)
         except ValueError:
             return jsonify(error="Unsupported WIFICAM branch"), 400
     # Opt-in only: read one allowlisted preset from the sibling helper project.
