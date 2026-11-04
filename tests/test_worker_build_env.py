@@ -11,6 +11,9 @@ class WorkerBuildEnvTests(unittest.TestCase):
                         text.index('subprocess.Popen('))
         self.assertIn('"THINGINO_FAST": "0"', text)
         self.assertIn('"PUBLISH": "0"', text)
+        self.assertIn('no new per-job SD candidate', text)
+        self.assertIn('out/candidate-sd/thingino-t23-sd.bin', text)
+        self.assertIn('out/private-sd/thingino-t23-sd.bin', text)
 
     def test_factory_source_isolated_per_job(self):
         text = (Path(__file__).resolve().parents[1] / "git_sources.py").read_text()
