@@ -17,6 +17,7 @@ import subprocess
 from urllib.parse import urlsplit
 
 from core import DATA
+from project_contract import validate_contract, read_contract, MODES
 
 SCHEMA = "peginelab.factory.project-registry.v1"
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,79}\Z")
@@ -92,8 +93,14 @@ def load(data: Path = DATA) -> dict:
         validate_ref(p.get("branch"))
         if not isinstance(p.get("title"), str) or not 2 <= len(p["title"]) <= 70:
             raise ValueError("Invalid project title")
-        if p.get("build_mode") != "pending_adapter":
-            raise ValueError("Only approved non-executable project inventory is supported")
+        if p.get("build_mode") not in ("pending_adapter", "observe"):
+            raise ValueError("Invalid project registry mode")
+        if p.get("mode", "build") not in MODES:
+            raise ValueError("Unknown project mode")
+        if p.get("mode", "build") == "build" and p.get("build_mode") != "pending_adapter":
+            raise ValueError("Unreviewed builds cannot be enabled from registry")
+        if p.get("mode") == "observe" and p.get("build_mode") != "observe":
+            raise ValueError("Observed projects cannot be marked buildable")
     if len(set(slugs)) != len(slugs):
         raise ValueError("Duplicate project slug")
     return record
@@ -196,25 +203,57 @@ def add_branch(branch: str, *, data: Path = DATA, verify=git_ref_exists) -> dict
 
 @_serialized_registration
 def add_project(slug: str, title: str, repository: str, branch: str, *,
-                data: Path = DATA, verify=git_ref_exists) -> dict:
+                data: Path = DATA, mode: str = "observe", verify=git_ref_exists,
+                source_sha: str | None = None, manifest: dict | None = None) -> dict:
+    """Manual opt-in: monitor any selected repo; build only with a valid contract.
+
+    Even a valid build contract remains pending_adapter: it cannot grant itself
+    any executable permission or add a new factory build profile.
+    """
     slug = validate_slug(slug)
     repo = validate_repo(repository)
     branch = validate_ref(branch)
     title = title.strip() if isinstance(title, str) else ""
     if not 2 <= len(title) <= 70 or any(ord(char) < 32 for char in title):
         raise ValueError("Project name must contain 2–70 printable characters")
+    if mode not in MODES:
+        raise ValueError("Choose project mode build or observe")
     record = load(data)
     if len(record["projects"]) >= MAX_PROJECTS:
         raise ValueError("Project registry is full")
     if any(p["slug"] == slug for p in record["projects"]):
         raise ValueError("Project already exists")
     if not verify(repo, branch):
-        raise ValueError("GitHub branch not found; no empty project was registered")
+        raise ValueError("GitHub branch not found; no project was registered")
+    contract = None
+    if mode == "build":
+        pinned_sha = source_sha or git_ref_sha(repo, branch)
+        if not pinned_sha:
+            raise ValueError("Cannot confirm SHA for build contract; no project added")
+        doc = manifest if manifest is not None else read_contract(
+            f"musikfed/{repo}", branch, pinned_sha)
+        doc = validate_contract(doc, repo=f"musikfed/{repo}",
+                                branch=branch, mode="build")
+        contract = {
+            "schema": doc["schema"], "source_sha": pinned_sha,
+            "adapter": doc["pipeline"]["adapter"],
+            "entrypoint": doc["pipeline"].get("entrypoint"),
+            "platform": doc.get("platform", {}),
+            "outputs": doc["outputs"], "targets": doc.get("targets", []),
+            "docs": doc.get("docs", []),
+        }
+    elif manifest is not None:
+        doc=validate_contract(manifest,repo=f"musikfed/{repo}",
+                              branch=branch, mode="observe")
+        contract={"schema":doc["schema"],"platform":doc.get("platform",{}),
+                  "monitoring":doc.get("monitoring",{}),
+                  "docs":doc.get("docs", [])}
     record["projects"].append({
         "slug": slug, "title": title,
         "repository": f"musikfed/{repo}",
-        "branch": branch,
-        "build_mode": "pending_adapter",
+        "branch": branch, "mode":mode,
+        "build_mode": "pending_adapter" if mode=="build" else "observe",
+        "contract": contract,
         "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     })
     _save(record, data)
