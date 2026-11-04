@@ -324,6 +324,19 @@ def overview():
         jobs.insert(0, dict(active_row))
     decorate_jobs(jobs)
     for j in jobs:
+        if j["profile"] == "t23n_helper_sd":
+            # The first SHA is Helper Git; base WIFICAM SHA is also pinned
+            # by the job. Show provenance without leaking local paths/secrets.
+            pins = job_root(j["id"], "t23n_helper_sd", root=ROOT) / "source-pins.json"
+            if pins.is_file() and not pins.is_symlink() and pins.stat().st_size < 2048:
+                try:
+                    import json
+                    pinned=json.loads(pins.read_text(encoding="utf-8"))
+                    base_sha=pinned.get("base_sha","")
+                    if pinned.get("schema")=="peginelab.helper-firmware-pins.v1" and re.fullmatch(r"[0-9a-f]{40}",base_sha):
+                        j["base_source_sha"]=base_sha
+                except (OSError,ValueError,UnicodeError):
+                    pass
         j.pop("log_path", None)
         # Validation is read from saved metadata, not re-hashing 85 MiB
         # every 2.5 seconds when the dashboard refreshes.
