@@ -36,8 +36,8 @@ class DashboardTests(unittest.TestCase):
                  patch.object(dashboard,"register_branch",
                      side_effect=lambda branch,data: add_branch(branch,data=data,verify=lambda *_:True)), \
                  patch.object(dashboard,"register_project",
-                     side_effect=lambda slug,title,repository,branch,data:
-                         add_project(slug,title,repository,branch,data=data,verify=lambda *_:True)):
+                     side_effect=lambda slug,title,repository,branch,mode,data:
+                         add_project(slug,title,repository,branch,mode=mode,data=data,verify=lambda *_:True)):
                 route="/api/projects/register"
                 self.assertEqual(self.client.post(route,json={"kind":"branch",
                     "branch":"feature/new", "confirm":"REGISTER-BRANCH"}).status_code,403)
