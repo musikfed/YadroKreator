@@ -36,6 +36,13 @@ def status(root: Path = ROOT, state: Path | None = None) -> dict:
     unit_code, _ = _cmd("systemctl", "--user", "cat", HELPER_UNIT)
     installed = unit_code == 0
     if installed:
+        work_code, work = _cmd("systemctl", "--user", "show",
+                               "--property=WorkingDirectory", "--value", HELPER_UNIT)
+        exec_code, exec_detail = _cmd("systemctl", "--user", "show",
+                                      "--property=ExecStart", "--value", HELPER_UNIT)
+        installed = (work_code == 0 and work == str(source)
+                     and exec_code == 0 and "-m wifcam_helper web" in exec_detail)
+    if installed:
         _, output = _cmd("systemctl", "--user", "is-active", HELPER_UNIT)
         service = output if output in (
             "active", "inactive", "failed", "activating", "deactivating", "reloading"
