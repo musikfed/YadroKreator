@@ -17,8 +17,9 @@
       <a class="nav active" href="#overview" data-tab="overview"><span>◈</span> Обзор</a>
       <a class="nav" href="#builds" data-tab="builds"><span>▣</span> WIFICAM T23N <i id="navBuildCount">0</i></a>
       <a class="nav" href="#irila" data-tab="irila"><span>◈</span> Irila Baikal</a>
+      <div id="registeredProjectNav" class="registered-project-nav" aria-label="Подключённые проекты сборки"></div>
+      <div class="sidebar-label factory-tools-label">ИНСТРУМЕНТЫ И СЕРВИСЫ</div>
       <a class="nav" href="#helper" data-tab="helper"><span>⚙</span> WifCam Helper</a>
-      <div id="registeredProjectNav" class="registered-project-nav" aria-label="Подключённые GitHub-проекты"></div>
       <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
     </nav>
     <div class="sidebar-bottom">
@@ -67,10 +68,9 @@
           <div class="metric"><div class="metric-top"><span>СБОРКИ</span><b>⌘</b></div><div class="metric-value" id="jobsNumber">0</div><div class="metric-footer" id="currentStatus">Нет активных задач</div></div>
         </div>
         <div class="dashboard-bottom"><div class="surface" id="buildLines">
-            <div class="surface-head"><div><small>ПРОЕКТЫ И ИСХОДНИКИ</small><h3>Независимые направления</h3></div><span class="count" id="projectCount">03</span></div>
+            <div class="surface-head"><div><small>ПРОЕКТЫ И ИСХОДНИКИ</small><h3>Независимые направления</h3></div><span class="count" id="projectCount">02</span></div>
             <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · MIPS · отдельная сборка SD-прошивки</small><span class="tag">СБОРКА SD</span></div><a class="round-btn" href="#builds" title="Перейти к WIFICAM">↗</a></div>
             <div class="profile"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Irila Baikal</strong><small>Ubuntu x86-64 · аудит Git-исходников; сборка IMG в собственном CI</small><span class="tag neutral">АУДИТ / CI</span></div><a class="round-btn" href="#irila" title="Перейти к Irila">↗</a></div>
-            <div class="profile"><div class="profile-icon">⚙</div><div class="profile-text"><strong>WifCam Helper</strong><small>Отдельный стенд RTSP и аудио · не компилятор ядра</small><span class="tag neutral">ТЕСТИРОВАНИЕ</span></div><a class="round-btn" href="#helper" title="Перейти к WifCam Helper">↗</a></div>
              <div id="registeredProjectCards"></div>
              <a class="secondary" href="#system" id="addGithubProjectLink">+ Подключить GitHub-проект или ветку</a>
           </div><div class="surface">
