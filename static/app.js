@@ -36,13 +36,17 @@ function setTab() {
   const tab=(location.hash||"#overview").slice(1);
   const valid=["overview","builds","irila","helper","system"];
   const configured=(overview?.registered_projects||[]).find(p=>tab==="project-"+p.slug);
-  const current=valid.includes(tab)||configured?tab:"overview";
+  // Old #artifacts bookmarks open WIFICAM's own Images tab, not Overview.
+  const current=tab==="artifacts"?"builds":(valid.includes(tab)||configured?tab:"overview");
   const names={overview:"Обзор",builds:"WIFICAM T23N",irila:"Irila Baikal",helper:"WifCam Helper",system:"Система"};
   if(configured)names[current]=configured.title;
   document.querySelectorAll("[data-panel]").forEach(el=>el.hidden=el.dataset.panel!==current);
   document.querySelectorAll("[data-tab]").forEach(el=>el.classList.toggle("active",el.dataset.tab===current));
   $text("pageName",names[current]);document.title="PegineLab · "+names[current];
-  if(current==="builds") refreshLog();
+  if(current==="builds"){
+    if(tab==="artifacts")setWificamMode("images");
+    refreshLog();
+  }
   if(current==="irila") refreshIrilaLog();
 }
 let wificamMode="build";
