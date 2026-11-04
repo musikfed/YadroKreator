@@ -152,7 +152,7 @@ function renderRegisteredProjects(projects){
       left.append(catalog);
       const log=element("div","surface log-surface");
       log.append(element("h3","","Журнал сборки"));
-      const pre=element("pre","terminal","Заданий нет. Для нового семейства ядра требуется проверенный адаптер и изолированный конвейер."));
+      const pre=element("pre","terminal","Заданий нет. Для нового семейства ядра требуется проверенный адаптер и изолированный конвейер.");
       log.append(pre);grid.append(left,log);project.append(grid);
     }
     panels.append(project);
