@@ -69,122 +69,96 @@ function updateHelperBranchCompatibility(){
 }
 function renderRegisteredProjects(projects){
   const nav=$("registeredProjectNav"),panels=$("registeredProjectPanels"),summary=$("registryProjectList");
-  const cards=$("registeredProjectCards");cards.replaceChildren();
-  $text("projectCount",String(3+projects.length).padStart(2,"0"));
-  const previous=[...document.querySelectorAll('.panel[data-panel^="project-"]')]
-    .find(p=>p.dataset.panel===location.hash.slice(1));
-  nav.replaceChildren();
-  panels.replaceChildren();
-  summary.replaceChildren();
+  const cards=$("registeredProjectCards");
+  nav.replaceChildren();panels.replaceChildren();summary.replaceChildren();cards.replaceChildren();
+  const builders=projects.filter(p=>p.mode!=="observe"&&p.build_mode!=="observe");
+  $text("projectCount",String(2+builders.length).padStart(2,"0"));
   for(const p of projects){
     const tab="project-"+p.slug;
-    const card=element("div","profile");
-    const icon=element("div","profile-icon","◈");
-    const info=element("div","profile-text");
-    info.append(element("strong","",p.title),element("small","",p.repository+" · "+p.branch));
-    const observe=p.mode==="observe"||p.build_mode==="observe";
-    info.append(element("span","tag neutral",observe?"НАБЛЮДЕНИЕ · БЕЗ СБОРКИ":"КОНТРАКТ · АДАПТЕР ОЖИДАЕТ"));
-    const cardLink=element("a","round-btn","↗");cardLink.href="#"+tab;
-    cardLink.title="Открыть "+p.title;
-    card.append(icon,info,cardLink);cards.append(card);
-    const link=element("a","nav","▧  "+p.title);
-    link.href="#"+tab;link.dataset.tab=tab;nav.append(link);
+    const observing=p.mode==="observe"||p.build_mode==="observe";
+    const state=observing?"ТОЛЬКО НАБЛЮДЕНИЕ":"КОНТРАКТ ПРОВЕРЕН · АДАПТЕР ОЖИДАЕТ";
+    if(!observing){
+      const link=element("a","nav","▧  "+p.title);
+      link.href="#"+tab;link.dataset.tab=tab;nav.append(link);
+      const card=element("div","profile");
+      const icon=element("div","profile-icon","◈");
+      const info=element("div","profile-text");
+      info.append(element("strong","",p.title),
+                  element("small","",p.repository+" · "+p.branch),
+                  element("span","tag neutral",state));
+      const jump=element("a","round-btn","↗");jump.href="#"+tab;
+      card.append(icon,info,jump);cards.append(card);
+    }
+    const row=element("div","registered-project-item");
+    const jump=element("a","small-link",p.title+" · "+p.repository+" / "+p.branch);
+    jump.href="#"+tab;row.append(jump,element("span","tag neutral",state));summary.append(row);
     const project=element("section","panel");
     project.dataset.panel=tab;project.hidden=true;
     const heading=element("div","page-heading");
     const header=element("div");
-    const eyebrow=element("small","","GITHUB PROJECT / ISOLATED WORKSPACE");
-    const title=element("h1","",p.title);
-    const description=element("p","",observe
-       ?"Проект подключён для наблюдения. Исходники и Git доступны; мониторинг и сборка требуют самостоятельной интеграции."
-       :"Проект заявил параметры сборки контрактом v1. До утверждения адаптера исполнение запрещено.");
-    header.append(eyebrow,title,description);heading.append(header);project.append(heading);
-    const tabs=element("div","project-subnav");
-    tabs.setAttribute("role","tablist");tabs.setAttribute("aria-label","Разделы "+p.title);
-    // Only expose actual capabilities. Never render fake Jobs/Reports tabs.
-    const items=observe?[
-      ["source","Исходники и GitHub"],
-      ["settings","Подключение"],
-    ]:[
-      ["source","Исходники и GitHub"],
-      ["build","Контракт сборки"],
-      ["images","Заявленные результаты"],
-      ["settings","Конфигурация"],
-    ];
-    const sections=new Map();
-    for(const [mode,label] of items){
-      const btn=element("button","project-tab",label);
-      btn.type="button";btn.dataset.projectMode=mode;btn.setAttribute("role","tab");
-      const area=element("div","surface project-detail");
-      area.dataset.projectView=mode;area.hidden=mode!=="source";
-      if(mode==="source"){
-        area.append(element("h3","","Исходники на GitHub"));
-        const anchor=element("a","small-link",p.repository+" · "+p.branch);
-        anchor.href="https://github.com/"+p.repository+"/tree/"+p.branch;
-        anchor.target="_blank";anchor.rel="noopener noreferrer";
-        area.append(anchor);
-        const sha=element("p","muted","Проверено при регистрации. Для свежего SHA запроси GitHub вручную.");
-        area.append(sha);
-        const refresh=element("button","secondary","↻ Проверить актуальный Git SHA");
-        refresh.type="button";
-        refresh.addEventListener("click",async()=>{
-          refresh.disabled=true;
-          try{
-            const data=await api("/api/projects/"+encodeURIComponent(p.slug)+"/git-ref");
-            sha.textContent="Текущая ветка: "+data.branch+" · "+data.sha;
-          }catch(error){sha.textContent="Проверка GitHub не удалась: "+error.message;}
-          finally{refresh.disabled=false;}
-        });
-        area.append(refresh);
-      }else if(mode==="build"){
-        area.append(element("h3","",observe?"Режим наблюдения":"Профиль сборки ядра"));
-        area.append(element("p","muted",observe
-           ?"Компиляция не предусмотрена. Реальные сигналы появятся после подключения проверенного источника метрик; фиктивные данные не создаются."
-           :"Конвейер ожидает утверждённый локальный адаптер/toolchain. Контракт описывает сборку, но не разрешает выполнение сценариев GitHub."));
-        if(p.contract?.adapter)area.append(element("p","muted","Заявленный адаптер: "+p.contract.adapter+
-          " · SHA контракта: "+p.contract.source_sha));
-      }else if(mode==="images"){
-        area.append(element("h3","",observe?"Отчёты и файлы проекта":"Образы этого проекта"));
-        area.append(element("p","muted",observe
-          ?"Нет подключённого источника отчётов. Для наблюдения нужно настроить отдельный адаптер метрик."
-          :"Нет опубликованных артефактов этого проекта. Образы другого проекта сюда не попадают."));
-        for(const item of p.contract?.outputs||[]){
-          area.append(element("p","muted",item.type+" · ожидаемый путь: "+item.path));
-        }
-      }else if(mode==="logs"){
-        area.append(element("h3","","Журнал проекта"));
-        area.append(element("p","muted",observe
-          ?"События недоступны до подключения собственного адаптера наблюдения."
-          :"Пока нет заданий. После подключения собственного адаптера сюда будут поступать реальные логи сборок."));
-      }else{
-        area.append(element("h3","","Изолированная конфигурация"));
-        area.append(element("p","muted","Источник: "+p.repository+" · ветка: "+p.branch+" · режим: "+
-         (observe?"наблюдение":"ожидает утверждённого адаптера")));
-        area.append(element("p","muted","Регистрация не запускает компилятор, не изменяет systemd, Docker и базу старых заданий."));
+    header.append(element("small","","GITHUB PROJECT / "+(observing?"OBSERVATION":"BUILD CANDIDATE")),
+                  element("h1","",p.title),
+                  element("p","",observing
+                    ?"Наблюдаемый проект. Он не относится к фабрике ядер и не получает фиктивные кнопки компиляции."
+                    :"Только утверждённый адаптер сможет выполнять сборку ядра/образа. Сейчас доступны реальные Git-исходники и проверенный контракт."));
+    heading.append(header);
+    const toolbar=element("div","factory-heading-actions");
+    const source=element("a","secondary","↗ Исходники");
+    source.href="https://github.com/"+p.repository+"/tree/"+p.branch;
+    source.rel="noopener noreferrer";source.target="_blank";toolbar.append(source);
+    if(!observing){
+      for(const action of ["▶ Создать","✓ Проверить","↓ Скачать"]){
+        const button=element("button","secondary",action);button.type="button";button.disabled=true;
+        button.title="Нужен прошедший CI и ревью адаптер в YadroKreator. Фиктивный запуск запрещён.";
+        toolbar.append(button);
       }
-      sections.set(mode,area);
-      btn.addEventListener("click",()=>{
-        for(const [key,sec] of sections)sec.hidden=key!==mode;
-        for(const child of tabs.querySelectorAll("button")){
-          const selected=child.dataset.projectMode===mode;
-          child.classList.toggle("active",selected);
-          child.setAttribute("aria-selected",String(selected));
-        }
-      });
-      tabs.append(btn);project.append(area);
     }
-    tabs.firstChild.classList.add("active");
-    for(const child of tabs.children)child.setAttribute("aria-selected",String(child===tabs.firstChild));
-    project.insertBefore(tabs,project.children[1]);panels.append(project);
-    const row=element("div","registered-project-item");
-    const jump=element("a","small-link",p.title+" · "+p.repository+" / "+p.branch);
-    jump.href="#"+tab;
-    row.append(jump,element("span","tag neutral",observe?"НАБЛЮДЕНИЕ":"АДАПТЕР ОЖИДАЕТ"));summary.append(row);
+    heading.append(toolbar);project.append(heading);
+    const hint=element("div","factory-workspace-hint",observing
+       ?"Git-статус доступен по запросу; телеметрия требует отдельного драйвера мониторинга."
+       :"Один проект · Git SHA → адаптер → создание образа → проверка → скачивание. Адаптер пока не подключён.");
+    project.append(hint);
+    const sourcePanel=element("div","surface project-detail");
+    sourcePanel.append(element("h3","","Источник и зафиксированный контракт"));
+    const text=element("p","muted","Источник: "+p.repository+" · ветка: "+p.branch);
+    sourcePanel.append(text);
+    const sha=element("p","muted","Git SHA: проверь выбранную ветку.");
+    const btn=element("button","secondary","↻ Проверить исходники GitHub");btn.type="button";
+    btn.addEventListener("click",async()=>{
+      btn.disabled=true;
+      try{
+        const state=await api("/api/projects/"+encodeURIComponent(p.slug)+"/git-ref");
+        sha.textContent="Git SHA: "+state.sha+" · ветка: "+state.branch;
+      }catch(error){sha.textContent="Проверка Git не удалась: "+error.message;}
+      finally{btn.disabled=false;}
+    });
+    sourcePanel.append(sha,btn);
+    if(p.contract?.adapter){
+      sourcePanel.append(element("p","muted","Контракт: "+p.contract.adapter+" · Git "+
+                       (p.contract.source_sha||"").slice(0,12)));
+    }
+    project.append(sourcePanel);
+    if(!observing){
+      const grid=element("div","build-layout factory-build-grid");
+      const left=element("div","factory-list-column");
+      const catalog=element("div","surface factory-artifacts");
+      catalog.append(element("h3","","Образы и результаты проекта"));
+      const outputs=p.contract?.outputs||[];
+      if(outputs.length){
+        for(const output of outputs)
+          catalog.append(element("p","muted","Ожидается: "+output.type+" · "+output.path));
+      }
+      catalog.append(element("p","muted","Собранных файлов пока нет: адаптер не подключён. Нет и фиктивных журналов."));
+      left.append(catalog);
+      const log=element("div","surface log-surface");
+      log.append(element("h3","","Журнал сборки"));
+      const pre=element("pre","terminal","Заданий нет. Для нового семейства ядра требуется проверенный адаптер и изолированный конвейер."));
+      log.append(pre);grid.append(left,log);project.append(grid);
+    }
+    panels.append(project);
   }
-  if(!projects.length){
-    summary.append(element("p","muted","Пока подключены только штатные проекты WIFICAM, Irila и Helper."));
-  }
-  if(previous || projects.some(p=>location.hash==="#project-"+p.slug))setTab();
+  if(!projects.length)summary.append(element("p","muted","Новых проектов пока не подключено."));
+  if(projects.some(p=>location.hash==="#project-"+p.slug))setTab();
 }
 async function registerGitHub(kind){
   const branch=kind==="branch"?$("registryBranch").value.trim():$("registryProjectBranch").value.trim();
