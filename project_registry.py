@@ -216,7 +216,7 @@ def add_project(slug: str, title: str, repository: str, branch: str, *,
     title = title.strip() if isinstance(title, str) else ""
     if not 2 <= len(title) <= 70 or any(ord(char) < 32 for char in title):
         raise ValueError("Project name must contain 2–70 printable characters")
-    if mode not in MODES:
+    if not isinstance(mode, str) or mode not in MODES:
         raise ValueError("Choose project mode build or observe")
     record = load(data)
     if len(record["projects"]) >= MAX_PROJECTS:
