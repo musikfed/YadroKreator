@@ -10,7 +10,7 @@
     wificam_T23N/       <- исходники прошивки/ядра и эталон SD
     wifcam_helper/      <- отдельные тесты RTSP/микрофона/динамика
   build/thingino-firmware/ <- закреплённый upstream Thingino/Buildroot
-  build/jobs/<job_id>/     <- неизменяемый снимок источника и профиля
+  build/projects/wificam_T23N/jobs/<job_id>/wificam_T23N/  <- SHA-закреплённый исходник и образ
 ```
 Видео/аудио испытания выполняет Helper на CORE по локальному RTSP/SSH. Он **не** изменяет ядро, GPIO и конфигурацию камеры. Программы `ffmpeg`, `ffprobe`, `ssh` работают на CORE; динамик T23N вызывает локальный `rac` через проверенный `play`.
 
@@ -20,7 +20,7 @@
 `schema=peginelab.wifcam-helper.build-preset.v1`, камера `galayou_g2_t23n_sc2336_atbm6012bx`, ветка `mymarrchWFcam`, `build_env.WIFICAM_WEBRTC=0|1`.
 Никаких произвольных опций Makefile, shell, адресов Git, паролей Wi-Fi, внешних команд и `PUBLISH=1` нет.
 
-Во вкладке «Сборки» ставьте галочку **«Использовать утверждённый профиль WifCam Helper»** только когда нужен этот пресет. API принимает `helper_preset: true`; по умолчанию false. Фабрика читает локальный профиль, проверяет allowlist и сохраняет отдельный неизменяемый снимок `build/jobs/<job_id>/helper-preset.json` с правами 0600. Worker повторно проверяет снимок и передаёт *только* разрешённый WIFICAM_WEBRTC в закреплённую сборку WIFICAM. Никакого прямого импорта Python-кода Helper.
+Во вкладке «Сборки» ставьте галочку **«Использовать утверждённый профиль WifCam Helper»** только когда нужен этот пресет. API принимает `helper_preset: true`; по умолчанию false. Фабрика читает локальный профиль, проверяет allowlist и сохраняет отдельный неизменяемый снимок `build/projects/wificam_T23N/jobs/<job_id>/helper-preset.json` с правами 0600. Worker повторно проверяет снимок и передаёт *только* разрешённый WIFICAM_WEBRTC в закреплённую сборку WIFICAM. Никакого прямого импорта Python-кода Helper.
 
 **Ядро:** остаётся закреплённая Thingino/Buildroot-конфигурация профиля T23N из WIFICAM. Нельзя считать, что Helper генерирует и устанавливает собственные .config автоматически. Видеопрофиль кодека/битрейта сначала фиксируется по измерениям и физическим тестам; любые изменения kernel config должны проходить отдельный reviewed commit в wificam_T23N.
 
