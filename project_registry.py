@@ -100,8 +100,10 @@ def allowed_branches(data: Path = DATA) -> tuple[str, ...]:
                                 if name not in DEFAULT_BRANCHES))
 
 
-def git_ref_exists(repo: str, branch: str) -> bool:
-    """Read-only remote check, never fetch scripts/commits or interpolate shell."""
+def git_ref_sha(repo: str, branch: str) -> str | None:
+    """Read-only SHA lookup for trusted source, no checkout or arbitrary URL."""
+    repo = validate_repo(f"musikfed/{repo}")
+    branch = validate_ref(branch)
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_ASKPASS="/bin/false")
     try:
         result = subprocess.run(
@@ -110,11 +112,19 @@ def git_ref_exists(repo: str, branch: str) -> bool:
             check=False, capture_output=True, text=True, timeout=15, env=env,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return False
-    return result.returncode == 0 and any(
-        line.endswith("\trefs/heads/" + branch) and len(line.split()[0]) == 40
-        for line in result.stdout.splitlines()
-    )
+        return None
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.splitlines():
+        parts = line.split()
+        if (len(parts) == 2 and parts[1] == "refs/heads/" + branch
+                and re.fullmatch(r"[a-fA-F0-9]{40}", parts[0])):
+            return parts[0].lower()
+    return None
+
+
+def git_ref_exists(repo: str, branch: str) -> bool:
+    return git_ref_sha(repo, branch) is not None
 
 
 def _save(record: dict, data: Path) -> None:
