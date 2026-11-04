@@ -20,7 +20,7 @@ class HelperIsolationTests(unittest.TestCase):
             with sqlite3.connect(state/"history.sqlite3") as con:
                 con.execute("CREATE TABLE reports(id TEXT, created_utc TEXT, test_name TEXT, payload TEXT)")
                 con.execute("INSERT INTO reports VALUES(?,?,?,?)",("one","test","probe","{}"))
-            with patch.object(helper_service, "_cmd", side_effect=[(0,""),(0,"active")]):
+            with patch.object(helper_service, "_cmd", side_effect=[(0,""),(0,str(root/"projects/wifcam_helper")),(0,"/usr/bin/python3 -m wifcam_helper web"),(0,"active")]):
                 info=helper_service.status(root,state=state)
             self.assertEqual(info["report_count"],1)
             self.assertEqual(info["service_state"],"active")
