@@ -15,6 +15,7 @@ from build_metrics import decorate_jobs
 from artifact_checks import artifact_path, validate_t23n, save_report, saved_report, layout_svg
 from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
+from helper_service import status as helper_status, lifecycle as helper_lifecycle
 from project_profiles import (PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace,
                               job_root, project_build_root, project_log_path)
 
@@ -214,6 +215,32 @@ def panel_service_action(action):
                             if action == "stop-all" else
                             "Служба будет перезапущена" if action == "restart"
                             else "Служба будет остановлена; для запуска используйте bash start.sh")), 202
+
+
+@app.get("/api/helper/status")
+def helper_status_api():
+    # Independent local Helper status; no camera credentials or report bodies.
+    return jsonify(helper_status())
+
+
+@app.post("/api/helper/service/<action>")
+def helper_service_action(action):
+    if action not in ("start", "stop", "restart"):
+        return jsonify(error="Unsupported Helper action"), 404
+    if not allow_private_export(request):
+        return jsonify(error="Helper service control is trusted LAN/VPN only"), 403
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or data.get("confirm") != "HELPER-" + action.upper():
+        return jsonify(error="Explicit Helper confirmation required"), 400
+    current = helper_status()
+    if not current["source_present"] or not current["service_installed"]:
+        return jsonify(error="Install the independent Helper user service over SSH first"), 409
+    update = update_view()
+    if update.get("phase") in ("queued", "running") and update.get("action") in ("apply", "rollback"):
+        return jsonify(error="Factory source update running; retry after completion"), 409
+    if not helper_lifecycle(action):
+        return jsonify(error="Helper systemd user service could not change state"), 503
+    return jsonify(ok=True, action=action, helper=helper_status())
 
 
 @app.get("/api/overview")
