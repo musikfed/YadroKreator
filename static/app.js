@@ -239,6 +239,7 @@ function jobItem(job,compact=false) {
   left.append(element("strong","",job.profile==="t23n_sd"?"WIFICAM · T23N SD":job.profile==="t23n_helper_sd"?"WifCam Helper · T23N SD":job.profile==="irila_preflight"?"IRILA · аудит источников":"Неизвестный профиль"));
   left.append(element("small","",date(job.created_at)+" · "+job.id.slice(0,8)));
   if(job.repo_ref)left.append(element("small","",job.repo_ref+" · "+(job.source_sha?job.source_sha.slice(0,12):"Git fetch pending")));
+  if(job.profile==="t23n_helper_sd"&&job.base_source_sha)left.append(element("small","","База WIFICAM · "+job.base_source_sha.slice(0,12)));
   if(job.elapsed_seconds!==null && job.elapsed_seconds!==undefined)
     left.append(element("small","", "Время "+clockDuration(job.elapsed_seconds)));
   item.append(left,statusPill(job.status));
@@ -574,6 +575,7 @@ function renderFactoryArtifacts(data){
        labels[record.status]||record.status;
     info.append(element("small","",state+" · "+date(record.created_at)));
     if(record.source_sha)info.append(element("code","","SHA "+record.source_sha.slice(0,12)));
+    if(record.base_source_sha)info.append(element("code","","WIFICAM база · "+record.base_source_sha.slice(0,12)));
     if(record.details)info.append(element("small","factory-error",record.details.slice(0,160)));
     const actions=element("div","artifact-actions");
     const log=element("button","secondary","Журнал");
