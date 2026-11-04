@@ -103,11 +103,15 @@ class FactoryNavigationTests(unittest.TestCase):
         html=(Path(__file__).resolve().parents[1]/"templates/index.html").read_text()
         self.assertNotIn('data-panel="artifacts"',html)
         self.assertNotIn('href="#artifacts"',html)
-        self.assertIn('id="wificamImages"',html)
+        self.assertNotIn('id="wificamImages"',html)
+        self.assertNotIn('data-wificam-mode="images"',html)
         self.assertIn('id="artifactList"',html)
-        self.assertIn('data-wificam-mode="images"',html)
-        self.assertLess(html.index('data-panel="builds"'),html.index('id="wificamImages"'))
-        self.assertLess(html.index('id="wificamImages"'),html.index('data-panel="irila"'))
+        self.assertIn('id="downloadSelected"',html)
+        self.assertIn('id="deleteSelectedArtifact"',html)
+        self.assertLess(html.index('data-panel="builds"'),html.index('id="artifactList"'))
+        self.assertLess(html.index('id="artifactList"'),html.index('data-panel="irila"'))
+        self.assertIn('id="irilaArtifactList"',html)
+        self.assertIn('id="irilaGithubBuild"',html)
 
     def test_register_forms_and_project_lane_safety(self):
         root=Path(__file__).resolve().parents[1]
