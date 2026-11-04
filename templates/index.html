@@ -17,9 +17,8 @@
       <a class="nav active" href="#overview" data-tab="overview"><span>◈</span> Обзор</a>
       <a class="nav" href="#builds" data-tab="builds"><span>▣</span> WIFICAM T23N <i id="navBuildCount">0</i></a>
       <a class="nav" href="#irila" data-tab="irila"><span>◈</span> Irila Baikal</a>
+      <a class="nav" href="#helper" data-tab="helper"><span>▣</span> WifCam Helper</a>
       <div id="registeredProjectNav" class="registered-project-nav" aria-label="Подключённые проекты сборки"></div>
-      <div class="sidebar-label factory-tools-label">ИНСТРУМЕНТЫ И СЕРВИСЫ</div>
-      <a class="nav" href="#helper" data-tab="helper"><span>⚙</span> WifCam Helper</a>
       <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
     </nav>
     <div class="sidebar-bottom">
@@ -68,9 +67,10 @@
           <div class="metric"><div class="metric-top"><span>СБОРКИ</span><b>⌘</b></div><div class="metric-value" id="jobsNumber">0</div><div class="metric-footer" id="currentStatus">Нет активных задач</div></div>
         </div>
         <div class="dashboard-bottom"><div class="surface" id="buildLines">
-            <div class="surface-head"><div><small>ПРОЕКТЫ И ИСХОДНИКИ</small><h3>Независимые направления</h3></div><span class="count" id="projectCount">02</span></div>
+            <div class="surface-head"><div><small>ПРОЕКТЫ И ИСХОДНИКИ</small><h3>Независимые направления</h3></div><span class="count" id="projectCount">03</span></div>
             <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · MIPS · отдельная сборка SD-прошивки</small><span class="tag">СБОРКА SD</span></div><a class="round-btn" href="#builds" title="Перейти к WIFICAM">↗</a></div>
             <div class="profile"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Irila Baikal</strong><small>Ubuntu x86-64 · аудит Git-исходников; сборка IMG в собственном CI</small><span class="tag neutral">АУДИТ / CI</span></div><a class="round-btn" href="#irila" title="Перейти к Irila">↗</a></div>
+             <div class="profile"><div class="profile-icon">◉</div><div class="profile-text"><strong>WifCam Helper</strong><small>Ingenic T23N · отдельная SD-прошивка головы ассистента, аудио и видео</small><span class="tag">СБОРКА SD</span></div><a class="round-btn" href="#helper" title="Перейти к прошивке Helper">↗</a></div>
              <div id="registeredProjectCards"></div>
              <a class="secondary" href="#system" id="addGithubProjectLink">+ Подключить GitHub-проект или ветку</a>
           </div><div class="surface">
@@ -155,24 +155,60 @@
         </div>
       </section>
       <section data-panel="helper" class="panel" hidden>
-        <div class="page-heading"><div><small>ЛИНИЯ 03 / WIFCAM HELPER · TEST BENCH</small><h1>WifCam Helper</h1><p>Наблюдение и диагностика камеры: микрофон, динамик, RTSP, видеопоток и результаты тестирования.</p></div></div>
-        <div class="project-subnav" role="tablist" aria-label="Разделы Helper">
-          <button type="button" class="project-tab active" data-project-subtab="helper" data-target="helperSource" role="tab" aria-selected="true">Исходники и назначение</button>
-          <button type="button" class="project-tab" data-project-subtab="helper" data-target="helperStatus" role="tab" aria-selected="false">Состояние и управление</button>
+        <div class="page-heading">
+          <div><small>ЛИНИЯ 03 / WIFCAM HELPER · INGENIC T23N · SD</small>
+            <h1>WifCam Helper · прошивка камеры-ассистента</h1>
+            <p>Отдельная SD-прошивка T23N: камера — глаза, микрофон — уши, динамик — голос; CV/STT/LLM/TTS работают на CORE. Два зафиксированных Git SHA и отдельный каталог образов.</p>
+          </div>
+          <div class="factory-heading-actions">
+            <a class="secondary" href="https://github.com/musikfed/wifcam_helper" target="_blank" rel="noopener noreferrer">↗ GitHub Helper</a>
+            <button id="helperCreateFirmware" class="primary" type="button">▶ Создать прошивку Helper</button>
+          </div>
         </div>
-        <div id="helperSource" class="project-subpanel">
-        <div class="lane-bar"><span>⚙ Исходники стенда</span><code id="helperSourcePath">—</code><span>Только тесты и JSON-профили; не компилятор ядра</span></div>
-        <div class="surface project-detail"><div class="surface-head"><div><small>OBSERVATION LANE / STANDALONE</small><h3>Инженерный тестовый стенд</h3></div></div>
-          <p>Выполняет тесты камеры отдельно от прошивки. Репозиторий: <a class="small-link" href="https://github.com/musikfed/wifcam_helper" target="_blank" rel="noopener noreferrer">musikfed/wifcam_helper</a>.</p>
-          <p class="muted">Для тестирования на Huananzhi предусмотрен отдельный localhost:8765 и SSH-туннель на Acer. Сборку T23N выполняет только профиль WIFICAM.</p>
+        <div class="factory-workspace-hint">Один проект · Получить Git → собрать собственную SD-прошивку → проверить IMG → скачать → испытать микрофон, динамик, видео на камере</div>
+        <div class="lane-bar"><span>▣ Дерево прошивки Helper</span><code id="helperBuildRoot">—</code><span>Только T23N / MIPS / FAT16 / ext4</span></div>
+        <div class="surface project-detail" style="margin-bottom:20px">
+          <div class="surface-head"><div><small>GITHUB HELPER + WIFICAM BASE → HUANANZHI → SD</small><h3>Два независимых источника, одна проверенная сборка</h3></div></div>
+          <p>Основной проект <code>musikfed/wifcam_helper / main</code> содержит собственную rootfs-надстройку для камеры. Зафиксированная база: <code>musikfed/wificam_T23N / mymarrchWFcam</code>. В сборке автоматически сохраняются оба Git SHA, базовый WIFICAM не заменяется.</p>
+          <p class="muted">Один реальный SD-образ, а не копия обычной WIFICAM или запуск Python-стенда. После записи через Rufus нужны физические тесты RTSP, SC2336, микрофона и динамика; наличие кода не гарантирует аппаратную работу.</p>
         </div>
+        <div class="build-layout factory-build-grid">
+          <div class="factory-list-column">
+            <div class="surface">
+              <div class="surface-head"><div><small>HELPER JOBS / SQLITE</small><h3>Очередь и история прошивок</h3></div><span class="count" id="helperBuildCount">0</span></div>
+              <div id="helperJobsList" class="jobs-list"><p class="empty">Прошивок Helper пока не собирали</p></div>
+            </div>
+            <div class="surface factory-artifacts">
+              <div class="surface-head"><div><small>HELPER SD OUTPUT</small><h3>Образы Helper и статусы</h3></div></div>
+              <div id="helperArtifactList" class="artifact-list"><p class="empty">Готовых образов нет</p></div>
+              <p class="muted">Удаление конкретного IMG освобождает место; история и журналы не удаляются. Эталон WIFICAM 0.1_test не затрагивается.</p>
+            </div>
+          </div>
+          <div class="surface log-surface">
+            <div class="surface-head"><div><small>HELPER BUILD LOG</small><h3 id="helperLogTitle">Журнал прошивки Helper</h3></div><button type="button" id="helperStopBuild" class="danger" disabled>■ Остановить сборку</button></div>
+            <div class="build-timeline">
+              <div class="timeline-times"><span id="helperBuildStarted">Начало: —</span><span id="helperBuildFinished">Конец: —</span><span id="helperBuildElapsed">Длительность: —</span></div>
+              <div class="progress-track" id="helperProgressTrack" role="progressbar" aria-label="Оценка сборки Helper"><div id="helperProgressFill" class="progress-fill indeterminate"></div></div>
+              <p class="muted" id="helperProgressText">Фактический процент компиляции неизвестен</p>
+            </div>
+            <div class="preflight-controls">
+              <button id="helperValidateImage" type="button" class="secondary" disabled>✓ Проверить SD</button>
+              <button id="helperDownloadImage" type="button" class="primary" disabled>↓ Скачать .img</button>
+              <button id="helperDeleteImage" type="button" class="danger" disabled>🗑 Удалить образ</button>
+              <small>Структура SD + обязательный Helper-маркер внутри ext4. Работа камеры проверяется отдельно после записи.</small>
+            </div>
+            <div class="preflight-report" id="helperPreflightReport" hidden><strong id="helperPreflightStatus">—</strong><p class="muted" id="helperPreflightDetails"></p></div>
+            <div class="log-toolbar"><span class="led"></span><span id="helperLogState">Выбери задачу</span><button id="helperFullLog" class="text-btn" disabled type="button">Показать полный архив</button><button id="helperClearLog" class="text-btn" type="button">Очистить экран</button></div>
+            <pre class="terminal" id="helperBuildLog">Здесь появится реальный журнал компиляции WifCam Helper.</pre>
+            <div class="terminal-footer"><span>HELPER / SQLITE / SYSTEMD</span><span id="helperLogBytes">0 Б</span></div>
+          </div>
         </div>
-        <div id="helperStatus" class="project-subpanel" hidden>
-        <div class="surface" style="padding:20px">
-          <h3>Отдельный проект, а не прошивка</h3>
-          <p>Путь: <code>/1tbdisk/PegineLab/projects/wifcam_helper</code>. Инструменты диагностики запускаются отдельно на CORE и <strong>не передают произвольные команды ядру</strong>. Для T23N передаётся только утверждённый JSON с <code>WIFICAM_WEBRTC=0|1</code>.</p>
-          <p>Проверьте наличие локального каталога и <a href="https://github.com/musikfed/wifcam_helper/blob/main/README.md" target="_blank" rel="noopener noreferrer">инструкцию стенда</a>. Его отдельная веб-панель запускается на <code>127.0.0.1:8765</code> с SSH-туннелем.</p>
-          <p class="muted">Сам WifCam Helper не создаёт Linux-ядро и не является третьей взаимозаменяемой прошивкой.</p>
+        <details class="factory-guide" id="helperDiagnostics">
+          <summary>Аппаратный испытательный стенд на CORE — управление, SQLite и отчёты</summary>
+          <div class="surface project-detail">
+            <div class="surface-head"><h3>Проверка камеры после записи Helper на SD</h3></div>
+            <p>Стенд <code>/1tbdisk/PegineLab/projects/wifcam_helper</code> работает отдельно от сборки: диагностика микрофона, динамика, RTSP, качества изображения. Не подменяет прошивку и не встраивает Python в T23N.</p>
+            <p>Исходники стенда: <code id="helperSourcePath">—</code>. Локальная панель <code>127.0.0.1:8765</code>, через SSH-туннель на Acer.</p>
           <div class="system-rows" style="margin:18px 0">
             <div><span>Git SHA Helper</span><b id="helperGitSha">—</b></div>
             <div><span>Репозиторий</span><b>musikfed/wifcam_helper · отдельный Git</b></div>
@@ -184,13 +220,14 @@
           <p class="muted" id="helperActionNote" aria-live="polite">Сборщик не проксирует тесты камеры: только статус собственной службы.</p>
           <div class="update-actions">
             <button type="button" class="secondary" id="helperRefresh">↻ Обновить состояние Helper</button>
-            <button type="button" class="secondary" id="helperStart">▶ Запустить Helper</button>
-            <button type="button" class="secondary" id="helperRestart">↻ Перезапустить Helper</button>
-            <button type="button" class="danger" id="helperStop">■ Остановить Helper</button>
+            <button type="button" class="secondary" id="helperStart">▶ Запустить диагностический стенд</button>
+            <button type="button" class="secondary" id="helperRestart">↻ Перезапустить стенд</button>
+            <button type="button" class="danger" id="helperStop">■ Остановить стенд</button>
           </div>
-          <p class="muted">Открытие отдельного стенда — через собственный localhost:8765 (на Acer — SSH -L 8765:127.0.0.1:8765 user@192.168.0.100). Это не переход в сборку WIFICAM. Обновления исходников и пересборку выполняем отдельным SSH-скриптом, не из панели.</p>
-        </div>
-        </div>
+
+            <p class="muted">Результаты физической проверки камеры имеют смысл только после SD-загрузки и проверки реального железа. Эти данные не позволяют автоматически считать прошивку исправной.</p>
+          </div>
+        </details>
       </section>
       <div id="registeredProjectPanels"></div>
       <section data-panel="system" class="panel" hidden>
