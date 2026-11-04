@@ -141,7 +141,22 @@
           <p>Путь: <code>/1tbdisk/PegineLab/projects/wifcam_helper</code>. Инструменты диагностики запускаются отдельно на CORE и <strong>не передают произвольные команды ядру</strong>. Для T23N передаётся только утверждённый JSON с <code>WIFICAM_WEBRTC=0|1</code>.</p>
           <p>Проверьте наличие локального каталога и <a href="https://github.com/musikfed/wifcam_helper/blob/main/README.md" target="_blank" rel="noopener noreferrer">инструкцию стенда</a>. Его отдельная веб-панель запускается на <code>127.0.0.1:8765</code> с SSH-туннелем.</p>
           <p class="muted">Сам WifCam Helper не создаёт Linux-ядро и не является третьей взаимозаменяемой прошивкой.</p>
-          <a href="#builds" class="secondary">Перейти к сборке WIFICAM с профилем Helper</a>
+          <div class="system-rows" style="margin:18px 0">
+            <div><span>Git SHA Helper</span><b id="helperGitSha">—</b></div>
+            <div><span>Репозиторий</span><b>musikfed/wifcam_helper · отдельный Git</b></div>
+            <div><span>Служба</span><b id="helperUnitState">Проверяем…</b></div>
+            <div><span>История тестов Helper</span><b id="helperReportCount">—</b></div>
+            <div><span>База Helper</span><code id="helperDatabasePath">—</code></div>
+            <div><span>Адрес стенда</span><b>127.0.0.1:8765 · SSH-туннель</b></div>
+          </div>
+          <p class="muted" id="helperActionNote" aria-live="polite">Сборщик не проксирует тесты камеры: только статус собственной службы.</p>
+          <div class="update-actions">
+            <button type="button" class="secondary" id="helperRefresh">↻ Обновить состояние Helper</button>
+            <button type="button" class="secondary" id="helperStart">▶ Запустить Helper</button>
+            <button type="button" class="secondary" id="helperRestart">↻ Перезапустить Helper</button>
+            <button type="button" class="danger" id="helperStop">■ Остановить Helper</button>
+          </div>
+          <p class="muted">Открытие отдельного стенда — через собственный localhost:8765 (на Acer — SSH -L 8765:127.0.0.1:8765 user@192.168.0.100). Это не переход в сборку WIFICAM. Обновления исходников и пересборку выполняем отдельным SSH-скриптом, не из панели.</p>
         </div>
       </section>
       <section data-panel="artifacts" class="panel" hidden>

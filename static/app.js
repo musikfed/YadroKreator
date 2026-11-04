@@ -43,6 +43,40 @@ function setTab() {
   if(current==="builds") refreshLog();
   if(current==="irila") refreshIrilaLog();
 }
+let helperBusy=false;
+async function refreshHelper() {
+  try {
+    const helper=await api("/api/helper/status");
+    $text("helperGitSha",helper.source_sha?helper.source_sha.slice(0,12):"Нет локального Git");
+    $text("helperUnitState",helper.service_state+" · "+helper.service_unit);
+    $text("helperReportCount",helper.report_count===null?"Нет отдельной SQLite":helper.report_count+" · последний: "+(helper.last_test||"—"));
+    $text("helperDatabasePath",helper.report_database);
+    const installed=helper.service_installed&&helper.source_present;
+    $("helperStart").disabled=helperBusy||!installed||helper.service_state==="active";
+    $("helperRestart").disabled=helperBusy||!installed||helper.service_state!=="active";
+    $("helperStop").disabled=helperBusy||!installed||helper.service_state!=="active";
+    $text("helperActionNote",installed
+      ?"Helper управляется независимо. Журнал и результаты тестов не входят в SQLite прошивок."
+      :"Helper ещё не установлен как отдельная служба. Сначала запусти scripts/install-user-service.sh на CORE через SSH.");
+  }catch(error){
+    $text("helperUnitState","Недоступно");
+    $text("helperActionNote","Не получилось прочитать состояние отдельного Helper: "+error.message);
+  }
+}
+async function helperAction(action) {
+  if(helperBusy)return;
+  const question={start:"Запустить только WifCam Helper?",stop:"Остановить только WifCam Helper?",restart:"Перезапустить только WifCam Helper?"}[action];
+  if(!question||!confirm(question))return;
+  helperBusy=true;
+  try {
+    const result=await api("/api/helper/service/"+action,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({confirm:"HELPER-"+action.toUpperCase()})
+    });
+    toast("WifCam Helper: "+result.helper.service_state);
+  }catch(error){toast("Helper: "+error.message)}
+  finally {helperBusy=false;await refreshHelper()}
+}
 function metric(numberId,barId,infoId,value,part,total,suffix) {
   $text(numberId,value);
   $(barId).style.width = (total > 0 ? Math.max(0,Math.min(100,part/total*100)):0)+"%";
@@ -606,6 +640,11 @@ async function init() {
   ["panelRestart","systemRestart"].forEach(id=>$(id).addEventListener("click",()=>panelServiceAction("restart")));
   ["panelStop","systemStop"].forEach(id=>$(id).addEventListener("click",()=>panelServiceAction("stop-all")));
   $("systemRefresh").addEventListener("click",refreshPanelService);
+  $("helperRefresh").addEventListener("click",refreshHelper);
+  ["start","stop","restart"].forEach(action=>{
+    const id="helper"+action.charAt(0).toUpperCase()+action.slice(1);
+    $(id).addEventListener("click",()=>helperAction(action));
+  });
 
   $("clearView").addEventListener("click",()=>{
     offset=0; logInitial=true;logFinalized=false;logFullRequested=false;
@@ -620,9 +659,11 @@ async function init() {
   await refresh();
   await refreshUpdate(true);
   await refreshPanelService();
+  await refreshHelper();
   setInterval(()=>{refresh();if(location.hash==="#builds")refreshLog();if(location.hash==="#irila")refreshIrilaLog();},2500);
   setInterval(()=>refreshUpdate(true),15000);
   setInterval(refreshPanelService,15000);
+  setInterval(()=>{if(location.hash==="#helper")refreshHelper()},15000);
   setInterval(()=>$text("clock",new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})),15000);
   window.addEventListener("focus",refresh);
 }
