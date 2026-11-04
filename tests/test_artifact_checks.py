@@ -90,6 +90,14 @@ class T23NPreflight(unittest.TestCase):
         loaded = saved_report(self.job, self.root, self.root / "factory-state")
         self.assertTrue(loaded["verified"])
 
+    def test_git_tracked_baseline_never_accepted_as_new_job(self):
+        baseline = self.image.parents[2] / "Thingino/thingino-t23-sd.bin"
+        baseline.parent.mkdir(parents=True, exist_ok=True)
+        baseline.write_bytes(b"historical 0.1_test baseline")
+        self.image.unlink()
+        with self.assertRaisesRegex(FileNotFoundError, "No SD image"):
+            artifact_path(self.job, self.root)
+
     def test_tampering_invalidates_checksum(self):
         with self.image.open("r+b") as f:
             f.seek(34 * SECTOR)
