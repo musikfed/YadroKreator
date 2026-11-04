@@ -34,8 +34,17 @@
       <section data-panel="overview" class="panel">
         <div class="eyebrow">PRIVATE BUILD INFRASTRUCTURE <span class="line"></span> EST. 2026</div>
         <div class="hero"><div><h1>Создавай. <em>Собирай.</em><br>Управляй.</h1><p>Твоя собственная лаборатория прошивок и Linux-ядер на Huananzhi X79. Каждая сборка под контролем.</p>
-          <div class="hero-actions"><button id="heroBuild" class="primary"><span>▶</span> Новая сборка T23N</button><a class="secondary" href="#builds">Открыть журнал ↗</a></div>
-        </div><div class="hero-art"><div class="orb"><div class="orb-inner">P<span>✦</span></div></div><div class="art-caption">NATIVE BUILD ENGINE <span>01 / 01</span></div></div></div>
+          <div class="hero-actions"><a class="primary" href="#buildLines">◈ Выбрать проект</a><a class="secondary" href="#activity">◉ Текущая операция</a></div>
+        </div><div class="hero-art"><div class="orb"><div class="orb-inner">P<span>✦</span></div></div><div class="art-caption">PROJECT CONTROL <span>ISOLATED LANES</span></div></div></div>
+        <section class="surface active-job-panel" id="activity" aria-label="Текущая задача PegineLab" aria-live="polite">
+          <div class="surface-head"><div><small>LIVE · GLOBAL BUILD QUEUE</small><h3>Сейчас выполняется</h3></div><span id="activeJobState" class="tag neutral">Проверяем очередь…</span></div>
+          <div class="active-job-body">
+            <div><strong id="activeJobName">Получаем состояние заданий…</strong><p id="activeJobDescription" class="muted">Очередь YadroKreator общая, деревья проектов независимы.</p></div>
+            <button id="activeJobOpen" class="secondary" type="button" disabled>↗ Открыть задачу и журнал</button>
+          </div>
+          <div class="active-job-facts"><span id="activeJobBranch">Проект: —</span><span id="activeJobRuntime">Время: —</span><span id="activeJobSource">Git SHA: —</span></div>
+          <p id="lastJobSummary" class="muted">Последняя операция: —</p>
+        </section>
         <div class="surface panel-lifecycle">
           <div class="surface-head">
             <div><small>CONTROL · SERVICE &amp; GITHUB</small><h3>Управление YadroKreator</h3></div>
@@ -57,12 +66,13 @@
           <div class="metric"><div class="metric-top"><span>NVME · /1TBDISK</span><b>▥</b></div><div class="metric-value" id="disk">—</div><div class="meter"><div id="diskBar"></div></div><small id="diskInfo">Диск сборок</small></div>
           <div class="metric"><div class="metric-top"><span>СБОРКИ</span><b>⌘</b></div><div class="metric-value" id="jobsNumber">0</div><div class="metric-footer" id="currentStatus">Нет активных задач</div></div>
         </div>
-        <div class="dashboard-bottom"><div class="surface">
-            <div class="surface-head"><div><small>ПРОФИЛИ СБОРКИ</small><h3>Доступные проекты</h3></div><span class="count">01</span></div>
-            <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · Ingenic MIPS · MMC/SD · SC2336</small><span class="tag">ПОДДЕРЖИВАЕТСЯ</span></div><button class="round-btn" id="profileBuild" title="Собрать">↗</button></div>
-            <div class="profile future"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Irila Baikal</strong><small>Ubuntu x86-64 · Acer · Secure Boot · отдельно от T23N</small><span class="tag neutral">АУДИТ И CI</span></div><span>+</span></div>
+        <div class="dashboard-bottom"><div class="surface" id="buildLines">
+            <div class="surface-head"><div><small>ПРОФИЛИ СБОРКИ</small><h3>Независимые направления</h3></div><span class="count">03</span></div>
+            <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · MIPS · отдельная сборка SD-прошивки</small><span class="tag">СБОРКА SD</span></div><a class="round-btn" href="#builds" title="Перейти к WIFICAM">↗</a></div>
+            <div class="profile"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Irila Baikal</strong><small>Ubuntu x86-64 · аудит Git-исходников; сборка IMG в собственном CI</small><span class="tag neutral">АУДИТ / CI</span></div><a class="round-btn" href="#irila" title="Перейти к Irila">↗</a></div>
+            <div class="profile"><div class="profile-icon">⚙</div><div class="profile-text"><strong>WifCam Helper</strong><small>Отдельный стенд RTSP и аудио · не компилятор ядра</small><span class="tag neutral">ТЕСТИРОВАНИЕ</span></div><a class="round-btn" href="#helper" title="Перейти к WifCam Helper">↗</a></div>
           </div><div class="surface">
-            <div class="surface-head"><div><small>ПОСЛЕДНИЕ СОБЫТИЯ</small><h3>История запусков</h3></div><a class="small-link" href="#builds">Все сборки ↗</a></div>
+            <div class="surface-head"><div><small>ПОСЛЕДНИЕ СОБЫТИЯ</small><h3>История запусков по проектам</h3></div><a class="small-link" href="#activity">Текущая задача ↗</a></div>
             <div id="recentJobs" class="recent-list"><p class="empty">История пока пуста</p></div>
           </div></div>
       </section>
