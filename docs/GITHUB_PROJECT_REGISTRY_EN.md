@@ -1,6 +1,9 @@
+
+**UI revision:** Each build project now has one workbench page with build, preflight, download, artifact inventory, logs and targeted cleanup. Separate global image pages were removed. See [RU guide](ONE_PROJECT_ONE_WORKBENCH_RU.md).
+
 # Project-local images and opt-in GitHub source registration
 
-Firmware images have moved under **WIFICAM T23N → Images & SD**, beside that project's builds. The global Images sidebar item is gone. The known-bootable `0.1_test` baseline stays untouched; it is not a new job artifact.
+Firmware images have moved under **WIFICAM T23N → single build/artifact workbench**, beside that project's builds. The global Images sidebar item is gone. The known-bootable `0.1_test` baseline stays untouched; it is not a new job artifact.
 
 **Existing T23N build:** In System → GitHub sources, register an existing branch of the fixed `musikfed/wificam_T23N` repository. The server performs a read-only `git ls-remote` and adds it to the local allowlist. The normal T23N build runner pins an immutable Git SHA per job. The opt-in WifCam Helper preset is restricted to `mymarrchWFcam`.
 
