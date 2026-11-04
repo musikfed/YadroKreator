@@ -92,6 +92,19 @@ else
 fi
 echo "4/4 Restart ONLY factory web user unit and verify API"
 systemctl --user restart peginelab-factory.service
-curl -fsS --max-time 10 http://192.168.0.100:62404/api/panel/service >/dev/null
+# Wait for the listener to re-bind after systemd restart; fail if the API never responds.
+ready=no
+for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  if curl -fsS --max-time 3 http://192.168.0.100:62404/api/panel/service >/dev/null 2>&1; then
+    ready=yes
+    break
+  fi
+  sleep 1
+done
+[[ "$ready" == yes ]] || {
+  echo "Factory service restart did not pass HTTP health check" >&2
+  systemctl --user --no-pager status peginelab-factory.service || true
+  exit 4
+}
 git rev-parse --short HEAD
 echo "Factory ready. SQLite, Git images, build history, Ollama, Docker and other projects untouched."
