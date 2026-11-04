@@ -12,7 +12,7 @@ from core import ROOT, DATA, LOGS, PROJECT, THINGINO, ACTIVE, connect, get_job, 
 from git_sources import BRANCHES, workspace_for, validate_branch
 from project_registry import (
     load as load_registry, allowed_branches, add_project as register_project,
-    add_branch as register_branch,
+    add_branch as register_branch, git_ref_sha, validate_slug,
 )
 from update_manager import view as update_view, start as start_update, finish as finish_update
 from build_metrics import decorate_jobs
@@ -245,6 +245,24 @@ def helper_service_action(action):
     if not helper_lifecycle(action):
         return jsonify(error="Helper systemd user service could not change state"), 503
     return jsonify(ok=True, action=action, helper=helper_status())
+
+
+@app.get("/api/projects/<slug>/git-ref")
+def registered_project_git_ref(slug):
+    try:
+        slug = validate_slug(slug)
+        project = next((p for p in load_registry(DATA)["projects"]
+                        if p["slug"] == slug), None)
+        if project is None:
+            return jsonify(error="Project not found"), 404
+        repo = project["repository"].split("/", 1)[1]
+        sha = git_ref_sha(repo, project["branch"])
+        if sha is None:
+            return jsonify(error="GitHub source ref unavailable"), 503
+        return jsonify(repository=project["repository"],
+                       branch=project["branch"], sha=sha, build_mode=project["build_mode"])
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
 
 
 @app.post("/api/projects/register")
