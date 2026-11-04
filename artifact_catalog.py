@@ -5,12 +5,12 @@ import re
 from pathlib import Path
 from core import ROOT, DATA
 from project_profiles import job_root
-from artifact_checks import artifact_path, saved_report
+from artifact_checks import artifact_path, saved_report, report_path
 from git_sources import workspace_for
 
 JOB_ID = re.compile(r"[0-9a-f]{32}\Z")
 TERMINAL = {"success", "failed", "stopped", "interrupted"}
-KIND_BY_PROFILE = {"t23n_sd": "sd_image", "irila_preflight": "audit_json"}
+KIND_BY_PROFILE = {"t23n_sd": "sd_image", "t23n_helper_sd": "sd_image", "irila_preflight": "audit_json"}
 
 def _guard_job(job: dict):
     if (not JOB_ID.fullmatch(str(job.get("id",""))) or
@@ -22,7 +22,7 @@ def expected_path(job: dict, *, root: Path=ROOT) -> Path | None:
     """Only factory-owned outputs; NOT Git-tracked Thingino baseline or shared out/."""
     if job["profile"] == "irila_preflight":
         return job_root(job["id"], "irila_preflight", root=root) / "irila-source-audit.json"
-    if job["profile"] == "t23n_sd":
+    if job["profile"] in ("t23n_sd", "t23n_helper_sd"):
         if job.get("status") == "success":
             try:
                 return artifact_path(job, root)
@@ -31,7 +31,7 @@ def expected_path(job: dict, *, root: Path=ROOT) -> Path | None:
         # Failed/cancelled builds may leave a large partial disk image. Offer
         # explicit CLEANUP ONLY, never validation/download/promotion.
         if job.get("status") in TERMINAL:
-            work=workspace_for(job["id"],root)
+            work=workspace_for(job["id"],root,profile=job["profile"])
             for relative in ("out/private-sd/thingino-t23-sd.bin",
                              "out/candidate-sd/thingino-t23-sd.bin"):
                 candidate=work/relative
@@ -110,9 +110,9 @@ def purge_file(job: dict, *, root: Path=ROOT, data: Path=DATA) -> tuple[int,str]
     path.unlink()
     if job["profile"] == "t23n_sd":
         for other in (path.with_name(path.name+".sha256"),
-                      data / "validation" / (job["id"]+".json")):
+                      report_path(job["id"], data, profile=job["profile"])):
             if other.is_file() and not other.is_symlink() and (
-                other.parent==path.parent or other.parent==data/"validation"
+                other.parent==path.parent or other.parent==report_path(job["id"],data,profile=job["profile"]).parent
             ):
                 other.unlink()
     return nbytes,KIND_BY_PROFILE[job["profile"]]
