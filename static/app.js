@@ -54,6 +54,11 @@ function setWificamMode(mode){
   wificamMode=mode==="images"?"images":"build";
   $("wificamBuildControls").hidden=wificamMode!=="build";
   $("wificamImages").hidden=wificamMode!=="images";
+  $("newBuild").hidden=wificamMode!=="build";
+  $text("wificamHeading",wificamMode==="build"?"Сборка SD-прошивки камеры":"Образы и загрузочные SD-кандидаты T23N");
+  $text("wificamDescription",wificamMode==="build"
+    ?"Thingino/Buildroot · Ingenic T23N · собственные журналы и IMG. Irila и Helper здесь не собираются."
+    :"Артефакты только камеры T23N, проверка SHA256 и структуры диска перед скачиванием. Образы других проектов сюда не попадают.");
   for(const button of document.querySelectorAll("[data-wificam-mode]")){
     const selected=button.dataset.wificamMode===wificamMode;
     button.classList.toggle("active",selected);
