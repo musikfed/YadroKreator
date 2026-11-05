@@ -207,4 +207,3 @@ YadroKreator напрямую загружает `musikfed/wificam_T23N` из Gi
 
 [**Visual workflow, international descriptions and contacts**](docs/showcase/README.md)
 
-![YadroKreator workflow](docs/showcase/overview.svg)
