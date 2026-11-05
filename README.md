@@ -201,3 +201,10 @@ YadroKreator напрямую загружает `musikfed/wificam_T23N` из Gi
 **Build safety:** сборщик не публикует личные SD-образы с Wi-Fi ключом в GitHub (`PUBLISH=0`); перед скачиванием выполняется preflight, а приватный файл доступен только из настроенной доверенной LAN. Это не персональная авторизация; обычный HTTP не шифрует трафик — используйте защищённую сеть/VPN или SCP. CI запрещает хранить `.img`/`.bin` в Git. Прошивку необходимо испытать на устройстве.
 
 © PegineLab. Сторонние компоненты сохраняют собственные лицензии и авторство.
+
+
+## Project showcase · Презентация · 11 languages
+
+[**Visual workflow, international descriptions and contacts**](docs/showcase/README.md)
+
+![YadroKreator workflow](docs/showcase/overview.svg)
