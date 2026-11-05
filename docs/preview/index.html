@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>PegineLab · Firmware Factory</title>
+<link rel="stylesheet" href="app.css">
+
+</head>
+<body>
+<!-- Read-only markup extracted from publicly available application frontend. Scripts removed; no backend, camera, device or API access. -->
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">P<span>✦</span></div><div><strong>PegineLab</strong><small>FIRMWARE FACTORY</small></div></div>
+    <div class="sidebar-label">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+    <nav aria-label="Навигация">
+      <a class="nav active" href="#overview" data-tab="overview"><span>◈</span> Обзор</a>
+      <a class="nav" href="#builds" data-tab="builds"><span>▣</span> WIFICAM T23N <i id="navBuildCount">0</i></a>
+      <a class="nav" href="#irila" data-tab="irila"><span>◈</span> Irila Baikal</a>
+      <a class="nav" href="#helper" data-tab="helper"><span>▣</span> WifCam Helper</a>
+      <div id="registeredProjectNav" class="registered-project-nav" aria-label="Подключённые проекты сборки"></div>
+      <a class="nav" href="#system" data-tab="system"><span>◉</span> Система <i id="updateNotice" hidden>!</i></a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="core-badge"><span class="led"></span><div><strong>CORE · .100</strong><small>VPN / LAN · без веб-пароля</small></div></div>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div class="bread">PegineLab <span>/</span> <strong id="pageName">Обзор</strong></div>
+      <div class="top-actions"><span class="chip"><span class="led"></span><span id="connection">VPN / LAN</span></span><span class="top-time" id="clock">—</span></div>
+    </header>
+    <div class="content">
+      <section data-panel="overview" class="panel">
+        <div class="eyebrow">PRIVATE BUILD INFRASTRUCTURE <span class="line"></span> EST. 2026</div>
+        <div class="hero"><div><h1>Создавай. <em>Собирай.</em><br>Управляй.</h1><p>Твоя собственная лаборатория прошивок и Linux-ядер на Huananzhi X79. Каждая сборка под контролем.</p>
+          <div class="hero-actions"><a class="primary" href="#buildLines">◈ Выбрать проект</a><a class="secondary" href="#activity">◉ Текущая операция</a></div>
+        </div><div class="hero-art"><div class="orb"><div class="orb-inner">P<span>✦</span></div></div><div class="art-caption">PROJECT CONTROL <span>ISOLATED LANES</span></div></div></div>
+        <section class="surface active-job-panel" id="activity" aria-label="Текущая задача PegineLab" aria-live="polite">
+          <div class="surface-head"><div><small>LIVE · GLOBAL BUILD QUEUE</small><h3>Сейчас выполняется</h3></div><span id="activeJobState" class="tag neutral">Проверяем очередь…</span></div>
+          <div class="active-job-body">
+            <div><strong id="activeJobName">Получаем состояние заданий…</strong><p id="activeJobDescription" class="muted">Очередь YadroKreator общая, деревья проектов независимы.</p></div>
+            <button id="activeJobOpen" class="secondary" type="button" disabled>↗ Открыть задачу и журнал</button>
+          </div>
+          <div class="active-job-facts"><span id="activeJobBranch">Проект: —</span><span id="activeJobRuntime">Время: —</span><span id="activeJobSource">Git SHA: —</span></div>
+          <p id="lastJobSummary" class="muted">Последняя операция: —</p>
+        </section>
+        <div class="surface panel-lifecycle">
+          <div class="surface-head">
+            <div><small>CONTROL · SERVICE &amp; GITHUB</small><h3>Управление YadroKreator</h3></div>
+            <span id="panelServiceStatus" class="tag neutral" aria-live="polite">Проверяем службу…</span>
+          </div>
+          <p id="panelServiceMessage" class="muted">Состояние веб-панели на Huananzhi · systemd --user.</p>
+          <div class="update-actions lifecycle-actions">
+            <button id="panelStart" class="secondary" type="button" disabled title="После выключения запуск через терминал Huananzhi">▶ Запустить (SSH)</button>
+            <button id="panelRestart" class="secondary" type="button" disabled>↻ Перезапустить панель</button>
+            <button id="panelStop" class="danger" type="button" disabled>■ Остановить проект</button>
+            <a class="secondary" href="#system">↓ Обновить из GitHub · Система</a>
+          </div>
+          <p class="muted">Полная остановка отключает службу :62404, задачи сборки и таймер обновлений, а также только принадлежащие YadroKreator контейнеры, если такие появятся. Ubuntu и SSH останутся работать. После остановки запускай <code>bash start.sh</code> на Huananzhi. Обновление GitHub — во вкладке «Система».</p>
+        </div>
+        <div class="section-heading"><div><small>ЖИВЫЕ ПОКАЗАТЕЛИ</small><h2>Состояние станции</h2></div><span class="muted">Обновляется автоматически</span></div>
+        <div class="metrics">
+          <div class="metric"><div class="metric-top"><span>НАГРУЗКА · 1 МИН</span><b>◉</b></div><div class="metric-value" id="load">—</div><div class="meter"><div id="loadBar"></div></div><small id="loadInfo">из 32 логических CPU</small></div>
+          <div class="metric"><div class="metric-top"><span>ОПЕРАТИВНАЯ ПАМЯТЬ</span><b>▤</b></div><div class="metric-value" id="memory">—</div><div class="meter"><div id="memBar"></div></div><small id="memInfo">Использование RAM</small></div>
+          <div class="metric"><div class="metric-top"><span>NVME · /1TBDISK</span><b>▥</b></div><div class="metric-value" id="disk">—</div><div class="meter"><div id="diskBar"></div></div><small id="diskInfo">Диск сборок</small></div>
+          <div class="metric"><div class="metric-top"><span>СБОРКИ</span><b>⌘</b></div><div class="metric-value" id="jobsNumber">0</div><div class="metric-footer" id="currentStatus">Нет активных задач</div></div>
+        </div>
+        <div class="dashboard-bottom"><div class="surface" id="buildLines">
+            <div class="surface-head"><div><small>ПРОЕКТЫ И ИСХОДНИКИ</small><h3>Независимые направления</h3></div><span class="count" id="projectCount">03</span></div>
+            <div class="profile"><div class="profile-icon">T<span>23</span></div><div class="profile-text"><strong>WIFICAM T23N</strong><small>Thingino · MIPS · отдельная сборка SD-прошивки</small><span class="tag">СБОРКА SD</span></div><a class="round-btn" href="#builds" title="Перейти к WIFICAM">↗</a></div>
+            <div class="profile"><div class="profile-icon">⌁</div><div class="profile-text"><strong>Irila Baikal</strong><small>Ubuntu x86-64 · аудит Git-исходников; сборка IMG в собственном CI</small><span class="tag neutral">АУДИТ / CI</span></div><a class="round-btn" href="#irila" title="Перейти к Irila">↗</a></div>
+             <div class="profile"><div class="profile-icon">◉</div><div class="profile-text"><strong>WifCam Helper</strong><small>Ingenic T23N · отдельная SD-прошивка головы ассистента, аудио и видео</small><span class="tag">СБОРКА SD</span></div><a class="round-btn" href="#helper" title="Перейти к прошивке Helper">↗</a></div>
+             <div id="registeredProjectCards"></div>
+             <a class="secondary" href="#system" id="addGithubProjectLink">+ Подключить GitHub-проект или ветку</a>
+          </div><div class="surface">
+            <div class="surface-head"><div><small>ПОСЛЕДНИЕ СОБЫТИЯ</small><h3>История запусков по проектам</h3></div><a class="small-link" href="#activity">Текущая задача ↗</a></div>
+            <div id="recentJobs" class="recent-list"><p class="empty">История пока пуста</p></div>
+          </div></div>
+      </section>
+      <section data-panel="builds" class="panel" hidden>
+        <div class="page-heading"><div><small>ЛИНИЯ 01 / WIFICAM T23N · MIPS</small><h1 id="wificamHeading">WIFICAM T23N · SD-прошивка</h1><p id="wificamDescription">Thingino/Buildroot · Ingenic T23N · результат каждой сборки привязан к Git SHA. Проверка образа не проверяет камеру физически.</p></div><div class="factory-heading-actions"><a class="secondary" href="https://github.com/musikfed/wificam_T23N" target="_blank" rel="noopener noreferrer">↗ Исходники GitHub</a><button id="newBuild" class="primary">▶ Создать образ</button></div></div>
+        <div class="factory-workspace-hint">Один проект · Git-источники → Создать → Проверить → Скачать · архивы и журналы остаются здесь</div>
+        <div id="wificamBuildControls" class="project-subpanel">
+        <div class="lane-bar"><span>▣ Дерево WIFICAM</span><code id="wificamBuildRoot">—</code><span>Только MIPS · FAT16/ext4 · SD</span></div>
+        <div class="surface" style="margin-bottom:20px;padding:18px">
+          <div class="surface-head"><div><small>GITHUB → HUANANZHI → BUILD</small><h3>Исходники из GitHub без копирования</h3></div></div>
+          <p>При запуске станция сама получает выбранную ветку GitHub, сохраняет точный SHA и собирает отдельный SD-кандидат. Без автоматической прошивки камеры.</p>
+          <label for="sourceBranch">Ветка исходников WIFICAM</label>
+          <select id="sourceBranch" class="source-select">
+            <option value="mymarrchWFcam" selected>mymarrchWFcam — текущие наработки</option>
+            <option value="main">main — объединённая ветка</option>
+          </select>
+          <p class="muted">Обычная WIFICAM и отдельная прошивка WifCam Helper теперь собираются в двух самостоятельных цехах. Для камеры-ассистента используй вкладку «WifCam Helper» рядом с WIFICAM.</p>
+          <p class="muted">Источник: github.com/musikfed/wificam_T23N · загрузка по Git непосредственно на сервере · PUBLISH=0</p>
+        </div>
+        <div class="build-layout factory-build-grid"><div class="factory-list-column"><div class="surface"><div class="surface-head"><div><small>SQLITE HISTORY</small><h3>Очередь и история</h3></div><span class="count" id="buildCount">0</span></div><div id="jobsList" class="jobs-list"><p class="empty">Сборок пока нет</p></div></div>
+          <div class="surface factory-artifacts"><div class="surface-head"><div><small>ARTIFACTS / STATUS</small><h3>Образы и результаты сборок</h3></div></div><div id="artifactList" class="artifact-list"><p class="empty">Пока нет образов</p></div><div class="factory-github-bar"><button type="button" id="wificamGithubRefresh" class="secondary">↻ GitHub Actions</button><a href="https://github.com/musikfed/wificam_T23N/actions" target="_blank" rel="noopener noreferrer">↗ Открыть GitHub</a></div><div id="wificamGithubArtifactList" class="artifact-list"></div></div></div>
+          <div class="surface log-surface"><div class="surface-head"><div><small>LIVE BUILD OUTPUT</small><h3 id="logTitle">Консоль сборки</h3></div><button id="stopBuild" class="danger" disabled>■ Остановить</button></div>
+            <div class="build-timeline" id="buildTimeline">
+              <div class="timeline-times"><span id="buildStarted">Старт: —</span><span id="buildFinished">Конец: —</span><span id="buildElapsed">Время: —</span></div>
+              <div class="progress-track" id="buildProgressTrack" role="progressbar" aria-label="Оценка выполнения по истории сборок"><div id="buildProgressFill" class="progress-fill indeterminate"></div></div>
+              <p class="muted" id="buildProgressText">Для первой сборки точный прогноз недоступен</p>
+            </div>
+            <div class="preflight-controls">
+              <button id="validateBuild" class="secondary" disabled type="button">✓ Проверить</button><button id="downloadSelected" class="primary" disabled type="button">↓ Скачать</button><button id="deleteSelectedArtifact" class="danger" disabled type="button">🗑 Удалить образ</button>
+              <small>Проверка только структуры файла — не загрузки на реальной камере</small>
+            </div>
+            <div class="preflight-report" id="preflightReport" hidden>
+              <strong id="preflightStatus">—</strong><p id="preflightDetails" class="muted"></p>
+              <img id="preflightDiagram" alt="Сгенерированная схема расположения загрузчика, ядра и rootfs" hidden />
+            </div>
+            <div class="log-toolbar"><span class="led"></span><span id="logState">Выберите задачу</span><button id="fullBuildLog" class="text-btn" disabled>Показать полный архив</button><button id="clearView" class="text-btn">Очистить экран</button></div><pre id="log" class="terminal">PegineLab Firmware Factory
+─────────────────────────────────
+Здесь появится журнал компиляции.
+</pre><div class="terminal-footer"><span>LOGS / SQLITE / SYSTEMD</span><span id="logBytes">0 B</span></div>
+          </div></div>
+        </div>
+        <details class="factory-guide"><summary>Как записать и проверить SD-образ</summary>        <div class="surface sd-export-guide">
+          <div class="surface-head"><div><small>SD CARD EXPORT / T23N</small><h3>Скачать и записать SD-образ</h3></div></div>
+          <p>После завершения сборки нажми <strong>«Скачать образ .img»</strong> на карточке нужного файла. <strong>Никакого одноразового кода, ID или терминала:</strong> панель сама выберет образ и сверит SHA256, MBR, MSPL LBA34, FAT16/uImage и ext4 перед передачей. <strong>Сборка ядра не повторяется.</strong> Кнопка «Проверить SD» остаётся для просмотра схемы.</p>
+          <p><strong>Доступ:</strong> скачивание приватных образов разрешено только клиентам доверенной локальной сети Huananzhi (по умолчанию <code>192.168.0.0/24</code> и loopback). Панель всё ещё без входа: любой, кто попал в разрешённую сеть, может скачать образ с персональными Wi-Fi настройками. Не открывай порт 62404 в интернет; для удалённого доступа используй защищённый VPN или SSH.</p>
+          <p>В Windows открываем скачанный <code>.img</code> в Rufus или balenaEtcher, выбираем именно SD через кардридер и запускаем запись. Предварительное форматирование не нужно. <strong>Файл является образом целого диска: MSPL уже расположен на LBA34, повторный seek=34 запрещён.</strong></p>
+          <p>После записи — безопасное извлечение и проверка загрузки на T23N. Не форматируй предложенный Windows раздел ext4.</p>
+          <p><a href="https://github.com/musikfed/YadroKreator/blob/main/docs/SD_DOWNLOAD_RU.md" target="_blank" rel="noopener noreferrer">Подробная инструкция: скачать, записать, проверить и восстановить</a></p>
+        </div>
+</details>
+      </section>
+      <section data-panel="irila" class="panel" hidden>
+        <div class="page-heading"><div><small>ЛИНИЯ 02 / IRILA BAIKAL · ACER x86-64</small><h1>Irila Baikal · IMG</h1><p>Ubuntu x86-64 · локальный аудит исходников и отдельная сборка IMG в утверждённом GitHub Actions.</p></div><div class="factory-heading-actions"><a class="secondary" target="_blank" rel="noopener noreferrer" href="https://github.com/musikfed/Irila_baikal_v1.0">↗ Исходники</a><button class="primary" type="button" id="irilaGithubBuild">▶ Создать IMG · GitHub</button></div></div>
+        <div class="factory-workspace-hint">Один проект · Создать IMG в GitHub → Проверить аудит → Скачать результат · журналы и артефакты справа</div>
+        <div id="irilaSource" class="project-subpanel">
+        <div class="lane-bar"><span>◈ Дерево Irila</span><code id="irilaBuildRoot">—</code><span>Только x86-64 · Secure Boot · отдельный CI</span></div>
+        <div class="surface" style="margin-bottom:20px;padding:20px">
+          <h3>Исходники и проверка конвейера</h3>
+          <p>Проверяется только закреплённая ветка <code>musikfed/Irila_baikal_v1.0/main</code>. Кнопка ниже выполняет <strong>аудит исходников</strong> и создаёт отчёт — <strong>не компилирует ядро и не создаёт IMG</strong>.</p>
+          <button id="irilaCheck" class="primary" type="button">▶ Проверить исходники Irila</button>
+          <p class="muted">Полная сборка Irila: Canonical/Microsoft Secure Boot, GPT/EFI/ext4 и привилегированные loop/mkfs. До отдельной настройки безопасного root-окружения запускается в своём <a href="https://github.com/musikfed/Irila_baikal_v1.0/actions/workflows/build-installed-full-secureboot-img.yml" target="_blank" rel="noopener noreferrer">GitHub Actions workflow</a>. Она не является сборкой кастомного ядра T23N.</p>
+        </div>
+        </div>
+        <div id="irilaHistory" class="project-subpanel">
+        <div class="build-layout factory-build-grid">
+          <div class="factory-list-column"><div class="surface"><div class="surface-head"><h3>История аудитов Irila</h3></div><div id="irilaJobs" class="jobs-list"></div></div>
+          <div class="surface factory-artifacts"><div class="surface-head"><h3>Файлы и сборки Irila</h3></div><div id="irilaArtifactList" class="artifact-list"></div><div class="factory-github-bar"><button type="button" class="secondary" id="irilaGithubRefresh">↻ Список GitHub IMG</button><a target="_blank" rel="noopener noreferrer" href="https://github.com/musikfed/Irila_baikal_v1.0/actions">↗ GitHub Actions</a></div><div id="irilaGithubArtifactList" class="artifact-list"></div></div></div>
+          <div class="surface log-surface"><div class="surface-head"><h3>Журнал и аудит Irila</h3><button class="danger" id="irilaStop" type="button" disabled>■ Остановить аудит</button></div>
+            <pre id="irilaLog" class="terminal">Выберите проверку Irila.</pre>
+            <button id="irilaReport" class="secondary" type="button" disabled>✓ Посмотреть отчёт проверки исходников</button>
+            <button id="irilaExport" class="secondary" type="button" disabled>↓ Скачать проверенный отчёт .json</button><button id="irilaDeleteArtifact" class="danger" type="button" disabled>🗑 Удалить отчёт</button>
+          </div>
+        </div>
+        </div>
+      </section>
+      <section data-panel="helper" class="panel" hidden>
+        <div class="page-heading">
+          <div><small>ЛИНИЯ 03 / WIFCAM HELPER · INGENIC T23N · SD</small>
+            <h1>WifCam Helper · прошивка камеры-ассистента</h1>
+            <p>Отдельная SD-прошивка T23N: камера — глаза, микрофон — уши, динамик — голос; CV/STT/LLM/TTS работают на CORE. Два зафиксированных Git SHA и отдельный каталог образов.</p>
+          </div>
+          <div class="factory-heading-actions">
+            <a class="secondary" href="https://github.com/musikfed/wifcam_helper" target="_blank" rel="noopener noreferrer">↗ GitHub Helper</a>
+            <button id="helperCreateFirmware" class="primary" type="button">▶ Создать прошивку Helper</button>
+          </div>
+        </div>
+        <div class="factory-workspace-hint">Один проект · Получить Git → собрать собственную SD-прошивку → проверить IMG → скачать → испытать микрофон, динамик, видео на камере</div>
+        <div class="lane-bar"><span>▣ Дерево прошивки Helper</span><code id="helperBuildRoot">—</code><span>Только T23N / MIPS / FAT16 / ext4</span></div>
+        <div class="surface project-detail" style="margin-bottom:20px">
+          <div class="surface-head"><div><small>GITHUB HELPER + WIFICAM BASE → HUANANZHI → SD</small><h3>Два независимых источника, одна проверенная сборка</h3></div></div>
+          <p>Основной проект <code>musikfed/wifcam_helper / main</code> содержит собственную rootfs-надстройку для камеры. Зафиксированная база: <code>musikfed/wificam_T23N / mymarrchWFcam</code>. В сборке автоматически сохраняются оба Git SHA, базовый WIFICAM не заменяется.</p>
+          <p class="muted">Один реальный SD-образ, а не копия обычной WIFICAM или запуск Python-стенда. После записи через Rufus нужны физические тесты RTSP, SC2336, микрофона и динамика; наличие кода не гарантирует аппаратную работу.</p>
+        </div>
+        <div class="build-layout factory-build-grid">
+          <div class="factory-list-column">
+            <div class="surface">
+              <div class="surface-head"><div><small>HELPER JOBS / SQLITE</small><h3>Очередь и история прошивок</h3></div><span class="count" id="helperBuildCount">0</span></div>
+              <div id="helperJobsList" class="jobs-list"><p class="empty">Прошивок Helper пока не собирали</p></div>
+            </div>
+            <div class="surface factory-artifacts">
+              <div class="surface-head"><div><small>HELPER SD OUTPUT</small><h3>Образы Helper и статусы</h3></div></div>
+              <div id="helperArtifactList" class="artifact-list"><p class="empty">Готовых образов нет</p></div>
+              <p class="muted">Удаление конкретного IMG освобождает место; история и журналы не удаляются. Эталон WIFICAM 0.1_test не затрагивается.</p>
+            </div>
+          </div>
+          <div class="surface log-surface">
+            <div class="surface-head"><div><small>HELPER BUILD LOG</small><h3 id="helperLogTitle">Журнал прошивки Helper</h3></div><button type="button" id="helperStopBuild" class="danger" disabled>■ Остановить сборку</button></div>
+            <div class="build-timeline">
+              <div class="timeline-times"><span id="helperBuildStarted">Начало: —</span><span id="helperBuildFinished">Конец: —</span><span id="helperBuildElapsed">Длительность: —</span></div>
+              <div class="progress-track" id="helperProgressTrack" role="progressbar" aria-label="Оценка сборки Helper"><div id="helperProgressFill" class="progress-fill indeterminate"></div></div>
+              <p class="muted" id="helperProgressText">Фактический процент компиляции неизвестен</p>
+            </div>
+            <div class="preflight-controls">
+              <button id="helperValidateImage" type="button" class="secondary" disabled>✓ Проверить SD</button>
+              <button id="helperDownloadImage" type="button" class="primary" disabled>↓ Скачать .img</button>
+              <button id="helperDeleteImage" type="button" class="danger" disabled>🗑 Удалить образ</button>
+              <small>Структура SD + обязательный Helper-маркер внутри ext4. Работа камеры проверяется отдельно после записи.</small>
+            </div>
+            <div class="preflight-report" id="helperPreflightReport" hidden><strong id="helperPreflightStatus">—</strong><p class="muted" id="helperPreflightDetails"></p></div>
+            <div class="log-toolbar"><span class="led"></span><span id="helperLogState">Выбери задачу</span><button id="helperFullLog" class="text-btn" disabled type="button">Показать полный архив</button><button id="helperClearLog" class="text-btn" type="button">Очистить экран</button></div>
+            <pre class="terminal" id="helperBuildLog">Здесь появится реальный журнал компиляции WifCam Helper.</pre>
+            <div class="terminal-footer"><span>HELPER / SQLITE / SYSTEMD</span><span id="helperLogBytes">0 Б</span></div>
+          </div>
+        </div>
+        <details class="factory-guide" id="helperDiagnostics">
+          <summary>Аппаратный испытательный стенд на CORE — управление, SQLite и отчёты</summary>
+          <div class="surface project-detail">
+            <div class="surface-head"><h3>Проверка камеры после записи Helper на SD</h3></div>
+            <p>Стенд <code>/1tbdisk/PegineLab/projects/wifcam_helper</code> работает отдельно от сборки: диагностика микрофона, динамика, RTSP, качества изображения. Не подменяет прошивку и не встраивает Python в T23N.</p>
+            <p>Исходники стенда: <code id="helperSourcePath">—</code>. Локальная панель <code>127.0.0.1:8765</code>, через SSH-туннель на Acer.</p>
+          <div class="system-rows" style="margin:18px 0">
+            <div><span>Git SHA Helper</span><b id="helperGitSha">—</b></div>
+            <div><span>Репозиторий</span><b>musikfed/wifcam_helper · отдельный Git</b></div>
+            <div><span>Служба</span><b id="helperUnitState">Проверяем…</b></div>
+            <div><span>История тестов Helper</span><b id="helperReportCount">—</b></div>
+            <div><span>База Helper</span><code id="helperDatabasePath">—</code></div>
+            <div><span>Адрес стенда</span><b>127.0.0.1:8765 · SSH-туннель</b></div>
+          </div>
+          <p class="muted" id="helperActionNote" aria-live="polite">Сборщик не проксирует тесты камеры: только статус собственной службы.</p>
+          <div class="update-actions">
+            <button type="button" class="secondary" id="helperRefresh">↻ Обновить состояние Helper</button>
+            <button type="button" class="secondary" id="helperStart">▶ Запустить диагностический стенд</button>
+            <button type="button" class="secondary" id="helperRestart">↻ Перезапустить стенд</button>
+            <button type="button" class="danger" id="helperStop">■ Остановить стенд</button>
+          </div>
+
+            <p class="muted">Результаты физической проверки камеры имеют смысл только после SD-загрузки и проверки реального железа. Эти данные не позволяют автоматически считать прошивку исправной.</p>
+          </div>
+        </details>
+      </section>
+      <div id="registeredProjectPanels"></div>
+      <section data-panel="system" class="panel" hidden>
+        <div class="page-heading"><div><small>SYSTEM OPERATIONS</small><h1>Инфраструктура</h1><p>Прозрачная конфигурация станции без Docker и без изменения LLM-служб.</p></div></div>
+        <div class="surface panel-lifecycle">
+          <div class="surface-head"><div><small>LOCAL DASHBOARD SERVICE</small><h3>Запуск, состояние и выключение панели</h3></div>
+            <span id="systemServiceStatus" class="tag neutral" aria-live="polite">Проверяем службу…</span></div>
+          <p id="systemServiceMessage" class="muted">Полная остановка проекта выключает его службы, задания сборки, таймер и только помеченные контейнеры. Не останавливает Ubuntu, SSH и чужие проекты.</p>
+          <div class="update-actions lifecycle-actions">
+            <button id="systemStart" class="secondary" type="button" disabled title="После остановки веб-страница недоступна: запускайте через SSH">▶ Запустить (SSH)</button>
+            <button id="systemRestart" class="secondary" type="button" disabled>↻ Перезапустить</button>
+            <button id="systemStop" class="danger" type="button" disabled>■ Остановить весь проект</button>
+            <button id="systemRefresh" class="secondary" type="button">◉ Проверить статус</button>
+          </div>
+          <p class="muted">Остановка во время сборки прервёт компиляцию. Восстановление с Linux: <code>cd /1tbdisk/PegineLab/projects/YadroKreator &amp;&amp; bash start.sh</code>. С Windows: <code>ssh user@192.168.0.100</code>, затем <code>bash start.sh</code>. Кнопка запуска в отключённой панели работать не может; не выключайте сайт ради обновления GitHub.</p>
+        </div>
+        <div class="surface" id="githubProjectRegistry">
+          <div class="surface-head"><div><small>GITHUB PROJECT SOURCES</small><h3>Подключение веток и независимых проектов</h3></div><span class="tag neutral">Только доверенный GitHub · musikfed</span></div>
+          <p class="muted">Добавление ветки к WIFICAM включает её в реальную SD-сборку с закреплением Git SHA. Новые проекты подключаются только вручную. Режим «Наблюдение» не компилирует ничего, а «Кандидат на сборку» требует peginelab.project.json в выбранной ветке и проверенного адаптера перед включением компиляции.</p>
+          <div class="registry-grid">
+            <form id="registerWificamBranch" class="registry-form">
+              <h4>Новая ветка WIFICAM T23N</h4>
+              <label for="registryBranch">Ветка musikfed/wificam_T23N</label>
+              <input id="registryBranch" name="branch" type="text" maxlength="101" placeholder="feature/new-kernel" required autocomplete="off">
+              <button type="submit" class="secondary">+ Проверить GitHub и добавить ветку</button>
+            </form>
+            <form id="registerGithubProject" class="registry-form">
+              <h4>Новый проект · своя вкладка</h4>
+              <label for="registryTitle">Название проекта</label>
+              <input id="registryTitle" name="title" maxlength="70" placeholder="Моё ядро Linux" required autocomplete="off">
+              <label for="registrySlug">Короткий ID для вкладки (латиница)</label>
+              <input id="registrySlug" name="slug" maxlength="32" placeholder="my-kernel" required autocomplete="off">
+              <label for="registryRepo">GitHub-репозиторий</label>
+              <input id="registryRepo" name="repository" maxlength="150" placeholder="musikfed/my-linux-kernel" required autocomplete="off">
+              <label for="registryProjectBranch">Ветка</label>
+              <input id="registryProjectBranch" name="branch" maxlength="101" value="main" required autocomplete="off">
+              <label for="registryMode">Роль проекта</label>
+              <select id="registryMode" class="source-select" name="mode">
+                <option value="observe" selected>Наблюдение — Git, состояние, документация</option>
+                <option value="build">Кандидат на сборку — контракт ядра/прошивки</option>
+              </select>
+              <p class="muted" id="registryModeHint">Наблюдение не запускает сборку и не предполагает, что любой GitHub-проект является ядром.</p>
+              <a class="small-link" href="https://github.com/musikfed/YadroKreator/blob/feature/project-lanes-github-registry-20261104/docs/PROJECT_CONTRACT_RU.md" target="_blank" rel="noopener noreferrer">Формат подготовки проекта · PegineLab Contract v1</a>
+              <button type="submit" class="secondary">+ Проверить GitHub и подключить проект</button>
+            </form>
+          </div>
+          <p id="registryMessage" class="muted" role="status" aria-live="polite">Настройки хранятся только в локальном factory-state/registered-projects.json. Задания и образы других проектов не изменяются.</p>
+          <div id="registryProjectList" class="registered-project-summary"></div>
+        </div>
+        <div class="surface update-surface">
+          <div class="surface-head"><div><small>GITHUB RELEASE CONTROL</small><h3>Обновления и восстановление YadroKreator</h3></div><span id="updateStatus" class="tag neutral">Проверка...</span></div>
+          <div class="update-versions">
+            <p><span>Установленная версия</span><code id="updateInstalled">—</code></p>
+            <p><span>Версия GitHub main</span><code id="updateRemote">—</code></p>
+            <p><span>Предыдущая версия для отката</span><code id="updatePrevious">Нет сохранённой</code></p>
+          </div>
+          <p id="updateMessage" class="muted">GitHub проверяется без установки. История заданий и прошивки остаются нетронутыми.</p>
+          <div class="update-steps" id="updateSteps" aria-label="Этапы обновления" role="list">
+            <div class="update-step" data-update-step="queued" role="listitem"><span class="step-number">1</span><span>Старт</span></div>
+            <div class="update-step" data-update-step="fetch" role="listitem"><span class="step-number">2</span><span>GitHub</span></div>
+            <div class="update-step" data-update-step="checkout" role="listitem"><span class="step-number">3</span><span>Обновление</span></div>
+            <div class="update-step" data-update-step="dependencies" role="listitem"><span class="step-number">4</span><span>Зависимости</span></div>
+            <div class="update-step" data-update-step="tests" role="listitem"><span class="step-number">5</span><span>Проверка</span></div>
+            <div class="update-step" data-update-step="restart" role="listitem"><span class="step-number">6</span><span>Перезапуск</span></div>
+            <div class="update-step" data-update-step="done" role="listitem"><span class="step-number">✓</span><span>Завершено</span></div>
+          </div>
+          <div class="update-progress-shell"><div class="update-progress-fill" id="updateProgressFill"></div></div>
+          <p id="updateProgressCaption" class="muted" aria-live="polite">Пока обновлений нет</p>
+          <p id="updateReconnect" class="muted" hidden>Перезапуск панели — восстанавливаем соединение автоматически…</p>
+          <section class="update-console" aria-label="Отдельный журнал обновления YadroKreator">
+            <div class="update-console-title">
+              <strong>Журнал обновления самой панели</strong>
+              <span id="updateConsoleStatus">Сборка ядра / WIFICAM здесь не отображается</span>
+            </div>
+            <pre id="updateLog" class="update-log" aria-live="off">Журнал появится после запуска проверки или обновления YadroKreator.</pre>
+            <p class="muted">Только Git, установка, тесты и перезапуск веб-панели. Логи компиляции ядра остаются исключительно во вкладке «Сборки».</p>
+          </section>
+          
+          <div class="update-actions">
+            <button id="checkUpdate" class="secondary" type="button">↻ Проверить обновления</button>
+            <button id="applyUpdate" class="primary" type="button" disabled>↓ Обновить панель</button>
+            <button id="rollbackUpdate" class="secondary" type="button" disabled>↶ Откатить предыдущую версию</button>
+          </div>
+          <p class="muted">Только YadroKreator. Новые версии проверяются в GitHub; действия выполняются через systemd независимо от браузера. Во время компиляции обновление и откат запрещены.</p>
+        </div>
+        <div class="system-grid"><div class="surface"><div class="surface-head"><div><small>HOST MACHINE</small><h3>CORE · Huananzhi X79</h3></div><span class="tag">UBUNTU 24.04</span></div><div class="system-rows"><div><span>Веб-порт</span><b>192.168.0.100:62404 / VPN-LAN</b></div><div><span>Исполнение</span><b>systemd user services</b></div><div><span>База данных</span><b>SQLite · WAL</b></div><div><span>Web server</span><b>Waitress · Flask / Python venv</b></div><div><span>Сборка</span><b>Native ext4 / без Docker</b></div><div><span>Ограничение</span><b>CPU 0–15 · nice 10</b></div></div></div>
+          <div class="surface"><div class="surface-head"><div><small>WORKSPACE PATHS</small><h3>Каталоги</h3></div></div><div class="paths"><p><span>Корень станции</span><code id="pathRoot">—</code></p><p><span>WIFICAM</span><code id="pathProject">—</code></p><p><span>Thingino</span><code id="pathThingino">—</code></p></div></div>
+        </div>
+      </section>
+    </div>
+    <footer class="footer"><span>© PegineLab · Firmware Factory</span><span>PRIVATE INFRASTRUCTURE <span class="footer-separator">·</span> BUILD WITH PURPOSE</span></footer>
+  </main>
+</div>
+<div id="toast" class="toast" role="status"></div>
+</body>
+</html>
