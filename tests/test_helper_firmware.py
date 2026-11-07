@@ -22,7 +22,8 @@ class HelperFirmwareTests(unittest.TestCase):
             file=helper/"firmware/overlay"/relative
             file.parent.mkdir(parents=True,exist_ok=True)
             file.write_text(("PEGINELAB_HELPER_FIRMWARE_V1" if "release" in relative
-                 else "peginelab.camera-head.v1")+"\n")
+                 else "peginelab.camera-head.v1")+"
+")
         (camera/"rootfs").mkdir(parents=True)
         return job,helper,camera
 
@@ -75,7 +76,8 @@ class HelperFirmwareTests(unittest.TestCase):
         self.assertEqual(set(APPROVED),{
             "etc/wifcam-helper-release",
             "etc/init.d/S92wifcam-helper",
-            "usr/bin/wifcam-helper-probe",\n            "usr/bin/wifcam-helper-mode",
+            "usr/bin/wifcam-helper-probe",
+            "usr/bin/wifcam-helper-mode",
             "usr/share/wificam-web/cgi-bin/helper-capabilities",
         })
 
