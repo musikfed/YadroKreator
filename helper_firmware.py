@@ -119,7 +119,6 @@ def stage_helper_overlay(helper: Path, camera: Path, job_id: str,
         "helper_repo":"musikfed/wifcam_helper","helper_sha":helper_sha,
         "base_repo":"musikfed/wificam_T23N","base_sha":base_sha,
         "base_branch":BASE_BRANCH,"overlay_files":sorted(APPROVED),
-    },sort_keys=True)+"
-",encoding="utf-8")
+    },sort_keys=True)+"\n",encoding="utf-8")
     record.chmod(0o600)
     return record
