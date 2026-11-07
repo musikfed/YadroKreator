@@ -95,7 +95,8 @@ class T23NPreflight(unittest.TestCase):
         # A valid MBR/kernel/marker alone is insufficient for a usable Helper UI.
         tokens = (b"PEGINELAB_HELPER_FIRMWARE_V1", b"peginelab.camera-head.v1",
                   b"helper-capabilities", b'id="helperNav"',
-                  b'id="helperRobotMode"', b'id="helperVoiceMode"')
+                  b'id="helperRobotMode"', b'id="helperVoiceMode"',
+                  b"boot-jingle.s16le", b"S94peginelab-audio")
         with self.image.open("r+b") as stream:
             stream.seek(ROOT_LBA * SECTOR + 4096)
             stream.write(b" ".join(tokens[:3]))
