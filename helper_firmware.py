@@ -74,8 +74,7 @@ def checkout_helper(job_id: str, log, *, root: Path = ROOT,
         if not SHA.fullmatch(sha):
             raise RuntimeError("Invalid Helper Git SHA")
         git("-C",str(cache),"worktree","add","--detach",str(work),sha)
-    log.write(("Helper pinned main@" + sha + "
-").encode())
+    log.write(("Helper pinned main@" + sha + "\n").encode())
     return work,sha
 
 
