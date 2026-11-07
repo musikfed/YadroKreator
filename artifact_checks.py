@@ -184,7 +184,8 @@ def validate_helper_t23n(path: Path) -> dict:
     result=validate_t23n(path)
     required={b"PEGINELAB_HELPER_FIRMWARE_V1",b"peginelab.camera-head.v1",
               b"helper-capabilities",b'id="helperNav"',
-              b'id="helperRobotMode"',b'id="helperVoiceMode"'}
+              b'id="helperRobotMode"',b'id="helperVoiceMode"',
+              b"boot-jingle.s16le",b"S94peginelab-audio"}
     found=set()
     with path.open("rb") as stream:
         root=result["partitions"][1]
@@ -199,7 +200,7 @@ def validate_helper_t23n(path: Path) -> dict:
             window=previous+chunk
             found.update(token for token in required if token in window)
             previous=window[-128:]
-    _must(found==required,"Helper marker, CGI, or functional role UI missing from ext4 image")
+    _must(found==required,"Helper marker, CGI, role UI, or boot audio missing from ext4 image")
     result["profile"]="t23n_helper_sd"
     result["helper_overlay_verified"]=True
     result["helper_role_ui_verified"]=True
