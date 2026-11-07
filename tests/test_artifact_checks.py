@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from artifact_checks import artifact_path, validate_t23n, layout_svg, save_report, saved_report
+from artifact_checks import artifact_path, validate_t23n, validate_helper_t23n, layout_svg, save_report, saved_report
 
 SECTOR = 512
 ROOT_LBA = 34816
@@ -89,6 +89,27 @@ class T23NPreflight(unittest.TestCase):
         save_report(self.job["id"], result, image, self.root / "factory-state")
         loaded = saved_report(self.job, self.root, self.root / "factory-state")
         self.assertTrue(loaded["verified"])
+
+
+    def test_helper_candidate_requires_web_role_controls_inside_rootfs(self):
+        # A valid MBR/kernel/marker alone is insufficient for a usable Helper UI.
+        tokens = (b"PEGINELAB_HELPER_FIRMWARE_V1", b"peginelab.camera-head.v1",
+                  b"helper-capabilities", b'id="helperNav"',
+                  b'id="helperRobotMode"', b'id="helperVoiceMode"')
+        with self.image.open("r+b") as stream:
+            stream.seek(ROOT_LBA * SECTOR + 4096)
+            stream.write(b" ".join(tokens[:3]))
+        digest = hashlib.sha256(self.image.read_bytes()).hexdigest()
+        self.image.with_name(self.image.name + ".sha256").write_text(digest + "\n")
+        with self.assertRaisesRegex(ValueError, "role UI"):
+            validate_helper_t23n(self.image)
+        with self.image.open("r+b") as stream:
+            stream.seek(ROOT_LBA * SECTOR + 4096)
+            stream.write(b" ".join(tokens))
+        digest = hashlib.sha256(self.image.read_bytes()).hexdigest()
+        self.image.with_name(self.image.name + ".sha256").write_text(digest + "\n")
+        report = validate_helper_t23n(self.image)
+        self.assertTrue(report["helper_role_ui_verified"])
 
     def test_git_tracked_baseline_never_accepted_as_new_job(self):
         baseline = self.image.parents[2] / "Thingino/thingino-t23-sd.bin"
