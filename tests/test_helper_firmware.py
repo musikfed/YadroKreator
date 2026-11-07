@@ -22,8 +22,7 @@ class HelperFirmwareTests(unittest.TestCase):
             file=helper/"firmware/overlay"/relative
             file.parent.mkdir(parents=True,exist_ok=True)
             file.write_text(("PEGINELAB_HELPER_FIRMWARE_V1" if "release" in relative
-                 else "peginelab.camera-head.v1")+"
-")
+                 else "peginelab.camera-head.v1")+"\n")
         (camera/"rootfs").mkdir(parents=True)
         return job,helper,camera
 
