@@ -25,7 +25,8 @@ SHA = re.compile(r"[0-9a-f]{40}\Z")
 APPROVED = {
     "etc/wifcam-helper-release": 0o644,
     "etc/init.d/S92wifcam-helper": 0o755,
-    "usr/bin/wifcam-helper-probe": 0o755,\n    "usr/bin/wifcam-helper-mode": 0o755,
+    "usr/bin/wifcam-helper-probe": 0o755,
+    "usr/bin/wifcam-helper-mode": 0o755,
     "usr/share/wificam-web/cgi-bin/helper-capabilities": 0o755,
 }
 MARKER = b"PEGINELAB_HELPER_FIRMWARE_V1"
@@ -73,7 +74,8 @@ def checkout_helper(job_id: str, log, *, root: Path = ROOT,
         if not SHA.fullmatch(sha):
             raise RuntimeError("Invalid Helper Git SHA")
         git("-C",str(cache),"worktree","add","--detach",str(work),sha)
-    log.write(("Helper pinned main@" + sha + "\n").encode())
+    log.write(("Helper pinned main@" + sha + "
+").encode())
     return work,sha
 
 
@@ -118,6 +120,7 @@ def stage_helper_overlay(helper: Path, camera: Path, job_id: str,
         "helper_repo":"musikfed/wifcam_helper","helper_sha":helper_sha,
         "base_repo":"musikfed/wificam_T23N","base_sha":base_sha,
         "base_branch":BASE_BRANCH,"overlay_files":sorted(APPROVED),
-    },sort_keys=True)+"\n",encoding="utf-8")
+    },sort_keys=True)+"
+",encoding="utf-8")
     record.chmod(0o600)
     return record
