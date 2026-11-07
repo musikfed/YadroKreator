@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "id": "YadroKreator",
+  "title": "PegineLab YadroKreator",
+  "version": "—",
+  "description": "Теперь у каждого действующего сборочного проекта своя страница: Git-исходники, «Создать», «Проверить», «Скачать», журнал, история заданий и собственный каталог артефактов со статусами и кнопкой адресной очистки. WIFICAM и отдельная SD-прошивка WifCam Helper компилируются на CORE в независимых деревьях; Irila запускает свой проверенный workflow GitH",
+  "subtitle": "Firmware & Kernel Factory",
+  "tags": [
+    "Python"
+  ],
+  "visibility": "public",
+  "publication": "publish_on_merge",
+  "public_private_approved": false,
+  "display_mode": "diagram",
+  "status": "Черновик — ожидает проверки",
+  "repo_url": "https://github.com/musikfed/YadroKreator",
+  "screenshots": [],
+  "cover": "vitrine/generated/cover.svg",
+  "cover_type": "schematic-not-screenshot",
+  "screenshot_source": "not-available"
+}
