@@ -25,7 +25,7 @@ SHA = re.compile(r"[0-9a-f]{40}\Z")
 APPROVED = {
     "etc/wifcam-helper-release": 0o644,
     "etc/init.d/S92wifcam-helper": 0o755,
-    "usr/bin/wifcam-helper-probe": 0o755,
+    "usr/bin/wifcam-helper-probe": 0o755,\n    "usr/bin/wifcam-helper-mode": 0o755,
     "usr/share/wificam-web/cgi-bin/helper-capabilities": 0o755,
 }
 MARKER = b"PEGINELAB_HELPER_FIRMWARE_V1"
