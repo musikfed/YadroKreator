@@ -44,7 +44,7 @@ class HelperFirmwareTests(unittest.TestCase):
             output.setnchannels(1)
             output.setsampwidth(2)
             output.setframerate(SAMPLE_RATE)
-            output.writeframes(b"\\0\\0" * SAMPLE_RATE)
+            output.writeframes(bytes(2 * SAMPLE_RATE))
         return job,helper,camera
 
     def test_separate_rootfs_and_dual_source_pins(self):
