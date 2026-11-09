@@ -111,6 +111,32 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.client.post("/api/helper/service/prune",
                          headers={"X-PegineLab-Action":"1"}).status_code,404)
 
+    def test_explicit_firmware_git_refresh_is_not_build_or_panel_update(self):
+        import app as dashboard
+        fake = {"profile":"t23n_helper_sd",
+                "sources":[{"name":"Helper","sha":"a"*40,"branch":"main"},
+                           {"name":"WIFICAM base","sha":"b"*40,"branch":"mymarrchWFcam"}]}
+        html = self.client.get("/").get_data(as_text=True)
+        self.assertIn('id="helperSourcesRefresh"', html)
+        self.assertIn('id="wificamSourcesRefresh"', html)
+        url = "/api/firmware-sources/t23n_helper_sd/refresh"
+        self.assertEqual(self.client.post(url, json={"branch":"main"}).status_code,403)
+        with patch.object(dashboard,"allow_private_export",return_value=True), \\
+             patch.object(dashboard,"update_view",return_value={"phase":"success"}), \\
+             patch.object(dashboard,"refresh_sources",return_value=fake) as refresh, \\
+             patch.object(dashboard,"get_source_status",return_value=fake) as status:
+            result = self.client.post(url, headers={"X-PegineLab-Action":"1"},
+                                      json={"branch":"main"})
+            self.assertEqual(result.status_code,200)
+            self.assertEqual(result.json["sources"][1]["sha"],"b"*40)
+            refresh.assert_called_once_with("t23n_helper_sd","main")
+            read = self.client.get("/api/firmware-sources/t23n_helper_sd")
+            self.assertEqual(read.status_code,200)
+            status.assert_called_once_with("t23n_helper_sd",None)
+            bad = self.client.post(url, headers={"X-PegineLab-Action":"1"},
+                                   json={"origin":"evil"})
+            self.assertEqual(bad.status_code,400)
+
     def test_overview_without_login(self):
         overview = self.client.get("/api/overview")
         self.assertEqual(overview.status_code, 200)
