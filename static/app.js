@@ -1005,6 +1005,46 @@ async function panelServiceAction(action) {
     if(!panelReconnect && panelServiceState)renderPanelService(panelServiceState);
   }
 }
+// Firmware sources are refreshed independently from panel updates and compilation.
+function renderFirmwareSources(profile, state, refreshed=false) {
+  const target=$(profile==="t23n_helper_sd"?"helperSourcesStatus":"wificamSourcesStatus");
+  target.replaceChildren();
+  const title=element("p","muted",refreshed?
+    "✓ GitHub получен. Новая сборка будет брать эти версии (при старте Git fetch повторится).":
+    "Последний SHA в локальном Git-кэше (для проверки свежести нажми кнопку выше).");
+  target.append(title);
+  for(const source of state.sources){
+    const row=element("div","firmware-source-row");
+    const label=element("span","",source.name+" · "+source.branch);
+    const sha=element("code","",source.sha||"Ещё не загружен");
+    sha.title=source.repository;
+    row.append(label,sha);
+    target.append(row);
+  }
+}
+async function firmwareSourceAction(profile, refresh=false) {
+  const helper=profile==="t23n_helper_sd";
+  const target=$(helper?"helperSourcesStatus":"wificamSourcesStatus");
+  const button=$(helper?"helperSourcesRefresh":"wificamSourcesRefresh");
+  if(button.disabled)return;
+  button.disabled=true;
+  const branch=helper?"main":$("sourceBranch").value;
+  if(refresh)target.textContent="Загружаем исходники напрямую с GitHub; сборка не запускается…";
+  try{
+    const state=await api("/api/firmware-sources/"+profile+
+      (refresh?"/refresh":"?branch="+encodeURIComponent(branch)),
+      refresh?{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({branch})}:{});
+    // Branch may have changed while the request was being served.
+    if(!helper && $("sourceBranch").value!==branch)return;
+    renderFirmwareSources(profile,state,refresh);
+    if(refresh)toast("Git источники обновлены, SHA сохранены в локальном кэше");
+  }catch(error){
+    target.textContent="Не удалось прочитать Git-источники: "+error.message;
+    if(refresh)toast("Git fetch: "+error.message);
+  }finally{button.disabled=false;}
+}
+
 async function start() {
   const branch=$("sourceBranch").value;
   const helper_preset=false; // Distinct Helper SD flavor lives in its own project.
@@ -1022,6 +1062,11 @@ async function stop() {
 async function init() {
   $("clock").textContent=new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"});
   setTab();window.addEventListener("hashchange",setTab);
+  $("wificamSourcesRefresh").addEventListener("click",()=>firmwareSourceAction("t23n_sd",true));
+  $("helperSourcesRefresh").addEventListener("click",()=>firmwareSourceAction("t23n_helper_sd",true));
+  $("sourceBranch").addEventListener("change",()=>firmwareSourceAction("t23n_sd"));
+  void firmwareSourceAction("t23n_sd");
+  void firmwareSourceAction("t23n_helper_sd");
   $("newBuild").addEventListener("click",start);
   $("helperCreateFirmware").addEventListener("click",startHelperFirmware);
   $("helperStopBuild").addEventListener("click",stopHelperFirmware);
