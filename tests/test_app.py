@@ -121,10 +121,10 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('id="wificamSourcesRefresh"', html)
         url = "/api/firmware-sources/t23n_helper_sd/refresh"
         self.assertEqual(self.client.post(url, json={"branch":"main"}).status_code,403)
-        with patch.object(dashboard,"allow_private_export",return_value=True), \\
-             patch.object(dashboard,"update_view",return_value={"phase":"success"}), \\
-             patch.object(dashboard,"refresh_sources",return_value=fake) as refresh, \\
-             patch.object(dashboard,"get_source_status",return_value=fake) as status:
+        with (patch.object(dashboard,"allow_private_export",return_value=True),
+              patch.object(dashboard,"update_view",return_value={"phase":"success"}),
+              patch.object(dashboard,"refresh_sources",return_value=fake) as refresh,
+              patch.object(dashboard,"get_source_status",return_value=fake) as status):
             result = self.client.post(url, headers={"X-PegineLab-Action":"1"},
                                       json={"branch":"main"})
             self.assertEqual(result.status_code,200)
