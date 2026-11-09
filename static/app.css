@@ -261,3 +261,12 @@ html{scroll-behavior:smooth}
   .factory-heading-actions{justify-content:flex-start}
   .factory-build-grid{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Explicit firmware Git source controls — separate from factory app updater. */
+.firmware-source-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:15px 0 9px}
+.firmware-source-status{background:#101a28;border:1px solid #2b4152;border-radius:10px;padding:12px 14px;margin:10px 0 18px;overflow-wrap:anywhere}
+.firmware-source-status p{margin:0 0 8px;line-height:1.5}
+.firmware-source-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:7px 0;border-top:1px solid #2a394a}
+.firmware-source-row span{font-size:12px;color:#b3cce0}
+.firmware-source-row code{font:11px/1.4 ui-monospace,monospace;color:var(--mint);overflow-wrap:anywhere}
+@media(max-width:700px){.firmware-source-row{align-items:flex-start;flex-direction:column;gap:3px}}

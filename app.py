@@ -20,6 +20,7 @@ from artifact_checks import artifact_path, validate_t23n, validate_helper_t23n, 
 from export_policy import allow_private_export
 from helper_profiles import load_helper_profile, snapshot_profile
 from helper_service import status as helper_status, lifecycle as helper_lifecycle
+from firmware_sources import get_source_status, refresh_sources
 from artifact_catalog import classify as classify_artifact, purge_file as purge_local_artifact
 from github_artifacts import list_artifacts as list_github_artifacts, delete_artifact as delete_github_artifact, dispatch_irila
 from project_profiles import (PROFILES, IRILA_IMAGE_WORKFLOW, profile_workspace,
@@ -257,6 +258,34 @@ def helper_service_action(action):
     if not helper_lifecycle(action):
         return jsonify(error="Helper systemd user service could not change state"), 503
     return jsonify(ok=True, action=action, helper=helper_status())
+
+
+@app.get("/api/firmware-sources/<profile>")
+def firmware_git_status(profile):
+    try:
+        branch = request.args.get("branch")
+        return jsonify(get_source_status(profile, branch))
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+
+
+@app.post("/api/firmware-sources/<profile>/refresh")
+def firmware_git_refresh(profile):
+    # This changes only allowlisted Git caches, not any running build or SD image.
+    if not allow_private_export(request):
+        return jsonify(error="Source refresh is trusted LAN/VPN only"), 403
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict) or set(data) - {"branch"}:
+        return jsonify(error="Invalid source refresh request"), 400
+    update = update_view()
+    if update.get("phase") in ("queued", "running") and update.get("action") in ("apply", "rollback"):
+        return jsonify(error="Dashboard update in progress"), 409
+    try:
+        return jsonify(refresh_sources(profile, data.get("branch")))
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+        return jsonify(error="Git source refresh failed; existing builds are unchanged"), 503
 
 
 @app.get("/api/projects/<slug>/git-ref")

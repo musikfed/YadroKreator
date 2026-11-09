@@ -91,6 +91,8 @@
             <option value="mymarrchWFcam" selected>mymarrchWFcam — текущие наработки</option>
             <option value="main">main — объединённая ветка</option>
           </select>
+          <div class="firmware-source-bar"><button id="wificamSourcesRefresh" class="secondary" type="button">↻ Обновить исходники GitHub</button><span class="muted">Без сборки ядра и изменения существующих образов</span></div>
+          <div id="wificamSourcesStatus" class="firmware-source-status" aria-live="polite">Читаем локально сохранённые Git SHA…</div>
           <p class="muted">Обычная WIFICAM и отдельная прошивка WifCam Helper теперь собираются в двух самостоятельных цехах. Для камеры-ассистента используй вкладку «WifCam Helper» рядом с WIFICAM.</p>
           <p class="muted">Источник: github.com/musikfed/wificam_T23N · загрузка по Git непосредственно на сервере · PUBLISH=0</p>
         </div>
@@ -166,6 +168,9 @@
         <div class="surface project-detail" style="margin-bottom:20px">
           <div class="surface-head"><div><small>GITHUB HELPER + WIFICAM BASE → HUANANZHI → SD</small><h3>Два независимых источника, одна проверенная сборка</h3></div></div>
           <p>Основной проект <code>musikfed/wifcam_helper / main</code> содержит собственную rootfs-надстройку для камеры. Зафиксированная база: <code>musikfed/wificam_T23N / mymarrchWFcam</code>. В сборке автоматически сохраняются оба Git SHA, базовый WIFICAM не заменяется.</p>
+          <div class="firmware-source-bar"><button id="helperSourcesRefresh" class="secondary" type="button">↻ Обновить оба источника GitHub</button><span class="muted">Только Git fetch, без компиляции и записи SD</span></div>
+          <div id="helperSourcesStatus" class="firmware-source-status" aria-live="polite">Читаем локально сохранённые Git SHA…</div>
+          
           <p class="muted">Один реальный SD-образ, а не копия обычной WIFICAM или запуск Python-стенда. После записи через Rufus нужны физические тесты RTSP, SC2336, микрофона и динамика; наличие кода не гарантирует аппаратную работу.</p>
         </div>
         <div class="build-layout factory-build-grid">
