@@ -17,7 +17,7 @@ from pathlib import Path
 
 from core import ROOT
 from project_profiles import job_root, project_cache_root
-from helper_audio import read_score, render_score
+from helper_audio import inspect_voice, stage_voice, WAV_PATH
 
 ORIGIN = "https://github.com/musikfed/wifcam_helper.git"
 BRANCH = "main"
@@ -39,7 +39,7 @@ APPROVED_UI = {
     "app.js": 70000,
     "assets/peginelab-logo.svg": 35000,
 }
-SCORE_PATH = "firmware/audio/boot-jingle.json"
+VOICE_PATH = WAV_PATH
 MARKER = b"PEGINELAB_HELPER_FIRMWARE_V1"
 
 def checkout_helper(job_id: str, log, *, root: Path = ROOT,
@@ -129,7 +129,9 @@ def stage_helper_overlay(helper: Path, camera: Path, job_id: str,
         raise ValueError("Helper UI must retain the native WIFICAM safety identity")
     if b"helper-capabilities" not in (ui_root / "app.js").read_bytes():
         raise ValueError("Helper UI must retain authenticated camera head controls")
-    score = read_score(helper / SCORE_PATH)
+    # Validate the real synthesized speech BEFORE any rootfs modifications.
+    # No shell/Python fetched from the Helper repo is executed on the builder.
+    inspect_voice(helper / VOICE_PATH)
     for relative in APPROVED:
         target = camera / "rootfs" / relative
         if target.exists() or target.is_symlink():
@@ -145,7 +147,7 @@ def stage_helper_overlay(helper: Path, camera: Path, job_id: str,
     audio_path = camera / "web/assets"
     if any(parent.is_symlink() for parent in (audio_path, *audio_path.parents)):
         raise ValueError("Symlink in Helper sound target path")
-    for filename in ("boot-jingle.wav", "boot-jingle.s16le"):
+    for filename in ("boot-voice.wav", "boot-voice.s16le"):
         target = audio_path / filename
         if target.is_symlink() or (target.exists() and not target.is_file()):
             raise ValueError("Unsafe existing Helper sound target")
@@ -172,13 +174,19 @@ def stage_helper_overlay(helper: Path, camera: Path, job_id: str,
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
         target.chmod(0o644)
-    wav, pcm = render_score(score, audio_path)
+    # The base checkout may have older generated music; suppress it for Helper
+    # in the private job so it can never shadow the spoken boot phrase.
+    for stale in ("boot-jingle.wav", "boot-jingle.s16le"):
+        old = audio_path / stale
+        if old.is_symlink():
+            raise ValueError("Unsafe old chiptune symlink in Helper job")
+        old.unlink(missing_ok=True)
+    wav, pcm = stage_voice(helper / VOICE_PATH, audio_path)
     digests = {}
     for relative in APPROVED_UI:
         digests["ui/" + relative] = hashlib.sha256((ui_root / relative).read_bytes()).hexdigest()
-    digests["audio/boot-jingle.json"] = hashlib.sha256((helper / SCORE_PATH).read_bytes()).hexdigest()
-    digests["audio/boot-jingle.wav"] = hashlib.sha256(wav.read_bytes()).hexdigest()
-    digests["audio/boot-jingle.s16le"] = hashlib.sha256(pcm.read_bytes()).hexdigest()
+    digests["audio/boot-voice.wav"] = hashlib.sha256(wav.read_bytes()).hexdigest()
+    digests["audio/boot-voice.s16le"] = hashlib.sha256(pcm.read_bytes()).hexdigest()
     record=base_job/"source-pins.json"
     record.write_text(json.dumps({
         "schema":"peginelab.helper-firmware-pins.v1",
