@@ -40,7 +40,7 @@ def _git(*args: str, timeout: int = 45) -> str:
 
 
 def _cached_sha(cache: Path, branch: str) -> str | None:
-    if not cache.is_dir():
+    if cache.is_symlink() or not cache.is_dir():
         return None
     try:
         sha = _git("-C", str(cache), "rev-parse", "--verify",
@@ -74,10 +74,12 @@ def refresh_sources(profile: str, branch: str | None = None, *, root: Path = ROO
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         for name, origin, ref, filename in specs:
             cache = cache_root / filename
+            if cache.is_symlink():
+                raise ValueError("Unsafe Git cache symlink")
             if not cache.exists():
                 _git("init", "--bare", str(cache))
                 _git("-C", str(cache), "remote", "add", "origin", origin)
-            if cache.is_symlink() or not cache.is_dir():
+            if not cache.is_dir():
                 raise ValueError("Unsafe Git cache path")
             actual = _git("-C", str(cache), "remote", "get-url", "origin")
             if actual != origin:
