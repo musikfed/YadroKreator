@@ -20,17 +20,20 @@ MAX_WAV_BYTES = (SAMPLE_RATE * MAX_SECONDS * 2) + 4096
 def inspect_voice(path: Path) -> tuple[int, bytes]:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_WAV_BYTES:
         raise ValueError("Missing, unsafe or oversized Helper voice WAV asset; run its GitHub voice workflow")
-    with wave.open(str(path), "rb") as reader:
-        if (reader.getnchannels(), reader.getframerate(), reader.getsampwidth(),
-                reader.getcomptype()) != (1, SAMPLE_RATE, 2, "NONE"):
-            raise ValueError("Helper voice must be PCM signed 16-bit mono 16000Hz WAV")
-        frames = reader.getnframes()
-        if not (SAMPLE_RATE * MIN_SECONDS <= frames <= SAMPLE_RATE * MAX_SECONDS):
-            raise ValueError("Helper startup phrase must last 1–15 seconds")
-        payload = reader.readframes(frames)
-        if len(payload) != frames * 2:
-            raise ValueError("Truncated Helper voice WAV")
-        return frames, payload
+    try:
+        with wave.open(str(path), "rb") as reader:
+            if (reader.getnchannels(), reader.getframerate(), reader.getsampwidth(),
+                    reader.getcomptype()) != (1, SAMPLE_RATE, 2, "NONE"):
+                raise ValueError("Helper voice must be PCM signed 16-bit mono 16000Hz WAV")
+            frames = reader.getnframes()
+            if not (SAMPLE_RATE * MIN_SECONDS <= frames <= SAMPLE_RATE * MAX_SECONDS):
+                raise ValueError("Helper startup phrase must last 1–15 seconds")
+            payload = reader.readframes(frames)
+            if len(payload) != frames * 2:
+                raise ValueError("Truncated Helper voice WAV")
+            return frames, payload
+    except (wave.Error, EOFError, OSError) as exc:
+        raise ValueError("Invalid or truncated Helper voice WAV") from exc
 
 
 def stage_voice(source: Path, target: Path) -> tuple[Path, Path]:
