@@ -112,6 +112,9 @@ def main(job_id: str) -> int:
                     raise RuntimeError("WIFICAM build script missing in pinned Git revision")
                 log.write(f"WIFICAM base = {BASE_BRANCH if job['profile']=='t23n_helper_sd' else job['repo_ref']} @ {sha}\n".encode())
                 log.write(b"PUBLISH=0: candidate stays local; no Git push or SD flashing.\n")
+                # Distinguish Helper from normal WIFICAM at build time so only
+                # its image suppresses the upstream startup voice/chiptune.
+                env["WIFICAM_HELPER_EDITION"] = "1" if job["profile"] == "t23n_helper_sd" else "0"
                 extra = job_env(job_id, root=ROOT, branch=job["repo_ref"]) if job["profile"] == "t23n_sd" else {}
                 if extra:
                     env.update(extra)
